@@ -8,10 +8,12 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "protocol" : { "type": "string" },
+        "tls": { "type": "boolean" },
         "interval": { "type": "integer" },
         "jitter": { "type": "integer" }
       },
-      "required": ["urls", "interval", "jitter"]
+      "required": ["urls", "interval", "protocol", "tls", "jitter"]
     },
     "implants": {
       "type": "object",

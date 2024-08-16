@@ -2,7 +2,6 @@
 members = [
     "malefic",
     "malefic-modules",
-    "malefic-win-kit",
     "malefic-helper",
     "malefic-trait", 
     "malefic-config"

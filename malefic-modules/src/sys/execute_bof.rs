@@ -27,9 +27,14 @@ impl Module for ExecuteBof {
             } else {
                 ep = request.entry_point.as_ptr() // ep = Some(request.entry_point);
             }
-            let str_slices: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-            let str_args: *const *const u8 = str_slices.as_ptr() as *const *const u8;
-            let ret = unsafe {MaleficBofLoader(bin.as_ptr(), bin.len(), str_args, ep)};
+            let c_strings: Vec<_> = args
+                    .iter()
+                    .map(|s| {
+                        let c_str = std::ffi::CString::new(s.as_str()).unwrap();
+                        c_str.into_raw()
+                    })
+                    .collect();
+            let ret = unsafe {MaleficBofLoader(bin.as_ptr(), bin.len(), c_strings.as_ptr() as _, c_strings.len(), ep)};
             if ret.is_null() {
                 to_error!(Err("Bof Loader failed!".to_string()))?
             }

