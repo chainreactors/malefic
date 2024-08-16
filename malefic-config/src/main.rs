@@ -28,6 +28,8 @@ struct Implant {
 struct Service {
     name: String,
     urls: Vec<String>,
+    protocol: String,
+    tls: bool,
     proxy: String,
     interval: u64,
     jitter: u64,
@@ -139,6 +141,12 @@ lazy_static! {
     static ref NORMAL:String = "NORMAL".to_string();
     static ref DYNAMIC: String = "DYNAMIC".to_string();
     static ref SYSCALLS: String = "SYSCALLS".to_string();
+
+    static ref TCP: String = "tcp".to_string();
+    static ref COMMON_TRANSPORT_TCP: String = "Common_Transport_Tcp".to_string();
+    static ref COMMON_TRANSPORT_TLS: String = "Common_Transport_Tls".to_string();
+    static ref PROTOCOL_TCP: String = "protocol_tcp".to_string();
+    static ref PROTOCOL_TLS: String = "protocol_tls".to_string();
 }
 
 
@@ -200,8 +208,8 @@ fn main() {
     let config = load_yaml_config(&CONFIG_YAML_PATH);
     validate_yaml_config(&CONFIG_YAML_PATH, &CONFIG_SCHEMA_PATH);
     update_core(config.server.clone());
-    update_core_toml(&CONFIG_CORE_TOML_PATH, config.implants.clone(), professional);
-    update_winkit_toml(&CONFIG_WINKIT_TOML_PATH, config.implants.clone(), professional);
+    update_core_toml(&CONFIG_CORE_TOML_PATH, config.implants.clone(), config.server.clone(), professional);
+    // update_winkit_toml(&CONFIG_WINKIT_TOML_PATH, config.implants.clone(), professional);
     update_module_toml(&CONFIG_MODULE_TOML_PATH, config.implants.modules.clone(), professional);
-    update_helper_toml(&CONFIG_HELPER_TOML_PATH, professional);
+    update_helper_toml(&CONFIG_HELPER_TOML_PATH, config.server.clone(), professional);
 }

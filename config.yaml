@@ -2,6 +2,8 @@ server:
   name: "malefic"
   urls:
     - "127.0.0.1:5001"
+  protocol: "tcp"
+  tls: false
   proxy: ""
   interval: 1000
   jitter: 10

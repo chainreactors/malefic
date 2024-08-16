@@ -9,4 +9,4 @@ services:
     volumes:
       - ./:/root/src/
     working_dir: /root/src
-    command: bash -c "cargo clean && cargo build --target x86_64-pc-windows-gnu --release"
+    command: tail -f /dev/null

@@ -35,7 +35,7 @@ pub fn update_core(server: Service) {
     buf.push_str(");\n");
     
     if server.ca.is_empty() {
-        buf.push_str("pub static CA: &'static [u8] = vec![1;0];");
+        buf.push_str("pub static CA: &'static [u8] = b\"1\";");
     } else {
         let ca = std::format!(
             "pub static CA: &'static [u8] = include_bytes!(\"{}\");",
@@ -49,7 +49,7 @@ pub fn update_core(server: Service) {
 }
 
 
-pub fn update_core_toml(cargo_toml_path: &str,implant_config: ImplantConfig, professional: bool) {
+pub fn update_core_toml(cargo_toml_path: &str,implant_config: ImplantConfig, service: Service, professional: bool) {
     let cargo_toml_content = fs::read_to_string(cargo_toml_path)
         .expect("Failed to read Cargo.toml file");
 
@@ -62,6 +62,12 @@ pub fn update_core_toml(cargo_toml_path: &str,implant_config: ImplantConfig, pro
         if implant_config.register_info {
             default_array.push("register_info".to_string());
         }
+        if service.tls {
+            default_array.push("protocol_tls".to_string());
+        } else {
+            default_array.push("protocol_tcp".to_string());
+        }
+
         features[&"default"] = Item::Value(default_array.into());
     }
 
