@@ -1,0 +1,23 @@
+cargo-features = ["profile-rustflags"]
+[package]
+name = "malefic-trait"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[profile.release]
+panic = "abort"
+panic_unwind = false
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1
+incremental = false
+rustflags = ["-Z", "trim-diagnostic-paths"]
+
+[dependencies]
+syn = { version = "2.0.55", features = ["full"]}
+quote = "1.0"
+proc-macro2 = "1.0"

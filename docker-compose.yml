@@ -1,0 +1,12 @@
+version: "3"
+services:
+  rust-builder:
+    image: rust-builder
+    container_name: implant-builder
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/root/src/
+    working_dir: /root/src
+    command: bash -c "cargo clean && cargo build --target x86_64-pc-windows-gnu --release"

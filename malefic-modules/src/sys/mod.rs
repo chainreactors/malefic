@@ -1,0 +1,19 @@
+pub mod exec;
+pub mod execute_shellcode;
+pub mod ps;
+pub mod netstat;
+pub mod env;
+pub mod whoami;
+// mod reg;
+pub mod kill;
+// mod spawn;
+
+#[cfg(target_os = "windows")]
+pub mod execute_assemble;
+#[cfg(target_os = "windows")]
+pub mod execute_bof;
+#[cfg(target_os = "windows")]
+pub mod execute_pe;
+#[cfg(target_os = "windows")]
+pub mod execute_powershell;
+pub mod info;

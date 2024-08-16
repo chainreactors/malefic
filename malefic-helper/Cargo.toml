@@ -1,0 +1,130 @@
+cargo-features = ["profile-rustflags"]
+[package]
+name = "malefic-helper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.test]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+panic_unwind = false
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1
+incremental = false
+rustflags = ["-Z", "trim-diagnostic-paths"]
+
+[features]
+No_Std = []
+
+Common = []
+Common_Transport = ["Common"]
+Common_Transport_Dns = ["Common_Transport"]
+Common_Transport_Http = ["Common_Transport"]
+Common_Transport_Tls = ["Common_Transport"]
+Common_Transport_Tcp = ["Common_Transport"]
+Common_Transport_Wireguard = ["Common_Transport"]
+
+Loader = []
+Loader_Mei = ["Loader"]
+Loader_Mei_Asm = ["Loader_Mei"]
+Loader_Mei_Apc = ["Loader_Mei"]
+Loader_Mei_Fiber = ["Loader_Mei"]
+Loader_Mei_Func_Pointer = ["Loader_Mei"]
+Loader_Mei_Process =["Loader_Mei"]
+Loader_Mei_Thread = ["Loader_Mei"]
+Loader_Wang = ["Loader"]
+Loader_Wang_Memfd = ["Loader_Wang"]
+Loader_Wang_Pthread = ["Loader_Wang"]
+Loader_Wang_Spawn = ["Loader_Wang"]
+Loader_Wang_Func_Pointer = ["Loader_Wang"]
+
+
+Win = []
+Win_Types = ["Win", "No_Std"]
+Win_Types_Memory = ["Win_Types"]
+Win_Types_LibraryLoader = ["Win_Types"]
+Win_Types_Diagnostics = ["Win_Types"]
+Win_Types_SystemServices = ["Win_Types"]
+Win_Types_Utils = ["Win_Types"]
+Win_Dynamic = ["Win"]
+Win_Reg = ["Win"]
+
+Darwin = []
+Linux = []
+Unix = []
+
+default = [
+        "Common_Transport_Tcp",
+        "Win",
+        "Loader_Mei_Apc", "professional"]
+
+community = []
+professional = []
+
+[dependencies]
+async-trait = "0.1.79"
+futures = "0.3.30"
+cfg-if = "1.0"
+goblin = "0.8.0"
+obfstr = "0.4.3"
+# futures = "0.3"
+lazy_static = "1.4.0"
+thiserror = "1.0.58"
+sysinfo = "0.31.2"
+whoami = "1.5.1"
+netstat2 = "0.9"
+sha2 = "0.10"
+digest = "0.10"
+prost = "0.13.1"
+detour = { git = "https://github.com/Hpmason/detour-rs", branch = "fix-nightly1.67.0-changes" }
+# async-tls = "0.13"
+rustls = "0.20.6"
+rustls-pemfile = "1.0"
+# syscalls = "0.6.15"
+[dependencies.async-std]
+version = "1.7.0"
+features = ["unstable", "attributes"]
+[dependencies.async-tls]
+version = "0.12.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+# malefic-win-kit = {path = "../malefic-win-kit"}
+winapi = { version = "0.3.9", features = ["sysinfoapi", "ws2def", "winbase", "minwindef", "winnt", "winnls", "sddl", "errhandlingapi", "memoryapi", "lmaccess", "lmapibuf"] }
+ntapi = "0.4.1"
+windows = { version = "0.52.0", features = [
+        "Win32_System_Threading",
+        "Win32_System_Memory",
+        "Win32_System_Diagnostics_ToolHelp",
+        "Win32_Foundation",
+        "Win32_Security",
+        "Win32_System_Registry",
+        "Win32_System_Console",
+        "Win32_System_LibraryLoader",
+]}
+windows-sys = { version = "0.52.0", features = [
+        "Win32_System_Threading",
+        "Win32_System_Memory",
+        "Win32_Foundation",
+        "Win32_System_Registry",
+        "Win32_System_LibraryLoader",
+]}
+malefic-win-kit = { path = "../malefic-win-kit" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+nix = "0.28.0"
+windows = {version = "0.52.0", features = ["Win32_Foundation"]}
+
+
+
+[build-dependencies]
+prost-build = "0.13.1"
+lazy_static = "1.4.0"
