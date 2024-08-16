@@ -1,7 +1,4 @@
 # implant
 
-# Usage
-build implant
-```shell
-docker-compose up -d --build
-```
+
+https://chainreactors.github.io/wiki/IoM/implant/
