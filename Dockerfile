@@ -10,8 +10,7 @@ ENV RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
 ENV PATH=$PATH:/root/.cargo/bin
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     . "$HOME/.cargo/env" && \
-    rustup default nightly && \
-    rustup toolchain install nightly-2023-12-12 && \
+    rustup default nightly-2024-08-16 && \
     rustup target add x86_64-pc-windows-gnu && \
     rustup target add i686-pc-windows-gnu && \
     rustup target add x86_64-unknown-linux-gnu && \
