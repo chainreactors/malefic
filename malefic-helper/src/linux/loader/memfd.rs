@@ -30,7 +30,7 @@ pub unsafe fn loader(shellcode : Vec<u8>, need_output: bool) -> Result<Vec<u8>, 
     // }
 
     let size = shellcode.len();
-    let memory = MaleficChunk::new_fd(size, fd);
+    let memory = MaleficChunk::new_fd(size, fd as _);
     if memory.is_err() {
         return Err("malloc failed".to_string());
     }
