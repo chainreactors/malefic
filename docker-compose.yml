@@ -1,11 +1,8 @@
 version: "3"
 services:
   rust-builder:
-    image: rust-builder
+    image: ghcr.io/chainreactors/malefic-builder:latest
     container_name: implant-builder
-    build:
-      context: .
-      dockerfile: Dockerfile
     volumes:
       - ./:/root/src/
     working_dir: /root/src
