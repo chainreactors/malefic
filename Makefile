@@ -1,43 +1,36 @@
-.ONESHELL:
-clean:
-	cargo clean
+# <build command>=<target>
+TARGETS := \
+	darwin64=x86_64-apple-darwin \
+	darwin_aarch64=aarch64-apple-darwin \
+	win64=x86_64-pc-windows-gnu \
+	win32=i686-pc-windows-gnu \
+	linux64=x86_64-unknown-linux-gnu \
+	linux32=i686-unknown-linux-gnu
 
-.ONESHELL:
+# Release build command
+CARGO_RELEASE := cargo build --release -p malefic --target
 profile_community:
 	cargo run --release -p malefic-config community
+#	FEATURES ?=
+#	profile_community_module:
+#		cargo build --release -p malefic-modules --features $(FEATURES)
 
-.ONESHELL:
-commuinty_exe: profile_community
-	cargo build --release -p malefic
+# Define rule
+define single_build
+build_$(1): profile_community
+	echo "start to build [$(2)]"
+	@if [ "$(1)" = "darwin_aarch64" ] || [ "$(1)" = "darwin64" ]; then \
+		CC=o64-clang CXX=o64-clang++ CROSS_COMPILE=o64- $(CARGO_RELEASE) $(2); \
+	else \
+		$(CARGO_RELEASE) $(2);\
+	fi
+endef
 
-.ONESHELL:
-commuinty_run: profile_community
-	cargo run --release -p malefic
+# Generate all rules
+$(foreach target,$(TARGETS),$(eval $(call single_build,$(firstword $(subst =, ,$(target))),$(lastword $(subst =, ,$(target))))))
 
-.ONESHELL:
-community_win64: profile_community
-	cargo build --release -p malefic --target x86_64-pc-windows-gnu
+# build all
+all: $(foreach target,$(TARGETS),build_$(firstword $(subst =, ,$(target))))
 
-.ONESHELL:
-community_win32: profile_community
-	cargo build --release -p malefic --target i686-pc-windows-gnu	
-
-.ONESHELL:
-community_linux64: profile_community
-	cargo build --release -p malefic --target x86_64-unknown-linux-gnu
-
-.ONESHELL:
-community_linux32: profile_community
-	cargo build --release -p malefic --target i686-unknown-linux-gnu
-
-.ONESHELL:
-community_darwin64: profile_community
-	cargo build --release -p malefic --target x86_64-apple-darwin
-
-.ONESHELL:
-community_darwin_arm64: profile_community
-	cargo build --release -p malefic --target aarch64-apple-darwin
-
-.ONESHELL:
-debug_community: profile_community
-	cargo run -p malefic
+clean:
+	cargo clean
