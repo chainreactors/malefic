@@ -24,6 +24,12 @@ build_$(1): profile_community
 	else \
 		$(CARGO_RELEASE) $(2);\
 	fi
+
+	@if [ "$(1)" = "win64" ] || [ "$(1)" = "win32" ] ; then \
+		strip ./target/$(2)/release/malefic.exe; \
+	else \
+		strip ./target/$(2)/release/malefic; \
+	fi
 endef
 
 # Generate all rules
