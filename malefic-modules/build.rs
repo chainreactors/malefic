@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 fn main() {
     #[cfg(feature = "community")]
+    #[cfg(target_os = "windows")]
     {
         let manifest_dir = env::var("CARGO_MANIFEST_DIR")
         .expect("CARGO_MANIFEST_DIR environment variable not set");
