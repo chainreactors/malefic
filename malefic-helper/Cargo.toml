@@ -1,25 +1,7 @@
-cargo-features = ["profile-rustflags"]
 [package]
 name = "malefic-helper"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[profile.test]
-panic = "abort"
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-panic_unwind = false
-opt-level = "z"
-strip = true
-lto = true
-codegen-units = 1
-incremental = false
-rustflags = ["-Z", "trim-diagnostic-paths"]
 
 [features]
 No_Std = []
