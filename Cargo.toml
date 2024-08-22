@@ -1,8 +1,31 @@
+cargo-features = ["profile-rustflags"]
+
 [workspace]
+resolver = "2"
 members = [
     "malefic",
     "malefic-modules",
     "malefic-helper",
     "malefic-trait", 
     "malefic-config"
+]
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+strip = true
+codegen-units = 1
+incremental = false
+rustflags = [
+    "-Z", "trim-diagnostic-paths",
+    "-C", "link-arg=-Wl,--gc-sections",
+    "-C", "link-arg=-Wl,--strip-all",
+    "--cfg", "hide_path",
+    "--remap-path-prefix=/root/src=.",
 ]

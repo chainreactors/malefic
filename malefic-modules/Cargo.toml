@@ -1,7 +1,6 @@
-cargo-features = ["profile-rustflags"]
 [package]
 name = "malefic-modules"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 [lib]
@@ -13,20 +12,7 @@ crate-type = ["cdylib", "rlib"]
 # name = "custon-plugin"
 # crate-type = ["cdylib"]
 
-[profile.release]
-panic = "abort"
-panic_unwind = false
-opt-level = "z"
-strip = true
-lto = true
-codegen-units = 1
-incremental = false
-rustflags = ["-Z", "trim-diagnostic-paths"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
-
 default = ["community", "full"]
 
 full = [
