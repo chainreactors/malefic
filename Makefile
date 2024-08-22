@@ -18,7 +18,7 @@ profile_module:
 	cargo build --release -p malefic-modules --features $(FEATURES)
 
 # Define rule
-define single_build
+define build_single
 .ONESHELL:
 $(1): config
 	echo "start to build [$(2)]"
@@ -34,7 +34,7 @@ ifneq ($(findstring windows, $(2)),windows)
 endif
 	$(CARGO_RELEASE) $(2)
 endef
-$(foreach target,$(TARGETS),$(eval $(call single_build,$(firstword $(subst :, ,$(target))),$(lastword $(subst :, ,$(target))))))
+$(foreach target,$(TARGETS),$(eval $(call build_single,$(firstword $(subst :, ,$(target))),$(lastword $(subst :, ,$(target))))))
 
 # build all
 all: $(foreach target,$(TARGETS),$(firstword $(subst :, ,$(target))))
