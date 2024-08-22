@@ -61,6 +61,8 @@ base = [
     "sys_env",
 ]
 
+nano = []
+
 extend = [
     "sys_kill",
     "sys_whoami",
