@@ -46,8 +46,3 @@ lazy_static = "1.4.0"
 serde_yaml = "0.8.23"
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
-
-# [target.x86_64-pc-windows-gnu]
-# rustflags = [
-#   "-C", "link-arg=-s",
-# ]
