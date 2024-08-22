@@ -24,8 +24,6 @@ codegen-units = 1
 incremental = false
 rustflags = [
     "-Z", "trim-diagnostic-paths",
-    "-C", "link-arg=-Wl,--gc-sections",
-    "-C", "link-arg=-Wl,--strip-all",
     "--cfg", "hide_path",
     "--remap-path-prefix=/root/src=.",
 ]
