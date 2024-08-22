@@ -1,42 +1,43 @@
-# <build command>=<target>
+# <build command>:<target>
 TARGETS := \
-	darwin64=x86_64-apple-darwin \
-	darwin_aarch64=aarch64-apple-darwin \
-	win64=x86_64-pc-windows-gnu \
-	win32=i686-pc-windows-gnu \
-	linux64=x86_64-unknown-linux-gnu \
-	linux32=i686-unknown-linux-gnu
-
+	windows_x64:x86_64-pc-windows-gnu \
+	windows_x32:i686-pc-windows-gnu \
+	linux_x64:x86_64-unknown-linux-gnu \
+	linux_x32:i686-unknown-linux-gnu \
+	darwin_x64:x86_64-apple-darwin \
+	darwin_arm:aarch64-apple-darwin
 # Release build command
-CARGO_RELEASE := cargo build --release -p malefic --target
-profile_community:
-	cargo run --release -p malefic-config community
-#	FEATURES ?=
-#	profile_community_module:
-#		cargo build --release -p malefic-modules --features $(FEATURES)
+CARGO_RELEASE := cargo build --release -v -p malefic --target
+
+EDITION ?= community
+config:
+	cargo run --release -p malefic-config $(EDITION)
+
+FEATURES ?=
+profile_module:
+	cargo build --release -p malefic-modules --features $(FEATURES)
 
 # Define rule
 define single_build
-build_$(1): profile_community
+.ONESHELL:
+$(1): config
 	echo "start to build [$(2)]"
-	@if [ "$(1)" = "darwin_aarch64" ] || [ "$(1)" = "darwin64" ]; then \
-		CC=o64-clang CXX=o64-clang++ CROSS_COMPILE=o64- $(CARGO_RELEASE) $(2); \
-	else \
-		$(CARGO_RELEASE) $(2);\
-	fi
-
-	@if [ "$(1)" = "win64" ] || [ "$(1)" = "win32" ] ; then \
-		strip ./target/$(2)/release/malefic.exe; \
-	else \
-		strip ./target/$(2)/release/malefic; \
-	fi
+	rustup target add $(2)
+ifeq ($(findstring darwin, $(2)),darwin)
+	bash /build/build-osxcross.sh
+	export CC=o64-clang
+	export CXX=o64-clang++
+	export CROSS_COMPILE=o64-
+endif
+ifneq ($(findstring windows, $(2)),windows)
+	export CARGO_PROFILE_RELEASE_LTO=true
+endif
+	$(CARGO_RELEASE) $(2)
 endef
-
-# Generate all rules
-$(foreach target,$(TARGETS),$(eval $(call single_build,$(firstword $(subst =, ,$(target))),$(lastword $(subst =, ,$(target))))))
+$(foreach target,$(TARGETS),$(eval $(call single_build,$(firstword $(subst :, ,$(target))),$(lastword $(subst :, ,$(target))))))
 
 # build all
-all: $(foreach target,$(TARGETS),build_$(firstword $(subst =, ,$(target))))
+all: $(foreach target,$(TARGETS),$(firstword $(subst :, ,$(target))))
 
 clean:
 	cargo clean
