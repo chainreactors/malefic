@@ -1,6 +1,6 @@
 FROM rust:1.80-bullseye
 SHELL ["/bin/bash", "-c"]
-COPY build-osxcross.sh /build/build-osxcross.sh
+COPY builder/build-osxcross.sh /build/build-osxcross.sh
 # install basic tools
 RUN apt update \
     && apt install -y --no-install-recommends vim curl git wget mingw-w64 build-essential protobuf-compiler make gcc-multilib clang cmake libssl-dev lzma-dev libxml2-dev \
