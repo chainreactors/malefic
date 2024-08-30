@@ -25,5 +25,4 @@ incremental = false
 rustflags = [
     "-Z", "trim-diagnostic-paths",
     "--cfg", "hide_path",
-    "--remap-path-prefix=/root/src=.",
 ]
