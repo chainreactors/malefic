@@ -1,9 +1,0 @@
-version: "3"
-services:
-  rust-builder:
-    image: ghcr.io/chainreactors/malefic-builder:latest
-    container_name: implant-builder
-    volumes:
-      - ./:/root/src/
-    working_dir: /root/src
-    command: tail -f /dev/null

@@ -1,0 +1,106 @@
+name: generate malefic
+
+on:
+  workflow_dispatch:
+    inputs:
+      remark:
+        description: 'You can write something here, it will appear in the TITLE of `gh run list`, and help u find the malefic version.'
+        required: false
+        default: ''
+      release:
+        description: 'Release version (default: none, if you want to upload to a GitHub Release, create a release and provide the version).'
+        required: false
+        default: "none"
+      targets:
+        description: 'Target to compile (comma separated, e.g., x86_64-pc-windows-msvc,x86_64-unknown-linux-gnu)'
+        required: true
+      edition:
+        description: 'Edition'
+        required: false
+        default: 'community'
+      malefic_config:
+        description: 'Malefic config (Base64-encoded content of config.yaml , will be masked in logs)'
+        required: true
+
+run-name: ${{ github.event.inputs.remark }}
+
+permissions:
+  contents: write
+
+jobs:
+  set_targets:
+    runs-on: ubuntu-22.04
+    outputs:
+      targets_json: ${{ steps.set_targets.outputs.targets_json }}
+    steps:
+      - name: Set matrix
+        id: set_targets
+        run: |
+          TARGETS="${{ github.event.inputs.targets }}"
+          TARGETS_JSON=$(echo "[\"${TARGETS//,/\",\"}\"]")
+          echo "targets_json=$TARGETS_JSON" >> $GITHUB_OUTPUT
+
+  generate:
+    needs: set_targets
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.set_targets.outputs.targets_json) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Mask config content
+        run: |
+          SECRET_CONFIG_CONTENT=$(jq -r '.inputs.malefic_config' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$SECRET_CONFIG_CONTENT"
+          echo "SECRET_CONFIG_CONTENT=$SECRET_CONFIG_CONTENT" >> $GITHUB_ENV
+
+      - name: Generate config.yaml
+        run: echo "$SECRET_CONFIG_CONTENT" | base64 -d > config.yaml
+
+      - name: Install Cross
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Config malefic
+        run: |
+          cargo run --release -p malefic-config ${{ github.event.inputs.edition }}
+
+      - name: Build ${{matrix.target}}
+        run: cross build --release -p malefic --target ${{matrix.target}}
+
+      - name: Rename binary for ${{matrix.target}}
+        run: |
+          mkdir -p output/
+          if [[ -f target/${{matrix.target}}/release/malefic ]]; then
+            mv target/${{matrix.target}}/release/malefic output/malefic-${{matrix.target}}
+          else
+            mv target/${{matrix.target}}/release/malefic.exe output/malefic-${{matrix.target}}.exe
+          fi
+
+      - name: Upload artifact ${{matrix.target}}
+        if: ${{ github.event.inputs.release == 'none' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: malefic-${{matrix.target}}-${{ github.run_id }}
+          path: output/*
+          retention-days: 3 # you can change this value
+
+      - name: Release ${{ matrix.target }}
+        if: ${{ github.event.inputs.release != 'none' }} # if you want to upload to a GitHub Release, create a release and provide the version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for file in output/*; do
+            filename=$(basename "$file")
+            if [[ "$filename" == "malefic.exe" || "$filename" == "malefic" ]]; then
+              echo "Uploading $file"
+              gh release upload ${{ github.event.inputs.release }} "$file"
+            else
+              echo "Skipping $file"
+            fi
+          done
+        shell: bash
