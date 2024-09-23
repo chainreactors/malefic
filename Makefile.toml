@@ -12,7 +12,8 @@ MOUDLES_FEATURES = "nano"
 NAME_SPACE = "ghcr.io/chainreactors"
 RUST_TOOLCHAIN = "nightly-2024-08-16-latest"
 [tasks.set-env]
-env.RUSTFLAGS="""-Awarnings \
+env.RUSTFLAGS="""-A warnings \
+-A unused_variables \
 --remap-path-prefix=${CARGO_HOME}=. \
 --remap-path-prefix=${HOME}=. \
 --remap-path-prefix=malefic-modules=. \
@@ -37,6 +38,17 @@ description = "Pre-configuration setup for building the Malefic project."
 command = "cargo"
 args = ["run", "--release", "-p", "malefic-config", "${EDITION}", "${BUILD_MODE}"]
 
+[tasks.config-once]
+condition = { env = {"IS_CONFIGURED" = "false"} }
+script_runner = "@duckscript"
+script = '''
+echo "Start configuring..."
+cm_run_task config
+set_env IS_CONFIGURED true
+echo "Config finished!"
+echo "Start building..."
+'''
+
 [tasks.module]
 condition = { env_set = ["MOUDLES_FEATURES"] }
 description = "Run malefic-modules"
@@ -45,7 +57,7 @@ args = ["build", "--release", "-p", "malefic-modules", "--features", "${MOUDLES_
 
 [tasks.add-target]
 condition = { env_set = ["TARGET_TRIPLE"] }
-description = "Add target to the project"
+description = "Add target to rustup"
 command = "rustup"
 args = ["target", "add", "${TARGET_TRIPLE}"]
 
@@ -62,11 +74,10 @@ args = ["run", "-v", "${CARGO_MAKE_WORKING_DIRECTORY}/:/root/src", "--rm", "-it"
 command = "cargo"
 args = ["clean"]
 
-
-[tasks.local]
-description = "Since the local environment only supports a few simple targets, multi-target compilation is not performed here. Cross-compilation for multiple targets is implemented in Docker"
-script_runner = "@duckscript"
-script = '''
+[tasks.base-script]
+description = "Base script , define some shared variables and functions"
+script.pre = '''
+set_env IS_CONFIGURED false
 targets_map = map
 map_put ${targets_map} "windows-x64-msvc" "x86_64-pc-windows-msvc"
 map_put ${targets_map} "windows-x32-msvc" "i686-pc-windows-msvc"
@@ -76,7 +87,18 @@ map_put ${targets_map} "linux-x64-gnu" "x86_64-unknown-linux-gnu"
 map_put ${targets_map} "linux-x32-gnu" "i686-unknown-linux-gnu"
 map_put ${targets_map} "darwin-x64" "x86_64-apple-darwin"
 map_put ${targets_map} "darwin-arm" "aarch64-apple-darwin"
+'''
+script.post = '''
+echo "Building finished!"
+release ${targets_map}
+release ${key_array_to_build}
+'''
 
+[tasks.local]
+description = "Since the local environment only supports a few simple targets, multi-target compilation is not performed here. Cross-compilation for multiple targets is implemented in Docker"
+extend = "base-script"
+script_runner = "@duckscript"
+script.main = '''
 value = trim ${CARGO_MAKE_TASK_ARGS}
 if map_contains_key ${targets_map} ${value}
     value = map_get ${targets_map} ${key}
@@ -87,27 +109,14 @@ elseif map_contains_value ${targets_map} ${value}
     set_env TARGET_TRIPLE ${value}
     cm_run_task build-malefic-on-local
 else
-    echo "Uuknown target: ${value}"
+    echo "Warning:`${value}` is not a valid target!"
 end
-
-release ${targets_map}
-release ${key_array_to_build}
 '''
 
-
 [tasks.docker]
+extend = "base-script"
 script_runner = "@duckscript"
-script = '''
-targets_map = map
-map_put ${targets_map} "windows-x64-msvc" "x86_64-pc-windows-msvc"
-map_put ${targets_map} "windows-x32-msvc" "i686-pc-windows-msvc"
-map_put ${targets_map} "windows-x64-gnu" "x86_64-pc-windows-gnu"
-map_put ${targets_map} "windows-x32-gnu" "i686-pc-windows-gnu"
-map_put ${targets_map} "linux-x64-gnu" "x86_64-unknown-linux-gnu"
-map_put ${targets_map} "linux-x32-gnu" "i686-unknown-linux-gnu"
-map_put ${targets_map} "darwin-x64" "x86_64-apple-darwin"
-map_put ${targets_map} "darwin-arm" "aarch64-apple-darwin"
-
+script.main = '''
 key_array_to_build = split ${CARGO_MAKE_TASK_ARGS} ";"
 is_all = array_contains ${key_array_to_build} all
 if not equals ${is_all} false
@@ -115,9 +124,8 @@ if not equals ${is_all} false
     key_array_to_build = map_keys ${targets_map}
 end
 
-for key in ${key_array_to_build}
-    echo "Building target: ${key}"
-end
+expected_target =  array_join ${key_array_to_build} ", "
+echo "Expected targets for building: [${expected_target}]"
 
 for key in ${key_array_to_build}
     if map_contains_key ${targets_map} ${key}
@@ -129,9 +137,7 @@ for key in ${key_array_to_build}
         set_env TARGET_TRIPLE ${key}
         cm_run_task build-malefic-in-docker
     else
-        echo "Uuknown target: ${key}"
+        echo "Warning:`${value}` is not a valid target!"
     end
 end
-release ${targets_map}
-release ${key_array_to_build}
 '''
