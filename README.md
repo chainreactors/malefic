@@ -4,9 +4,14 @@
 项目采用[cargo make](https://github.com/sagiegurari/cargo-make)来管理编译任务，所以编译任务都在`Makefile.toml`中定义.
 使用完整功能请先安装cargo make和docker环境。
 ## install cargo make
+### cargo 安装
 ```bash
 cargo install --force cargo-make
 ```
+### release二进制安装
+[release](https://github.com/sagiegurari/cargo-make/releases)
+你需要把makers.exe和cargo-make.exe添加到环境变量中
+下文中的`cargo make`需要替换为`makers`即可解析
 ## 本地编译
 由于local编译一般不能支持所有平台，所以只写了单个build的编译任务，如果需要多平台交叉请使用`docker`编译.
 
@@ -20,6 +25,11 @@ cargo make local x86_64-pc-windows-gnu
 # 如下两个命令等价
 cargo make local windows-x64-msvc
 cargo make local x86_64-pc-windows-msvc
+```
+如果你使用二进制文件,用法相同参考如下
+```
+makers local windows-x64-gnu
+makers local x86_64-pc-windows-gnu
 ```
 
 ## docker编译
