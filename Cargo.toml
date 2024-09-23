@@ -17,8 +17,10 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
+panic_unwind = false
 panic = "abort"
 opt-level = "z"
+debug-assertions = false
 strip = true
 codegen-units = 1
 incremental = false

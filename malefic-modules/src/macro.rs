@@ -29,6 +29,26 @@ macro_rules! check_field {
 }
 
 #[macro_export]
+macro_rules! check_field_optional {
+    ($field:expr) => {
+        match $field {
+            Some(field) => Ok(field),
+            None => Err($crate::TaskError::FieldRequired { msg: stringify!($field).to_string()})
+        }
+    };
+    ($field:expr, $len:expr) => {
+        if $field.len() != $len {
+            Err($crate::TaskError::FieldLengthMismatch {
+                msg: format!("{} expected length {}", stringify!($field), $len)
+            })
+        } else {
+            Ok($field)
+        }
+    };
+}
+
+
+#[macro_export]
 macro_rules! to_error {
     ($expr:expr) => {
         $expr.map_err(|e| anyhow::Error::msg(e))

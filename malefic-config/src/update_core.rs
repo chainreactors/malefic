@@ -1,8 +1,8 @@
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use toml_edit::{Array, DocumentMut, Item};
-use crate::{FEATURES, ImplantConfig, Service};
+use toml_edit::{DocumentMut, Item};
+use crate::{Version, ImplantConfig, Service, FEATURES};
 
 lazy_static! {
         static ref CONFIG_FILE_GENE_PATH : &'static str = "malefic/src/config/mod.rs";
@@ -49,7 +49,7 @@ pub fn update_core(server: Service) {
 }
 
 
-pub fn update_core_toml(cargo_toml_path: &str,implant_config: ImplantConfig, service: Service, professional: bool) {
+pub fn update_core_toml(cargo_toml_path: &str,implant_config: ImplantConfig, service: Service, version: Version) {
     let cargo_toml_content = fs::read_to_string(cargo_toml_path)
         .expect("Failed to read Cargo.toml file");
 

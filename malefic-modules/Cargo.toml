@@ -1,6 +1,7 @@
+cargo-features = ["profile-rustflags"]
 [package]
 name = "malefic-modules"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 
 [lib]
@@ -12,8 +13,13 @@ crate-type = ["cdylib", "rlib"]
 # name = "custon-plugin"
 # crate-type = ["cdylib"]
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [features]
-default = ["community", "full"]
+
+default = ["source", "full"]
+
+nano = []
 
 full = [
     "fs_ls",
@@ -30,17 +36,21 @@ full = [
     "net_download",
 #    "net_curl",
     "sys_info",
-    "sys_exec",
-    "sys_execute_shellcode",
-    "sys_execute_assembly",
-    "sys_execute_powershell",
-    "sys_execute_bof",
-    "sys_execute_pe",
+    "sys_bypass",
     "sys_env",
     "sys_kill",
     "sys_whoami",
     "sys_ps",
     "sys_netstat",
+    "execute_exec",
+    "execute_shellcode",
+    "execute_assembly",
+    "execute_powershell",
+    "execute_bof",
+    "execute_armory",
+    "execute_exe",
+    "execute_dll",
+    "execute_local"
 #    "misc_screenshot",
 #    "misc_ssh",
 #    "net_ping",
@@ -57,20 +67,23 @@ base = [
     "fs_cat",
     "net_upload",
     "net_download",
-    "sys_exec",
+    "execute_exec",
     "sys_env",
 ]
 
-nano = []
-
 extend = [
+    "sys_bypass",
     "sys_kill",
     "sys_whoami",
     "sys_ps",
     "sys_netstat",
-    "sys_execute_bof",
-    "sys_execute_shellcode",
-    "sys_execute_assembly",
+    "execute_bof",
+    "execute_shellcode",
+    "execute_assembly",
+    "execute_armory",
+    "execute_exe",
+    "execute_dll",
+    "execute_local",
     "fs_mkdir",
     "fs_chmod",
 ]
@@ -96,18 +109,25 @@ sys_id = ["sys"]
 sys_env = ["sys"]
 #sys_run = ["sys"]
 sys_whoami = ["sys"]
-sys_exec = ["sys"]
 #sys_task = ["sys"]
 #sys_spawn = ["sys"]
 #sys_exit = ["sys"]
 sys_kill = ["sys"]
 #sys_inject = ["sys"]
-sys_execute_shellcode = ["sys"]
-sys_execute_assembly = ["sys"]
-sys_execute_bof = ["sys"]
-sys_execute_pe = ["sys"]
-sys_execute_powershell = ["sys"]
+sys_bypass = ["sys"]
 sys_netstat = ["sys"]
+
+execute = []
+execute_exec = ["execute"]
+execute_shellcode = ["execute"]
+execute_assembly = ["execute"]
+execute_bof = ["execute"]
+execute_powershell = ["execute"]
+execute_armory = ["execute"]
+execute_exe = ["execute"]
+execute_dll = ["execute"]
+execute_local = ["execute"]
+
 
 misc = []
 #misc_load_module = ["misc"]
@@ -128,7 +148,8 @@ shell_sh = ["shell"]
 shell_maleficShell = ["shell"]
 
 community = []
-professional = []
+source = []
+prebuild = []
 
 [dependencies]
 anyhow = "1.0.81"
@@ -139,7 +160,7 @@ prost = "0.13.1"
 async-trait = "0.1.79"
 lazy_static = "1.4.0"
 cfg-if = "1.0"
-malefic-helper = { path= "../malefic-helper", features = ["Common_Transport_Tcp","Loader_Mei_Apc", "Loader_Wang_Memfd"] }
+malefic-helper = { path= "../malefic-helper" }
 malefic-trait = { path = "../malefic-trait"}
 
 [dependencies.async-std]
@@ -149,7 +170,7 @@ features = ["unstable", "attributes"]
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = {version = "0.3.9", features = ["winbase"]}
 detour = { git = "https://github.com/Hpmason/detour-rs", branch = "fix-nightly1.67.0-changes" }
-#malefic-win-kit = { path = "../malefic-win-kit" }
+malefic-win-kit = { path = "../malefic-win-kit" }
 
 [build-dependencies]
 prost-build = "0.13.1"

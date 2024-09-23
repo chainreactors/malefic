@@ -1,0 +1,137 @@
+[config]
+default_to_workspace = false
+
+[env]
+CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG=true
+# variables for config
+EDITION = "community"
+BUILD_MODE = "prebuild"
+# variables for modules
+MOUDLES_FEATURES = "nano"
+# variables for ghcr
+NAME_SPACE = "ghcr.io/chainreactors"
+RUST_TOOLCHAIN = "nightly-2024-08-16-latest"
+[tasks.set-env]
+env.RUSTFLAGS="""-Awarnings \
+--remap-path-prefix=${CARGO_HOME}=. \
+--remap-path-prefix=${HOME}=. \
+--remap-path-prefix=malefic-modules=. \
+--remap-path-prefix=malefic-win-kit=. \
+--remap-path-prefix=malefic-helper=. \
+--remap-path-prefix=malefic=."""
+
+[tasks.set-env.windows]
+env.RUSTFLAGS="""-Awarnings \
+--remap-path-prefix=${CARGO_HOME}=. \
+--remap-path-prefix=${HOMEPATH}=. \
+--remap-path-prefix=malefic-modules=. \
+--remap-path-prefix=malefic-win-kit=. \
+--remap-path-prefix=malefic-helper=. \
+--remap-path-prefix=malefic=."""
+
+[tasks.pre-set-env-for-win-target]
+env.CARGO_PROFILE_RELEASE_LTO="true"
+
+[tasks.config]
+description = "Pre-configuration setup for building the Malefic project."
+command = "cargo"
+args = ["run", "--release", "-p", "malefic-config", "${EDITION}", "${BUILD_MODE}"]
+
+[tasks.module]
+condition = { env_set = ["MOUDLES_FEATURES"] }
+description = "Run malefic-modules"
+command = "cargo"
+args = ["build", "--release", "-p", "malefic-modules", "--features", "${MOUDLES_FEATURES}"]
+
+[tasks.add-target]
+condition = { env_set = ["TARGET_TRIPLE"] }
+description = "Add target to the project"
+command = "rustup"
+args = ["target", "add", "${TARGET_TRIPLE}"]
+
+[tasks.build-malefic-on-local]
+dependencies = ["set-env","config","add-target"]
+command = "cargo"
+args = ["build", "--release", "-p", "malefic", "--target", "${TARGET_TRIPLE}"]
+
+[tasks.build-malefic-in-docker]
+command = "docker"
+args = ["run", "-v", "${CARGO_MAKE_WORKING_DIRECTORY}/:/root/src", "--rm", "-it", "--name", "malefic-cross-builder", "${NAME_SPACE}/${TARGET_TRIPLE}:${RUST_TOOLCHAIN}", "cargo", "make","local" , "${TARGET_TRIPLE}"]
+
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+
+
+[tasks.local]
+description = "Since the local environment only supports a few simple targets, multi-target compilation is not performed here. Cross-compilation for multiple targets is implemented in Docker"
+script_runner = "@duckscript"
+script = '''
+targets_map = map
+map_put ${targets_map} "windows-x64-msvc" "x86_64-pc-windows-msvc"
+map_put ${targets_map} "windows-x32-msvc" "i686-pc-windows-msvc"
+map_put ${targets_map} "windows-x64-gnu" "x86_64-pc-windows-gnu"
+map_put ${targets_map} "windows-x32-gnu" "i686-pc-windows-gnu"
+map_put ${targets_map} "linux-x64-gnu" "x86_64-unknown-linux-gnu"
+map_put ${targets_map} "linux-x32-gnu" "i686-unknown-linux-gnu"
+map_put ${targets_map} "darwin-x64" "x86_64-apple-darwin"
+map_put ${targets_map} "darwin-arm" "aarch64-apple-darwin"
+
+value = trim ${CARGO_MAKE_TASK_ARGS}
+if map_contains_key ${targets_map} ${value}
+    value = map_get ${targets_map} ${key}
+    echo "Building target: ${value}"
+    set_env TARGET_TRIPLE ${value}
+    cm_run_task build-malefic-on-local
+elseif map_contains_value ${targets_map} ${value}
+    set_env TARGET_TRIPLE ${value}
+    cm_run_task build-malefic-on-local
+else
+    echo "Uuknown target: ${value}"
+end
+
+release ${targets_map}
+release ${key_array_to_build}
+'''
+
+
+[tasks.docker]
+script_runner = "@duckscript"
+script = '''
+targets_map = map
+map_put ${targets_map} "windows-x64-msvc" "x86_64-pc-windows-msvc"
+map_put ${targets_map} "windows-x32-msvc" "i686-pc-windows-msvc"
+map_put ${targets_map} "windows-x64-gnu" "x86_64-pc-windows-gnu"
+map_put ${targets_map} "windows-x32-gnu" "i686-pc-windows-gnu"
+map_put ${targets_map} "linux-x64-gnu" "x86_64-unknown-linux-gnu"
+map_put ${targets_map} "linux-x32-gnu" "i686-unknown-linux-gnu"
+map_put ${targets_map} "darwin-x64" "x86_64-apple-darwin"
+map_put ${targets_map} "darwin-arm" "aarch64-apple-darwin"
+
+key_array_to_build = split ${CARGO_MAKE_TASK_ARGS} ";"
+is_all = array_contains ${key_array_to_build} all
+if not equals ${is_all} false
+    echo "build all!"
+    key_array_to_build = map_keys ${targets_map}
+end
+
+for key in ${key_array_to_build}
+    echo "Building target: ${key}"
+end
+
+for key in ${key_array_to_build}
+    if map_contains_key ${targets_map} ${key}
+        value = map_get ${targets_map} ${key}
+        echo "Building target: ${value}"
+        set_env TARGET_TRIPLE ${value}
+        cm_run_task build-malefic-in-docker
+    elseif map_contains_value ${targets_map} ${key}
+        set_env TARGET_TRIPLE ${key}
+        cm_run_task build-malefic-in-docker
+    else
+        echo "Uuknown target: ${key}"
+    end
+end
+release ${targets_map}
+release ${key_array_to_build}
+'''

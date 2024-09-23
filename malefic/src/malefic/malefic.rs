@@ -21,7 +21,6 @@ pub struct MaleficChannel {
 }
 
 
-
 impl Malefic {
     pub async fn run(instance_id: [u8;4]) {
         let (collector_response_sender, collector_response_receiver) = channel();

