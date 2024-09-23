@@ -8,17 +8,6 @@ rustflags = [
     "-C", "link-arg=/DEBUG:NONE",
 ]
 
-[target.x86_64-apple-darwin]
-linker="x86_64-apple-darwin20.4-clang"
-ar="x86_64-apple-darwin20.4-ar"
-
-[target.aarch64-apple-darwin]
-linker="aarch64-apple-darwin20.4-clang"
-ar="aarch64-apple-darwin20.4-ar"
-rustflags = [
-    "-C", "link-args=-D__ARM_ARCH__"
-]
-
 [target.'cfg(target_os = "macos")']
 rustflags = [
     "-C", "link-arg=-dead_strip"
