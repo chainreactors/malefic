@@ -1,7 +1,7 @@
 # implant
 
 # Usage
-项目采用[cargo make](https://github.com/sagiegurari/cargo-make)来管理编译任务，所以编译任务都在`Makefile.toml`中定义.
+项目采用[cargo make](https://github.com/sagiegurari/cargo-make)来管理编译任务，所有编译任务都在`Makefile.toml`中定义.
 使用完整功能请先安装cargo make和docker环境。
 ## install cargo make
 ### cargo 安装
