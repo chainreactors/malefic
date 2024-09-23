@@ -47,6 +47,9 @@ jobs:
       matrix:
         target: ${{ fromJson(needs.set_targets.outputs.targets_json) }}
     steps:
+      - name: Install Cargo make
+        run: cargo install --force cargo-make
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -61,20 +64,14 @@ jobs:
       - name: Generate config.yaml
         run: echo "$SECRET_CONFIG_CONTENT" | base64 -d > config.yaml
 
-      - name: Install Cross
-        run: |
-          cargo install cross --git https://github.com/cross-rs/cross
-
-      - name: Config malefic
-        run: |
-          cargo run --release -p malefic-config ${{ github.event.inputs.edition }}
-
       - name: Build ${{matrix.target}}
-        run: cross build --release -p malefic --target ${{matrix.target}}
+        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+        run: cargo make docker ${{matrix.target}}
 
       - name: Rename binary for ${{matrix.target}}
         run: |
           mkdir -p output/
+          sudo chmod -R 777 target
           if [[ -f target/${{matrix.target}}/release/malefic ]]; then
             mv target/${{matrix.target}}/release/malefic output/malefic-${{matrix.target}}
           else
