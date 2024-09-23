@@ -1,17 +1,17 @@
-use std::collections::HashMap;
-use malefic_helper::debug;
-use modules::{Input, MaleficModule, Output, TaskResult};
-use malefic_helper::protobuf::implantpb::Spite;
-use async_std::channel::{Sender, Receiver};
 use async_std::channel::unbounded as channel;
+use async_std::channel::{Receiver, Sender};
+use malefic_helper::debug;
 use malefic_helper::protobuf::implantpb::spite::Body;
+use malefic_helper::protobuf::implantpb::Spite;
+use modules::{Input, MaleficModule, Output, TaskResult};
+use std::collections::HashMap;
 use std::time::Duration;
 
-use async_std::task::{sleep, spawn};
-use async_std::task::JoinHandle as Handle;
-use futures::{select, FutureExt};
 use crate::common::common::{new_empty_spite, new_spite};
 use crate::common::error::MaleficError;
+use async_std::task::JoinHandle as Handle;
+use async_std::task::{sleep, spawn};
+use futures::{select, FutureExt};
 
 pub struct Task {
     id: u32,
@@ -22,14 +22,14 @@ pub enum TaskOperator {
     CancelTask(u32),
     FinishTask(u32),
     QueryTask(u32),
-    _QueryTaskStatus(u32)
+    _QueryTaskStatus(u32),
 }
 
-pub struct TaskManager{
+pub struct TaskManager {
     tasks: HashMap<u32, (Sender<Body>, Handle<()>)>,
 }
 
-impl TaskManager{
+impl TaskManager {
     fn new() -> TaskManager {
         TaskManager {
             tasks: HashMap::new(),
@@ -41,43 +41,48 @@ impl TaskManager{
             TaskOperator::CancelTask(id) => {
                 if let Some((_, handle)) = self.tasks.remove_entry(&id) {
                     handle.1.cancel().await;
-                    Ok(Some(new_empty_spite(id, obfstr::obfstr!("cancel_task").to_string())))
+                    Ok(Some(new_empty_spite(
+                        id,
+                        obfstr::obfstr!("cancel_task").to_string(),
+                    )))
                 } else {
                     Err(MaleficError::TaskNotFound)
                 }
-            },
+            }
             TaskOperator::QueryTask(id) => {
                 if let Some((_, _)) = self.tasks.get(&id) {
-                    Ok(Some(new_empty_spite(id, obfstr::obfstr!("query_task").to_string())))
+                    Ok(Some(new_empty_spite(
+                        id,
+                        obfstr::obfstr!("query_task").to_string(),
+                    )))
                 } else {
                     Err(MaleficError::TaskNotFound)
                 }
-            },
+            }
             TaskOperator::FinishTask(id) => {
                 self.tasks.remove_entry(&id);
                 Ok(None)
-            },
-            _ => {
-                Err(MaleficError::TaskOperatorNotFound)
             }
+            _ => Err(MaleficError::TaskOperatorNotFound),
         }
     }
 }
 
 impl Task {
-    async fn run(&mut self,
-                 id: u32,
-                 mut module: Box<MaleficModule>,
-                 recv_channel: &mut Input,
-                 send_channel: &mut Output) -> anyhow::Result<TaskResult> {
+    async fn run(
+        &mut self,
+        id: u32,
+        mut module: Box<MaleficModule>,
+        recv_channel: &mut Input,
+        send_channel: &mut Output,
+    ) -> anyhow::Result<TaskResult> {
         debug!("Running task {}", self.id);
         module.run(id, recv_channel, send_channel).await
     }
 }
 
 // 调度器结构体
-pub struct Scheduler
-{
+pub struct Scheduler {
     manager: TaskManager,
 
     // 用于接收新Task任务
@@ -93,11 +98,10 @@ pub struct Scheduler
     ctrl_receiver: Receiver<TaskOperator>,
 
     // 向数据收集器发送数据
-    data_sender: Sender<Spite>
+    data_sender: Sender<Spite>,
 }
 
-impl Scheduler
-{
+impl Scheduler {
     // 创建一个新的调度器
     pub fn new(collector_data_sender: Sender<Spite>) -> Scheduler {
         let (_result_sender, result_receiver) = channel();
@@ -111,7 +115,7 @@ impl Scheduler
             result_receiver,
             ctrl_sender: task_ctrl_sender,
             ctrl_receiver: task_ctrl_receiver,
-            data_sender: collector_data_sender
+            data_sender: collector_data_sender,
         }
     }
 
@@ -163,20 +167,27 @@ impl Scheduler
         }
     }
 
-    async fn handle_task(&mut self, _is_async: bool, id: u32, module: Box<MaleficModule>, body: Body) {
+    async fn handle_task(
+        &mut self,
+        _is_async: bool,
+        id: u32,
+        module: Box<MaleficModule>,
+        body: Body,
+    ) {
         let async_sender = self.data_sender.clone();
-        let result_sender = self.data_sender.clone();
+        // let mut result_sender = self.data_sender.clone();
         let end_sender = self.get_task_ctrl_sender().clone();
         let (task_data_sender, task_data_receiver) = channel();
         let handle = spawn(async move {
             let (body_sender, mut body_receiver) = channel();
-            let (mut result_sender, result_receiver): (Sender<TaskResult>, Receiver<TaskResult>) = channel();
+            let (mut result_sender, result_receiver): (Sender<TaskResult>, Receiver<TaskResult>) =
+                channel();
             let output_stream = spawn(async move {
                 loop {
                     if let Ok(result) = result_receiver.recv().await {
                         let _ = async_sender.send(result.to_spite()).await;
-                    }else{
-                        break
+                    } else {
+                        break;
                     }
                 }
             });
@@ -186,8 +197,8 @@ impl Scheduler
                 loop {
                     if let Ok(body) = task_data_receiver.recv().await {
                         let _ = body_sender.send(body).await;
-                    }else {
-                        break
+                    } else {
+                        break;
                     }
                 }
             });
@@ -195,6 +206,7 @@ impl Scheduler
             let mut task = Task { id };
             let task_handle = task.run(id, module, &mut body_receiver, &mut result_sender);
 
+            // send task result to
             select! {
                 _ = input_stream.fuse() => {
                     debug!("test_handle finished");

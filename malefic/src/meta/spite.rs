@@ -1,4 +1,4 @@
-use std::mem::{size_of, transmute};
+use std::mem::{size_of};
 static TRANSPORT_START : u8 = 0xd1;
 static TRANSPORT_END : u8 = 0xd2;
 
@@ -91,13 +91,4 @@ impl Spite {
     pub fn get_data(&self) -> &Vec<u8> {
         &self.data
     }
-
-    pub fn get_data_length(&self) -> u32 {
-        self.length
-    }
-
-    pub fn get_session_id(&self) -> [u8;4] {
-        self.session_id
-    }
-
 }

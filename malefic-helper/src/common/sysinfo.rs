@@ -37,7 +37,7 @@ pub fn getuid() -> String {
             let uid = unsafe {libc::getuid()};
             uid.to_string()
         } else if #[cfg(target_family = "windows")]{
-            crate::win::kit::get_sid().unwrap()
+            crate::win::kit::utils::get_sid().unwrap()
         } else {
             None
         }

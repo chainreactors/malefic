@@ -48,8 +48,8 @@ pub fn refresh_dlls() {
     // find .text sections
     let mut k32_text_ptr: *mut c_void = 0 as _;
     let mut k32_text_size: usize = 0;
-    let mut kernelbase_text_ptr: *mut c_void = 0 as _;
-    let mut kernelbase_text_size: usize = 0;
+    let mut kernelbase_text_ptr: *mut c_void;
+    let mut kernelbase_text_size: usize;
     let mut ntdll_text_ptr: *mut c_void = 0 as _;
     let mut ntdll_text_size: usize = 0;
     for i in 0..kernel32.sections.len() {

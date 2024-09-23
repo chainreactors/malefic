@@ -3,7 +3,6 @@ extern crate serde_json;
 use std:: {
     fs::File,
     io:: {
-        Write,
         Read
     }
 };

@@ -4,5 +4,6 @@ pub mod func_pointer;
 pub mod pthread;
 #[cfg(feature = "Loader_Wang_Spawn")]
 pub mod spawn;
-#[cfg(feature = "Loader_Wang_Memfd")]
+// #[cfg(feature = "Loader_Wang_Memfd")]
+// Tmp defualt use memfd for linux loader
 pub mod memfd;

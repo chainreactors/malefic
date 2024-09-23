@@ -5,7 +5,6 @@ use malefic_helper::protobuf::implantpb::spite::Body;
 use std::process::{Command, Stdio};
 use async_trait::async_trait;
 use malefic_trait::module_impl;
-use std::process::Child;
 
 pub struct Exec {}
 

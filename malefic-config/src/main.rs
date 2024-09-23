@@ -3,10 +3,8 @@ extern crate lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value as YamlValue;
 use serde_json::Value as JsonValue;
-use jsonschema::{JSONSchema};
-use std::fs;
-use std::ops::Add;
-use std::process;
+use jsonschema::JSONSchema;
+use std::{fs, process};
 use update_helper::update_helper_toml;
 use update_winkit::update_winkit_toml;
 use update_modules::update_module_toml;
@@ -115,9 +113,64 @@ struct PESModify {
     signature: String,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Version {
+    Community,
+    Professional,
+    Inner,
+}
+
+impl Version {
+    pub fn from_str(version: &str) -> Self {
+        match version {
+            "community" => Version::Community,
+            "professional" => Version::Professional,
+            "inner" => Version::Inner,
+            _ => panic!("Invalid version is selected.")
+        }
+    }
+
+    pub fn to_str(&self) -> String {
+        match self {
+            Version::Community => "community".to_string(),
+            Version::Professional => "professional".to_string(),
+            Version::Inner => "inner".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BuildType {
+    Prebuild,
+    Source,
+}
+
+impl BuildType {
+    pub fn from_str(source: &str) -> Self {
+        match source {
+            "prebuild" => BuildType::Prebuild,
+            "source" => BuildType::Source,
+            _ => panic!("Invalid source is selected.")
+        }
+    }
+
+    pub fn to_str(&self) -> String {
+        match self {
+            BuildType::Prebuild => "prebuild".to_string(),
+            BuildType::Source => "source".to_string(),
+        }
+    }
+}
+
 lazy_static! {
     static ref CONFIG_COMMUNITY: String = "community".to_string();
     static ref CONFIG_PROFESSIONAL: String = "professional".to_string();
+    static ref CONFIG_INNER: String = "inner".to_string();
+    static ref CONFIG_SOURCE: String = "source".to_string();
+    static ref CONFIG_PREBUILD: String = "prebuild".to_string();
+    static ref CONFIG_FFI: String = "ffi".to_string();
+    static ref CONFIG_FFI_APIS: String = "ffi_apis".to_string();
+    static ref CONFIG_INNER_TEMPLATE: String = "inner_template".to_string();
     static ref CONFIG_PROFESSIONAL_TEMPLATE: String = "professional_template".to_string();
     static ref CONFIG_YAML_PATH: String = "config.yaml".to_string();
     static ref CONFIG_SCHEMA_PATH: String = "config_schema.json".to_string();
@@ -188,28 +241,18 @@ fn validate_yaml_config(yaml_path: &str, schema_path: &str) {
 fn main() {
     // 读取命令行参数
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        println!("Usage: {} community/professional", args[0]);
+    if args.len() < 3 {
+        println!("Usage: {} community/professional prebuild/source", args[0]);
         process::exit(1);
     }
-    let professional: bool;
-    
-    if CONFIG_COMMUNITY.eq(&args[1]) {
-        println!("Community version is selected.");
-        professional = false;
-    } else if CONFIG_PROFESSIONAL.eq(&args[1]) {
-        professional = true;
-        println!("Professional version is selected.");
-    } else {
-        println!("Invalid version is selected.");
-        process::exit(1);
-    }
+    let version = Version::from_str(&args[1]);
+    let build_type = BuildType::from_str(&args[2]);
 
     let config = load_yaml_config(&CONFIG_YAML_PATH);
     validate_yaml_config(&CONFIG_YAML_PATH, &CONFIG_SCHEMA_PATH);
+    // update_winkit_toml(&CONFIG_WINKIT_TOML_PATH, config.implants.clone(), version, build_type);
+    update_helper_toml(&CONFIG_HELPER_TOML_PATH, config.server.clone(), version, build_type);
+    update_module_toml(&CONFIG_MODULE_TOML_PATH, config.implants.modules.clone(), version, build_type);
     update_core(config.server.clone());
-    update_core_toml(&CONFIG_CORE_TOML_PATH, config.implants.clone(), config.server.clone(), professional);
-    // update_winkit_toml(&CONFIG_WINKIT_TOML_PATH, config.implants.clone(), professional);
-    update_module_toml(&CONFIG_MODULE_TOML_PATH, config.implants.modules.clone(), professional);
-    update_helper_toml(&CONFIG_HELPER_TOML_PATH, config.server.clone(), professional);
+    update_core_toml(&CONFIG_CORE_TOML_PATH, config.implants.clone(), config.server.clone(), version);
 }
