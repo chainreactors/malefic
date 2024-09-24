@@ -12,7 +12,7 @@ on:
         required: false
         default: "none"
       targets:
-        description: 'Target to compile (comma separated, e.g., x86_64-pc-windows-msvc,x86_64-unknown-linux-gnu)'
+        description: 'Target to compile (comma separated, e.g., windows-x64-gnu,windows-x32-gnu)'
         required: true
       edition:
         description: 'Edition'
@@ -47,8 +47,13 @@ jobs:
       matrix:
         target: ${{ fromJson(needs.set_targets.outputs.targets_json) }}
     steps:
-      - name: Install Cargo make
-        run: cargo install --force cargo-make
+      - name: Install And Cache Cargo-make
+        uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-make
+
+      - name: Generate config.yaml
+        run: echo "$SECRET_CONFIG_CONTENT" | base64 -d > config.yaml
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,9 +66,6 @@ jobs:
           echo "::add-mask::$SECRET_CONFIG_CONTENT"
           echo "SECRET_CONFIG_CONTENT=$SECRET_CONFIG_CONTENT" >> $GITHUB_ENV
 
-      - name: Generate config.yaml
-        run: echo "$SECRET_CONFIG_CONTENT" | base64 -d > config.yaml
-
       - name: Build ${{matrix.target}}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: cargo make docker ${{matrix.target}}
@@ -72,10 +74,10 @@ jobs:
         run: |
           mkdir -p output/
           sudo chmod -R 777 target
-          if [[ -f target/${{matrix.target}}/release/malefic ]]; then
-            mv target/${{matrix.target}}/release/malefic output/malefic-${{matrix.target}}
+          if [[ -f target/*/release/malefic ]]; then
+            mv target/*/release/malefic output/malefic-${{matrix.target}}
           else
-            mv target/${{matrix.target}}/release/malefic.exe output/malefic-${{matrix.target}}.exe
+            mv target/*/release/malefic.exe output/malefic-${{matrix.target}}.exe
           fi
 
       - name: Upload artifact ${{matrix.target}}
