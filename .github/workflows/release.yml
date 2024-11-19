@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'The tag name for the release'
+        required: true
+        default: 'v0.0.1'
+      draft:
+        description: 'Create a draft release'
+        required: false
+        default: 'true'
 
 permissions:
   contents: write
@@ -22,7 +32,12 @@ jobs:
       - name: Set Version
         id: set_version
         run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" == "push" ]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=${{ inputs.tag_name }}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create release
         id: create_release
@@ -34,7 +49,7 @@ jobs:
           release_name: Release ${{ steps.set_version.outputs.VERSION }}
           body: |
             Release ${{ steps.set_version.outputs.VERSION }}
-          draft: false
+          draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft == 'true' }}
           prerelease: false
 
   release-mutant:
