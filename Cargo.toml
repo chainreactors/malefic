@@ -11,7 +11,6 @@ members = [
     "malefic-core",
     "malefic-prelude",
     "malefic-proto",
-    "malefic-win-kit",
     "malefic-pulse"
 ]
 
