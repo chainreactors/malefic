@@ -30,5 +30,5 @@ pub fn update_proto_toml(server: &Basic) {
     }
     fs::write(CONFIG_PROTO_TOML_PATH.clone(), cargo_toml.to_string())
         .expect("Failed to write updated Cargo.toml file");
-    println!("Cargo.toml file {:#?} has been updated.", CONFIG_PROTO_TOML_PATH.clone());
+    println!("{:#?} has been updated.", CONFIG_PROTO_TOML_PATH.clone());
 }

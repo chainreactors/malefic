@@ -79,5 +79,5 @@ pub fn update_core_toml(server: &Basic,  implant: &ImplantConfig) {
     }
     fs::write(CONFIG_CORE_TOML_PATH, cargo_toml.to_string())
         .expect("Failed to write updated Cargo.toml file");
-    println!("Cargo.toml file {:#?} has been updated.", CONFIG_CORE_TOML_PATH);
+    println!("{:#?} has been updated.", CONFIG_CORE_TOML_PATH);
 }

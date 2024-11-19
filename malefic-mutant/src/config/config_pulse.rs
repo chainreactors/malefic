@@ -67,5 +67,5 @@ pub fn update_pulse_toml(source: bool) {
 
     fs::write(config_pulse_toml_path, cargo_toml.to_string())
         .expect("Failed to write updated Cargo.toml file");
-    println!("Cargo.toml file {:#?} has been updated.", config_pulse_toml_path);
+    println!("{:#?} has been updated.", config_pulse_toml_path);
 }
