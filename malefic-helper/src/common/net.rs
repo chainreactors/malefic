@@ -1,7 +1,8 @@
 use netstat2::{AddressFamilyFlags, get_sockets_info, ProtocolFlags, ProtocolSocketInfo};
-use crate::CommonError;
+use crate::{to_error, CommonError};
 
-#[derive(Clone,Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub struct NetInterface {
     pub index: u32,
     pub name: String,
@@ -14,7 +15,8 @@ pub fn get_network_interfaces() -> Result<Vec<NetInterface>, CommonError> {
     Ok(interfaces)
 }
 
-#[derive(Clone,Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub struct NetStat {
     pub local_addr: String,
     pub remote_addr: String,
@@ -26,10 +28,10 @@ pub struct NetStat {
 
 pub fn get_netstat() -> Result<Vec<NetStat>, CommonError> {
     let mut netstats = Vec::new();
-
+ 
     let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
     let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
-    let sockets_info = get_sockets_info(af_flags, proto_flags)?;
+    let sockets_info = to_error!(get_sockets_info(af_flags, proto_flags))?;
 
     for si in sockets_info {
         let pid: Vec<String> = si.associated_pids.iter().map(|n| n.to_string()).collect();

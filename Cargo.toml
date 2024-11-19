@@ -6,8 +6,13 @@ members = [
     "malefic",
     "malefic-modules",
     "malefic-helper",
-    "malefic-trait", 
-    "malefic-config"
+    "malefic-trait",
+    "malefic-mutant",
+    "malefic-core",
+    "malefic-prelude",
+    "malefic-proto",
+    "malefic-win-kit",
+    "malefic-pulse"
 ]
 
 [profile.dev]
@@ -28,3 +33,7 @@ rustflags = [
     "-Z", "trim-diagnostic-paths",
     "--cfg", "hide_path",
 ]
+
+[profile.release-lto]
+inherits = "release"
+lto = true

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use malefic_trait::module_impl;
 use crate::{check_request, Module, Result, TaskResult};
-use malefic_helper::protobuf::implantpb::Response;
-use malefic_helper::protobuf::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::Response;
+use malefic_proto::proto::implantpb::spite::Body;
 
 pub struct Cd {}
 
@@ -19,7 +19,7 @@ impl Module for Cd {
         // 正常逻辑
         let mut response = Response::default();
         let output = std::env::current_dir()?;
-        response.output = output.to_str().unwrap().to_string();
+        response.output =  output.to_string_lossy().to_string();
 
         Ok(TaskResult::new_with_body(id, Body::Response(response)))
     }

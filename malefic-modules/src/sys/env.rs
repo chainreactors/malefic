@@ -1,6 +1,6 @@
 use crate::{Module, TaskResult, check_request, Result, check_field};
-use malefic_helper::protobuf::implantpb::Response;
-use malefic_helper::protobuf::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::Response;
+use malefic_proto::proto::implantpb::spite::Body;
 use async_trait::async_trait;
 use malefic_trait::module_impl;
 
@@ -24,7 +24,7 @@ impl Module for Env {
 pub struct Setenv {}
 
 #[async_trait]
-#[module_impl("setenv")]
+#[module_impl("env_set")]
 impl Module for Setenv {
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
@@ -36,7 +36,7 @@ impl Module for Setenv {
         }
 
 
-        Ok(TaskResult::new(id)) // 使用Empty作为响应体，因此不需要特别设置
+        Ok(TaskResult::new(id)) 
     }
 }
 
@@ -44,7 +44,7 @@ impl Module for Setenv {
 pub struct Unsetenv {}
 
 #[async_trait]
-#[module_impl("unsetenv")]
+#[module_impl("env_unset")]
 impl Module for Unsetenv {
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
@@ -52,6 +52,6 @@ impl Module for Unsetenv {
         let input = check_field!(request.input)?;
         std::env::remove_var(input);
 
-        Ok(TaskResult::new(id)) // 使用Empty作为响应体，因此不需要特别设置
+        Ok(TaskResult::new(id)) 
     }
 }

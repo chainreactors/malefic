@@ -1,0 +1,51 @@
+[package]
+name = "malefic-core"
+version = "0.0.3"
+edition = "2021"
+
+[features]
+default = ["hot_load", "register_info", "Transport_Tcp"]
+
+bind = []
+hot_load = []
+register_info = []
+
+Transport = []
+Transport_Dns = ["Transport"]
+Transport_Http = ["Transport"]
+Transport_Tls = ["Transport", "async-tls", "rustls", "rustls-pemfile"]
+Transport_Tcp = ["Transport"]
+Transport_Wireguard = ["Transport"]
+
+
+[dependencies]
+malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
+malefic-proto = { path = "../malefic-proto" }
+malefic-modules = { path = "../malefic-modules"}
+
+cfg-if = "1.0.0"
+async-trait = "0.1.83"
+futures = "0.3.31"
+strum = "0.26.3"
+strum_macros = "0.26.4"
+lazy_static = "1.5.0"
+anyhow = "1.0.86"
+thiserror = "1.0.64"
+obfstr = "0.4.3"
+
+[dependencies.async-std]
+version = "1.7.0"
+features = ["unstable", "attributes"]
+
+[dependencies.rustls]
+version = "0.20.6"
+features = ["dangerous_configuration"]
+optional = true
+
+[dependencies.async-tls]
+version = "0.12.0"
+optional = true
+
+[dependencies.rustls-pemfile]
+version = "1.0.4"
+optional = true

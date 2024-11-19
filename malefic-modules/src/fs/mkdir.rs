@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use malefic_trait::module_impl;
 use crate::{ check_request, Module, Result, check_field, TaskResult};
-use malefic_helper::protobuf::implantpb::spite::Body;
+use malefic_proto::proto::implantpb::spite::Body;
 
 pub struct Mkdir{}
 

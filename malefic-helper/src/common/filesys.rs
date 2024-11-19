@@ -62,3 +62,14 @@ pub fn get_executable_path() -> Result<String, io::Error> {
     let path = env::current_exe()?;
     Ok(path.display().to_string())
 }
+
+#[cfg(target_os = "windows")]
+pub fn get_file_mode(meta: &dyn std::os::windows::fs::MetadataExt) -> u32 {
+    meta.file_attributes()
+}
+
+#[cfg(target_family = "unix")]
+pub fn get_file_mode(meta: &std::fs::Metadata) -> u32 {
+    use std::os::unix::fs::PermissionsExt;
+    meta.permissions().mode()
+}

@@ -4,7 +4,6 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, LitStr, ItemImpl, parse::Parse, parse::ParseStream};
 
-
 struct MacroArgs {
     module_name: LitStr,
 }
@@ -25,7 +24,8 @@ pub fn module_impl(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let name_method = quote! {
         fn name() -> &'static str {
-            #module_name
+            static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+            NAME.get_or_init(|| obfstr::obfstr!(#module_name).to_string()).as_str()
         }
     };
     let new_method = quote! {

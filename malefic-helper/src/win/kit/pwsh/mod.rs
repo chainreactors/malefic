@@ -1,13 +1,12 @@
 pub unsafe fn pwsh_exec_command(script: &String) -> String {
     #[cfg(feature = "prebuild")]
     {
-        use std::ffi::CString;
-        CString::from_raw(
-            crate::win::kit::MaleficPwshExecCommand(
-                script.as_ptr(),
-                script.len(),
-            ) as _
-        ).to_str().unwrap_or_default().to_string()
+
+        let ret = crate::win::kit::MaleficPwshExecCommand(
+            script.as_ptr(),
+            script.len(),
+        );
+        String::from_raw_parts(ret.data, ret.len, ret.capacity)
     }
     #[cfg(feature = "source")]
     {

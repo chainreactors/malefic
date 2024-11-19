@@ -1,117 +1,80 @@
 [package]
 name = "malefic-helper"
-version = "0.0.1"
+version = "0.0.3"
 edition = "2021"
 
 [features]
-No_Std = []
+default = ["Win", "Win_Inject_APC", "prebuild", "community"]
 
-Common = []
-Common_Transport = ["Common"]
-Common_Transport_Dns = ["Common_Transport"]
-Common_Transport_Http = ["Common_Transport"]
-Common_Transport_Tls = ["Common_Transport"]
-Common_Transport_Tcp = ["Common_Transport"]
-Common_Transport_Wireguard = ["Common_Transport"]
+win_template = [
+        "Win_Inject_APC",
+        "Win",
+]
+community = []
+professional = []
+source = []
+prebuild = []
 
-Loader = []
-Loader_Mei = ["Loader"]
-Loader_Mei_Asm = ["Loader_Mei"]
-Loader_Mei_Apc = ["Loader_Mei"]
-Loader_Mei_Fiber = ["Loader_Mei"]
-Loader_Mei_Func_Pointer = ["Loader_Mei"]
-Loader_Mei_Process =["Loader_Mei"]
-Loader_Mei_Thread = ["Loader_Mei"]
-Loader_Wang = ["Loader"]
-Loader_Wang_Memfd = ["Loader_Wang"]
-Loader_Wang_Pthread = ["Loader_Wang"]
-Loader_Wang_Spawn = ["Loader_Wang"]
-Loader_Wang_Func_Pointer = ["Loader_Wang"]
+Inject = []
+Win_Inject_APC = ["Inject"]
+Win_Inject_Asm = ["Inject"]
+Win_Inject_Fiber = ["Inject"]
+Win_Inject_Func = ["Inject"]
+Win_Inject_Func_Pointer = ["Inject"]
+Win_Inject_Process = ["Inject"]
+Win_Inject_Thread = ["Inject"]
+
+Linux_Inject_Asm = ["Inject"]
+Linux_Inject_Fiber = ["Inject"]
+Linux_Inject_Func = ["Inject"]
+Linux_Inject_Func_Pointer = ["Inject"]
+Linux_Inject_Process = ["Inject"]
+Linux_Inject_Thread = ["Inject"]
 
 
 Win = []
-Win_Types = ["Win", "No_Std"]
-Win_Types_Memory = ["Win_Types"]
-Win_Types_LibraryLoader = ["Win_Types"]
-Win_Types_Diagnostics = ["Win_Types"]
-Win_Types_SystemServices = ["Win_Types"]
-Win_Types_Utils = ["Win_Types"]
-Win_Dynamic = ["Win"]
-Win_Reg = ["Win"]
-
 Darwin = []
 Linux = []
 Unix = []
 
-default = [
-        "Win",
-        "Loader_Mei_Apc",
-        "Common_Transport_Tcp", "community", "prebuild"]
-
-win_template = [
-        "Loader_Mei_Apc",
-        "Win",
-]
-community = []
-source = []
-prebuild = []
-
 [dependencies]
-async-trait = "0.1.79"
-futures = "0.3.30"
-cfg-if = "1.0"
-goblin = "0.8.0"
+anyhow = "1.0.81"
 obfstr = "0.4.3"
-# futures = "0.3"
-lazy_static = "1.4.0"
-thiserror = "1.0.58"
+strum = "0.26.3"
+strum_macros = "0.26.4"
+thiserror = "1.0.64"
 sysinfo = "0.31.2"
 whoami = "1.5.1"
-netstat2 = "0.9"
+netstat2 = { git = "https://github.com/kurtbuilds/netstat2-rs", branch = "master" }
 sha2 = "0.10"
-digest = "0.10"
-prost = "0.13.1"
-# async-tls = "0.13"
-rustls = { version =  "0.20.6", features = ["dangerous_configuration"] }
-rustls-pemfile = "1.0"
-# syscalls = "0.6.15"
-[dependencies.async-std]
-version = "1.7.0"
-features = ["unstable", "attributes"]
-[dependencies.async-tls]
-version = "0.12.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "0.3.9", features = ["sysinfoapi", "ws2def", "winbase", "minwindef", "winnt", "winnls", "sddl", "errhandlingapi", "memoryapi", "lmaccess", "lmapibuf"] }
 detour = { git = "https://github.com/Hpmason/detour-rs", branch = "fix-nightly1.67.0-changes" }
-ntapi = "0.4.1"
-windows = { version = "0.52.0", features = [
+malefic-win-kit = { path = "../malefic-win-kit" }
+wmi = { git = "https://github.com/lz520520/wmi-rs" }
+[dependencies.windows]
+version = "0.58.0"
+features = [
+        "Win32_Storage_FileSystem",
+        "Win32_Storage",
+        "Win32_System_IO",
         "Win32_System_Threading",
         "Win32_System_Memory",
         "Win32_System_Diagnostics_ToolHelp",
         "Win32_Foundation",
         "Win32_Security",
+        "Win32_System_Services",
+        "Win32_System_TaskScheduler",
+        "Win32_System_SystemServices",
+        "Win32_System_SystemInformation",
         "Win32_System_Registry",
         "Win32_System_Console",
         "Win32_System_LibraryLoader",
-]}
-windows-sys = { version = "0.52.0", features = [
-        "Win32_System_Threading",
-        "Win32_System_Memory",
-        "Win32_System_Environment",
-        "Win32_System_Antimalware",
-        "Win32_Foundation",
-        "Win32_System_Registry",
-        "Win32_System_LibraryLoader",
-]}
+        "Win32_System_Pipes"
+]
+
+
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 nix = "0.28.0"
-windows = {version = "0.52.0", features = ["Win32_Foundation"]}
-
-
-
-[build-dependencies]
-prost-build = "0.13.1"
-lazy_static = "1.4.0"

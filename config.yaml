@@ -1,30 +1,61 @@
-server:
+basic:
   name: "malefic"
-  urls:
+  targets:
     - "127.0.0.1:5001"
   protocol: "tcp"
   tls: false
   proxy: ""
-  interval: 1000
-  jitter: 10
+  interval: 5
+  jitter: 0.2
   ca: ""
+  encryption: aes
+  key: maliceofinternal
+
+pulse:
+  flags:
+    start: 0x41
+    end: 0x42
+    magic: "beautiful"
+    artifact_id: 16
+  encryption: xor
+  key: "maliceofinternal"
+  target: 127.0.0.1:5002
+  protocol: "tcp"
+  http:
+    method: "GET"
+    path: "/pulse.bin"
+    version: "1.1"
+    headers:
+      user_agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      accept_language: "en-US,en;q=0.5"
+      accept_encoding: "gzip, deflate"
+
+metadata:
+  remap_path: "C:/Windows/Users/Maleficarum"
+  icon: ""
+  compile_time: "24 Jun 2015 18:03:01"
+  file_version: ""
+  product_version: ""
+  company_name: ""
+  product_name: ""
+  original_filename: "normal.exe"
+  file_description: "normal"
+  internal_name: ""
+
 
 implants:
+  mod: beacon
   register_info: true
+  hot_load: true
   modules:
     - "full"
-  metadata:
-    remap_path: "C:/Windows/Users/Maleficarum"
-    icon: ""
-    compile_time: "24 Jun 2024 18:03:01"
-    file_version: ""
-    product_version: ""
-    company_name: ""
-    product_name: ""
-    original_filename: ""
-    file_description: ""
-    internal_name: ""
 
+  flags:
+    start: 0x41
+    end: 0x42
+    magic: "beautiful"
+    artifact_id: 0x1
   apis:
     # apis_level: "sys_apis", "nt_apis"
     level: "nt_apis"
@@ -33,7 +64,7 @@ implants:
       normal:
         enable: false
         type: "normal"
-      dynamic: 
+      dynamic:
         enable: true
         # type: "sys_dynamic", "user_defined_dynamic"
         type: "user_defined_dynamic"

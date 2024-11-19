@@ -1,5 +1,3 @@
-use std::ptr::null_mut;
-
 pub unsafe fn get_func_addr(module: *const core::ffi::c_void, func_name: String) -> *const core::ffi::c_void {
     #[cfg(feature = "prebuild")]
     {

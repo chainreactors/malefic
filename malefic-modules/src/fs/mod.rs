@@ -10,3 +10,5 @@ pub mod mkdir;
 pub mod chmod;
 #[cfg(not(target_family = "windows"))]
 pub mod chown;
+#[cfg(target_family = "windows")]
+pub mod pipe;

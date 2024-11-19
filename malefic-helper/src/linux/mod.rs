@@ -1,2 +1,2 @@
 
-pub mod loader;
+pub mod inject;

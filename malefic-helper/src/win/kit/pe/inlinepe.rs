@@ -1,4 +1,3 @@
-use crate::common::convert_u8p2vec;
 
 pub unsafe fn inline_pe(
     bin: *const u8,
@@ -28,7 +27,8 @@ pub unsafe fn inline_pe(
             is_need_output,
             timeout
         );
-        convert_u8p2vec(ret)
+        let str = String::from_raw_parts(ret.data, ret.len, ret.capacity);
+        str.as_bytes().to_vec()
     }
     #[cfg(feature = "source")]
     {

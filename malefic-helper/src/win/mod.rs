@@ -1,5 +1,11 @@
+pub mod common;
 pub mod kit;
-pub mod dynamic;
 pub mod types;
-// pub mod reg;
-pub mod loader;
+pub mod reg;
+pub mod inject;
+pub mod service;
+pub mod wmi;
+pub mod scheduler;
+pub mod pipe;
+pub mod token;
+pub mod process;

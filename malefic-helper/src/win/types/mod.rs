@@ -1,5 +1,1 @@
-pub mod memory;
-pub mod library_loader;
-pub mod diagnostics;
-pub mod system_services;
-pub mod utils;
+pub type DllMain = unsafe extern "system" fn(*mut core::ffi::c_void, u32, *mut core::ffi::c_void) -> i32;

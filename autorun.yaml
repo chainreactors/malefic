@@ -1,0 +1,5 @@
+-
+  name: bof
+  body: !ExecuteBinary
+    name: dir
+    bin: !File "dir.o"

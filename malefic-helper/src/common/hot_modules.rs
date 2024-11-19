@@ -88,11 +88,11 @@ pub unsafe fn call_fresh_modules(module: *const malefic_win_kit::dynamic::Malefi
 }
 
 #[cfg(target_family = "unix")]
-pub unsafe fn load_module(bins: Vec<u8>, bundle: String) -> Result<*const c_void, CommonError> {
+pub unsafe fn load_module(_bins: Vec<u8>, _bundle: String) -> Result<*const c_void, CommonError> {
     todo!()
 }
 
 #[cfg(target_family = "unix")]
-pub unsafe fn call_fresh_modules(module: *const c_void) -> Option<*const c_void> {
+pub unsafe fn call_fresh_modules(_module: *const c_void) -> Option<*const c_void> {
     todo!()
 }

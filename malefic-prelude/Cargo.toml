@@ -1,0 +1,17 @@
+[package]
+name = "malefic-prelude"
+version = "0.0.3"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.89"
+async-std = "1.12.0"
+lazy_static = "1.5.0"
+
+malefic-core = { path = "../malefic-core"}
+malefic-modules = { path = "../malefic-modules"}
+malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
+malefic-proto = { path= "../malefic-proto", features = [ "Crypto_AES" ] }
+
+[build-dependencies]
+winres = "0.1"

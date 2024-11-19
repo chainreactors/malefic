@@ -1,0 +1,26 @@
+#![no_std]
+#![no_main]
+#![feature(naked_functions)]
+#![allow(invalid_value)]
+use core::arch::asm;
+
+#[naked]
+#[no_mangle]
+unsafe extern "C" fn _start() {
+    asm!(
+        "
+        push  rsi
+        mov   rsi, rsp
+        and   rsp, 0xFFFFFFFFFFFFFFF0
+        sub   rsp, 0x20
+        call  {fire} 
+        mov   rsp, rsi
+        pop   rsi
+        ret
+        ",
+        fire = sym fire,
+        options(noreturn)
+    );
+}
+#[export_name = "_fltused"]
+static _FLTUSED: i32 = 0;

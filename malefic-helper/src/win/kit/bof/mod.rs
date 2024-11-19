@@ -2,7 +2,6 @@ pub unsafe fn bof_loader(buffer: &Vec<u8>, arguments: &Vec<String>, entrypoint_n
     #[cfg(feature = "prebuild")]
     {
         use super::MaleficBofLoader;
-        use std::ffi::CString;
         let c_strings: Vec<_> = arguments.iter()
                 .map(|s| {
                     let c_str = std::ffi::CString::new(s.as_str()).unwrap();
@@ -16,14 +15,13 @@ pub unsafe fn bof_loader(buffer: &Vec<u8>, arguments: &Vec<String>, entrypoint_n
             },
             None => std::ptr::null_mut()
         };
-        return CString::from_raw(
-            MaleficBofLoader(
-                    buffer.as_ptr(), 
-                    buffer.len(), 
-                    c_strings.as_ptr() as _, c_strings.len(),
-                    entrypoint_name as _
-                ) as _
-            ).to_str().unwrap_or_default().to_string();
+        let ret = MaleficBofLoader(
+            buffer.as_ptr(), 
+            buffer.len(), 
+            c_strings.as_ptr() as _, c_strings.len(),
+            entrypoint_name as _
+        );
+        String::from_raw_parts(ret.data, ret.len, ret.capacity)
     }
     #[cfg(feature = "source")]
     {

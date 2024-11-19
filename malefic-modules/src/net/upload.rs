@@ -1,9 +1,8 @@
 // #[allow(non_snake_case)]
 use crate::{check_field, check_request, Module, Result, TaskResult};
-use malefic_helper::protobuf::implantpb::spite::Body;
+use malefic_proto::proto::implantpb::spite::Body;
 
 use async_trait::async_trait;
-use futures::FutureExt;
 use malefic_trait::module_impl;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -33,7 +32,6 @@ impl Module for Upload {
         if request.data.is_empty() {
             // data为空，不执行任何操作或进行特定处理
         } else {
-            // 只有一个包的情况下, 执行完成所有任务
             file.write_all(&request.data)?;
             return Ok(TaskResult::new_with_ack(id, 0));
         }

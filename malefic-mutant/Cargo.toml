@@ -1,0 +1,26 @@
+[package]
+name = "malefic-mutant"
+version = "0.0.3"
+edition = "2021"
+
+[dependencies]
+lazy_static = { version = "1.4", features = ["spin_no_std"]}
+prost = { git = "https://github.com/tottoto/prost", branch = "relax-message-debug-trait-bound"  }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1.0"
+jsonschema = { version = "0.26.1", default-features = false}
+toml_edit = "0.22.15"
+strum = "0.26.3"
+strum_macros = "0.26.4"
+clap = { version = "4.5.20", features = ["derive"] }
+base64 = "0.22.1"
+hex = "0.4.3"
+anyhow = "1.0.89"
+winres = "0.1"
+byteorder = "1"
+goblin = "0.8"
+
+malefic-proto = { path = "../malefic-proto", features = ["Crypto_AES", "enable_serde"] }
+rand = "0.8.5"
+walkdir = "2.3.2"

