@@ -1,0 +1,96 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-22.04
+    outputs:
+      VERSION: ${{ steps.set_version.outputs.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set Version
+        id: set_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.set_version.outputs.VERSION }}
+          release_name: Release ${{ steps.set_version.outputs.VERSION }}
+          body: |
+            Release ${{ steps.set_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+
+  release-mutant:
+    needs: create-release
+    runs-on: ubuntu-22.04
+    continue-on-error: true
+    strategy:
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+          #          - i686-pc-windows-msvc
+          - x86_64-unknown-linux-musl
+          #          - i686-unknown-linux-musl
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Create output directory
+        run: |
+          mkdir -p output/
+
+      - name: Build malefic-mutant for ${{matrix.target}}
+        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+        run: |
+          release_dir="release-lto"
+          docker run -v "$(pwd):/root/src" --rm -it ghcr.io/chainreactors/${{matrix.target}}:nightly-2023-09-18-latest \
+            cargo build --profile ${release_dir} -p malefic-mutant --target ${{matrix.target}}  
+          sudo chmod -R 777 target
+          
+          target_dir="target/${{matrix.target}}/${release_dir}"
+          binary_name="malefic-mutant"
+          
+          if [[ -f ${target_dir}/${binary_name}.exe ]]; then
+            mv ${target_dir}/${binary_name}.exe output/${binary_name}-${{matrix.target}}.exe
+          else
+            mv ${target_dir}/${binary_name} output/${binary_name}-${{matrix.target}}
+          fi
+
+      - name: Chmod output
+        run: |
+          sudo chmod -R 777 output
+
+      - name: Release ${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd output
+          for file in *; do
+            filename=$(basename "$file")
+            echo "Uploading $filename"
+            sha256sum $filename >> $file.sha256
+            gh release upload ${{ needs.create-release.outputs.VERSION }} $filename.sha256
+            gh release upload ${{ needs.create-release.outputs.VERSION }} $filename
+          done
+        shell: bash
