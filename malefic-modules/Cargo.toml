@@ -107,9 +107,6 @@ malefic-proto = { path = "../malefic-proto" }
 version = "1.7.0"
 features = ["unstable", "attributes"]
 
-[target.'cfg(target_os = "windows")'.dependencies]
-malefic-win-kit = { path = "../malefic-win-kit" }
-
 [build-dependencies]
 prost-build = "0.13.1"
 lazy_static = "1.4.0"

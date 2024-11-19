@@ -50,7 +50,7 @@ sha2 = "0.10"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 detour = { git = "https://github.com/Hpmason/detour-rs", branch = "fix-nightly1.67.0-changes" }
-malefic-win-kit = { path = "../malefic-win-kit" }
+
 wmi = { git = "https://github.com/lz520520/wmi-rs" }
 [dependencies.windows]
 version = "0.58.0"
