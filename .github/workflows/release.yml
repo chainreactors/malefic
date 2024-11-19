@@ -104,8 +104,6 @@ jobs:
           for file in *; do
             filename=$(basename "$file")
             echo "Uploading $filename"
-#            sha256sum $filename >> $file.sha256
-#            gh release upload ${{ needs.create-release.outputs.VERSION }} $filename.sha256
             gh release upload ${{ needs.create-release.outputs.VERSION }} $filename
           done
         shell: bash
