@@ -13,7 +13,7 @@ Crypto_AES = ["Crypto", "aes", "ctr"]
 Crypto_Chacha20 = ["Crypto", "chacha20"]
 
 [dependencies]
-prost = { git = "https://github.com/tottoto/prost", branch = "relax-message-debug-trait-bound"  }
+prost = { git = "https://github.com/chainreactors/prost", branch = "relax-message-debug-trait-bound"  }
 serde = { version = "1.0.210", features = ["derive"], optional = true }
 thiserror = "1.0.64"
 snap = "1.1.1"

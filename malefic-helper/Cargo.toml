@@ -45,13 +45,13 @@ strum_macros = "0.26.4"
 thiserror = "1.0.64"
 sysinfo = "0.31.2"
 whoami = "1.5.1"
-netstat2 = { git = "https://github.com/kurtbuilds/netstat2-rs", branch = "master" }
+netstat2 = "0.11"
 sha2 = "0.10"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-detour = { git = "https://github.com/Hpmason/detour-rs", branch = "fix-nightly1.67.0-changes" }
+detour = { git = "https://github.com/chainreactors/retour-rs", branch = "fix-nightly1.67.0-changes" }
 
-wmi = { git = "https://github.com/lz520520/wmi-rs" }
+wmi = { git = "https://github.com/chainreactors/wmi-rs" }
 [dependencies.windows]
 version = "0.58.0"
 features = [

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 lazy_static = { version = "1.4", features = ["spin_no_std"]}
-prost = { git = "https://github.com/tottoto/prost", branch = "relax-message-debug-trait-bound"  }
+prost = { git = "https://github.com/chainreactors/prost", branch = "relax-message-debug-trait-bound"  }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1.0"
