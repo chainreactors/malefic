@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       remark:
-        description: 'You can write something here, it will appear in the TITLE of `gh run list`, and help u find the malefic version.'
+        description: 'You can write something here, it will appear in the TITLE of `gh run list`, and help u find the artifact easily.'
         required: false
         default: ''
       release:
@@ -18,9 +18,20 @@ on:
         description: 'Edition'
         required: false
         default: 'community'
-      malefic_config:
-        description: 'Malefic config (Base64-encoded content of config.yaml , will be masked in logs)'
+      package:
+        description: 'Package'
         required: true
+        default: 'beacon'
+      malefic_modules_features:
+        description: 'Malefic modules features'
+        required: false
+        default: 'full'
+      malefic_config_yaml:
+        description: 'Malefic config (Base64-encoded content of config.yaml , will be masked in logs)'
+        required: false
+      autorun_yaml:
+        description: 'Autorun config (Base64-encoded content of autorun.yaml , will be masked in logs)'
+        required: false
 
 run-name: ${{ github.event.inputs.remark }}
 
@@ -47,38 +58,45 @@ jobs:
       matrix:
         target: ${{ fromJson(needs.set_targets.outputs.targets_json) }}
     steps:
-      - name: Install And Cache Cargo-make
-        uses: taiki-e/cache-cargo-install-action@v2
-        with:
-          tool: cargo-make
-
-      - name: Generate config.yaml
-        run: echo "$SECRET_CONFIG_CONTENT" | base64 -d > config.yaml
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Mask config content
+      - name: Generate config.yaml
+        if : ${{ github.event.inputs.malefic_config_yaml != null }}
         run: |
-          SECRET_CONFIG_CONTENT=$(jq -r '.inputs.malefic_config' $GITHUB_EVENT_PATH)
-          echo "::add-mask::$SECRET_CONFIG_CONTENT"
-          echo "SECRET_CONFIG_CONTENT=$SECRET_CONFIG_CONTENT" >> $GITHUB_ENV
+          SECRET_CONFIG_YAML_CONTENT=$(jq -r '.inputs.malefic_config_yaml' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$SECRET_CONFIG_YAML_CONTENT"
+          echo $SECRET_CONFIG_YAML_CONTENT
+          echo "SECRET_CONFIG_YAML_CONTENT=$SECRET_CONFIG_YAML_CONTENT" >> $GITHUB_ENV
+          echo "$SECRET_CONFIG_YAML_CONTENT" | base64 -d > config.yaml
 
-      - name: Build ${{matrix.target}}
+      - name: Generate autorun.yaml
+        if : ${{ github.event.inputs.autorun_yaml != null }}
+        run: |
+          SECRET_AUTORUN_YAML_CONTENT=$(jq -r '.inputs.autorun_yaml' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$SECRET_AUTORUN_YAML_CONTENT"
+          echo "SECRET_AUTORUN_YAML_CONTENT=$SECRET_AUTORUN_YAML_CONTENT" >> $GITHUB_ENV
+          echo "$SECRET_AUTORUN_YAML_CONTENT" | base64 -d > autorun.yaml
+
+      - name: Build(${{ github.event.inputs.package }},${{matrix.target}})
+        if : ${{ github.event.inputs.package != 'modules' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
-        run: cargo make docker ${{matrix.target}}
+        run: |
+          make target_triple=${{matrix.target}} ${{ github.event.inputs.package }}  -f ./Makefiles/Makefile.v0.0.3 
+
+      - name: Build(${{ github.event.inputs.package }},${{matrix.target}})
+        if : ${{ github.event.inputs.package == 'modules' }}
+        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+        run: |
+          make target_triple=${{matrix.target}} ${{ github.event.inputs.package }} malefic_modules_features=${{ github.event.inputs.malefic_modules_features }} -f ./Makefiles/Makefile.v0.0.3  
 
       - name: Rename binary for ${{matrix.target}}
         run: |
-          mkdir -p output/
           sudo chmod -R 777 target
-          if [[ -f target/*/release/malefic ]]; then
-            mv target/*/release/malefic output/malefic-${{matrix.target}}
-          else
-            mv target/*/release/malefic.exe output/malefic-${{matrix.target}}.exe
-          fi
+          sudo chmod -R 777 output
 
       - name: Upload artifact ${{matrix.target}}
         if: ${{ github.event.inputs.release == 'none' }}

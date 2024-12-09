@@ -1,0 +1,92 @@
+release_version := v0.0.3
+build_type :=
+build_version := community
+target_triple := x86_64-unknown-linux-musl
+malefic_modules_features :=
+
+is_windows := $(shell echo $(target_triple) | grep -q "windows" && echo "true" || echo "false")
+win7_flag := $(shell echo $(target_triple) | grep -q "win7" && echo "-Z build-std=std,panic_abort" || echo "")
+
+
+base:
+	if [ ! -f ./malefic_mutant ]; then \
+		wget -O malefic_mutant https://github.com/chainreactors/malefic/releases/download/$(release_version)/malefic-mutant-x86_64-unknown-linux-musl ; \
+		chmod +x malefic_mutant ; \
+	fi
+
+	if [ ! -f ./resources/malefic-win-kit-community-msvc-x64.lib ] || [ ! -d resources ]; then \
+		wget https://github.com/chainreactors/malefic/releases/download/v0.0.3/resources.zip; \
+		unzip resources.zip -d resources; \
+	fi
+
+	mkdir -p output
+
+beacon: base
+
+	docker run -v "$(PWD)/cache/registry:/root/cargo/registry" -v "$(PWD)/cache/git:/root/cargo/git" -v "$(PWD):/root/src" --rm -it \
+		ghcr.io/chainreactors/$(target_triple):nightly-2023-09-18-latest bash -c "./malefic_mutant generate beacon && \
+		cargo build --release -p malefic --target $(target_triple)"
+
+	sudo chmod 777 -R ./target
+
+	if [ "$(is_windows)" = "true" ]; then \
+		mv ./target/$(target_triple)/release/malefic.exe output/malefic-$(target_triple).exe ; \
+	else \
+		mv ./target/$(target_triple)/release/malefic output/malefic-$(target_triple) ; \
+	fi
+
+bind: base
+
+	docker run -v "$(PWD)/cache/registry:/root/cargo/registry" -v "$(PWD)/cache/git:/root/cargo/git" -v "$(PWD):/root/src" --rm -it \
+		ghcr.io/chainreactors/$(target_triple):nightly-2023-09-18-latest bash -c "./malefic_mutant generate bind && \
+		cargo build --release -p malefic --target $(target_triple) $(win7_flag)"
+
+	sudo chmod 777 -R ./target
+
+	if [ "$(is_windows)" = "true" ]; then \
+		mv ./target/$(target_triple)/release/malefic.exe output/malefic-$(target_triple).exe ; \
+	else \
+		mv ./target/$(target_triple)/release/malefic output/malefic-$(target_triple) ; \
+	fi
+
+prelude: base
+
+	docker run -v "$(PWD)/cache/registry:/root/cargo/registry" -v "$(PWD)/cache/git:/root/cargo/git" -v "$(PWD):/root/src" --rm -it \
+		ghcr.io/chainreactors/$(target_triple):nightly-2023-09-18-latest bash -c "./malefic_mutant generate prelude autorun.yaml && \
+		cargo build --release -p malefic-prelude --target $(target_triple) $(win7_flag)"
+
+	sudo chmod 777 -R ./target
+
+	if [ "$(is_windows)" = "true" ]; then \
+		mv ./target/$(target_triple)/release/malefic-prelude.exe output/malefic-prelude-$(target_triple).exe ; \
+	else \
+		mv ./target/$(target_triple)/release/malefic-prelude output/malefic-prelude-$(target_triple) ; \
+	fi
+
+pulse: base
+
+	docker run -v "$(PWD)/cache/registry:/root/cargo/registry" -v "$(PWD)/cache/git:/root/cargo/git" -v "$(PWD):/root/src" --rm -it \
+		ghcr.io/chainreactors/$(target_triple):nightly-2023-09-18-latest bash -c "./malefic_mutant generate pulse x64 win && \
+		cargo build --profile release-lto -p malefic-pulse --target $(target_triple) $(win7_flag)"
+
+	sudo chmod 777 -R ./target
+
+	if [ "$(is_windows)" = "true" ]; then \
+		mv ./target/$(target_triple)/release-lto/malefic-pulse.exe output/malefic-pulse-$(target_triple).exe ; \
+	else \
+		mv ./target/$(target_triple)/release-lto/malefic-pulse output/malefic-pulse-$(target_triple) ; \
+	fi
+
+modules: base
+
+	docker run -v "$(PWD)/cache/registry:/root/cargo/registry" -v "$(PWD)/cache/git:/root/cargo/git" -v "$(PWD):/root/src" --rm -it \
+		ghcr.io/chainreactors/$(target_triple):nightly-2023-09-18-latest bash -c "./malefic_mutant generate modules $(malefic_modules_features) && \
+		cargo build --release -p malefic-modules --features $(malefic_modules_features) --target $(target_triple) $(win7_flag)"
+
+	sudo chmod 777 -R ./target
+
+	if [ "$(is_windows)" = "true" ]; then \
+		mv ./target/$(target_triple)/release/modules.dll output/modules-$(target_triple).dll ; \
+	else \
+		echo "todo" ; \
+	fi
