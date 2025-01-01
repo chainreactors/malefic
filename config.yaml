@@ -16,20 +16,17 @@ pulse:
     start: 0x41
     end: 0x42
     magic: "beautiful"
-    artifact_id: 16
+    artifact_id: 0
   encryption: xor
   key: "maliceofinternal"
   target: 127.0.0.1:5002
   protocol: "tcp"
   http:
-    method: "GET"
+    method: "POST"
     path: "/pulse.bin"
     version: "1.1"
     headers:
-      user_agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
-      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-      accept_language: "en-US,en;q=0.5"
-      accept_encoding: "gzip, deflate"
+      User_Agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
 
 metadata:
   remap_path: "C:/Windows/Users/Maleficarum"

@@ -7,6 +7,7 @@ pub mod whoami;
 // mod reg;
 pub mod kill;
 // mod spawn;
+#[cfg(feature = "info")]
 pub mod info;
 
 #[cfg(target_family = "windows")]

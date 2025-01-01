@@ -42,5 +42,5 @@ pub fn update_beacon_toml(implant_config: &ImplantConfig) {
         panic!("Failed to write updated Cargo.toml: {}", e);
     }
 
-    println!("{} has been successfully updated.", CONFIG_BEACON_TOML_PATH.clone());
+    println!("Cargo.toml at {} has been successfully updated.", CONFIG_BEACON_TOML_PATH.clone());
 }

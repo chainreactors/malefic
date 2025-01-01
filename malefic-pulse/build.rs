@@ -14,14 +14,25 @@ fn main() {
         println!("cargo:rustc-link-arg-bins=/ENTRY:_start");
         println!("cargo:rustc-link-arg-bins=/SUBSYSTEM:WINDOWS");
     } else {
-        let default_linker = "Linker";
-        let arch = &default_arch[1..];
-        let linker = format!("{}{}.{}", default_linker, arch, "ld"); 
-        let current_dir = env::current_dir()
-            .expect("Failed to get current directory");
-        let absolute_linker_path = current_dir.join(linker);
-        println!("cargo:rustc-link-arg=-T{}", absolute_linker_path.display());
-        println!("cargo:rustc-link-arg=-Wl,--allow-multiple-definition");
+        // let default_linker = "Linker";
+        // let arch = &default_arch[1..];
+        // let linker = format!("{}{}.{}", default_linker, arch, "ld");
+        // let current_dir = env::current_dir()
+        //     .expect("Failed to get current directory");
+        // let absolute_linker_path = current_dir.join(linker);
+        println!("cargo:rustc-link-arg=-nostdlib");
+        println!("cargo:rustc-link-arg=-nostartfiles");
+        println!("cargo:rustc-link-arg=-fno-ident");
+        println!("cargo:rustc-link-arg=-fpack-struct=8");
+        println!("cargo:rustc-link-arg=-Wl,--gc-sections");
+        println!("cargo:rustc-link-arg=-Wl,--strip-all");
+        println!("cargo:rustc-link-arg=-falign-jumps=1");
+        println!("cargo:rustc-link-arg=-static");
+        println!("cargo:rustc-link-arg=-w");
+        println!("cargo:rustc-link-arg=-falign-labels=1");
+        println!("cargo:rustc-link-arg=-Wl,-s,--no-seh,--enable-stdcall-fixup");
+        println!("cargo:rustc-link-arg=-Wl,--subsystem,windows");
+        println!("cargo:rustc-link-arg=-Wl,-e_start");
     }
 
     #[cfg(feature = "prebuild")]

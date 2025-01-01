@@ -6,7 +6,7 @@ use malefic_proto::compress::decompress;
 use malefic_proto::crypto::{new_cryptor};
 use malefic_helper::debug;
 use crate::autorun::Autorun;
-use malefic_proto::parser::decode;
+use malefic_proto::decode;
 use malefic_core::config;
 
 

@@ -19,6 +19,11 @@ extern "C" {
         ppid: u32,
         block_dll: bool,
     ) -> RawString;
+    pub fn InjectRemoteThread(
+        bin: *const u8,
+        bin_len: usize,
+        pid: u32
+    ) -> RawString;
     pub fn MaleficLoadLibrary(
         flags: u32,
         buffer: *const u16,
@@ -31,6 +36,20 @@ extern "C" {
         func_name: *const u8,
         func_name_len: usize,
     ) -> *const core::ffi::c_void;
+    pub fn ReflectiveLoader(
+        start_commandline: *const u8,
+        start_commandline_len: usize,
+        reflective_loader_name: *const u8,
+        reflective_loader_name_len: usize,
+        data: *const u8,
+        data_len: usize,
+        param: *const u8,
+        param_len: usize,
+        ppid: u32,
+        block_dll: bool,
+        timeout: u32,
+        is_need_output: bool,
+    ) -> RawString;
     pub fn InlinePE(
         bin: *const u8,
         bin_size: usize,
@@ -239,6 +258,40 @@ pub fn run_pe(
             block_dll,
             need_output
         ) 
+    }
+}
+
+#[cfg(target_os = "windows")]
+#[cfg(feature = "prebuild")]
+pub fn reflective_loader(
+    start_commandline: *const u8,
+    start_commandline_len: usize,
+    reflective_loader_name: *const u8,
+    reflective_loader_name_len: usize,
+    data: *const u8,
+    data_len: usize,
+    param: *const u8,
+    param_len: usize,
+    ppid: u32,
+    block_dll: bool,
+    timeout: u32,
+    is_need_output: bool,
+) -> RawString {
+    unsafe {
+        ReflectiveLoader(
+            start_commandline,
+            start_commandline_len,
+            reflective_loader_name,
+            reflective_loader_name_len,
+            data,
+            data_len,
+            param,
+            param_len,
+            ppid,
+            block_dll,
+            timeout,
+            is_need_output
+        )
     }
 }
 

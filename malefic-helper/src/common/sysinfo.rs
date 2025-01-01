@@ -1,29 +1,33 @@
-use sysinfo::System;
-
 use crate::common::{filesys, process};
 
+
+#[cfg(feature = "sysinfo")]
 pub fn name() -> String {
-    System::name().unwrap_or("".to_string())
+    sysinfo::System::name().unwrap_or("".to_string())
 }
 
+#[cfg(feature = "sysinfo")]
 pub fn release() -> String {
-    System::kernel_version().unwrap_or("".to_string())
+    sysinfo::System::kernel_version().unwrap_or("".to_string())
 }
 
 pub fn username() -> String {
     whoami::username()
 }
 
+#[cfg(feature = "sysinfo")]
 pub fn version() -> String {
-    System::os_version().unwrap_or("".to_string())
+    sysinfo::System::os_version().unwrap_or("".to_string())
 }
 
+#[cfg(feature = "sysinfo")]
 pub fn hostname() -> String {
-    System::host_name().unwrap_or("".to_string())
+    sysinfo::System::host_name().unwrap_or("".to_string())
 }
 
+#[cfg(feature = "sysinfo")]
 pub fn arch() -> String {
-    System::cpu_arch().unwrap_or("".to_string())
+    sysinfo::System::cpu_arch().unwrap_or("".to_string())
 }
 
 #[allow(deprecated)]
@@ -50,15 +54,22 @@ pub struct Os {
 }
 
 pub fn default_os() -> Option<Os> {
-    Some(Os {
-        name: name(),
-        version: version(),
-        release: release(),
-        arch: arch(),
-        username: username(),
-        hostname: hostname(),
-        locale: language(),
-    })
+    #[cfg(feature = "sysinfo")]
+    {
+        Some(Os {
+            name: name(),
+            version: version(),
+            release: release(),
+            arch: arch(),
+            username: username(),
+            hostname: hostname(),
+            locale: language(),
+        })
+    }
+    #[cfg(not(feature = "sysinfo"))]
+    {
+        None
+    }
 }
 
 

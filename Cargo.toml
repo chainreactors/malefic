@@ -26,13 +26,10 @@ panic = "abort"
 opt-level = "z"
 debug-assertions = false
 strip = true
+lto = "fat"
 codegen-units = 1
 incremental = false
 rustflags = [
     "-Z", "trim-diagnostic-paths",
     "--cfg", "hide_path",
 ]
-
-[profile.release-lto]
-inherits = "release"
-lto = true

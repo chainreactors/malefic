@@ -2,6 +2,7 @@
 #[macro_use]
 extern crate lazy_static;
 use clap::{Parser, ValueEnum};
+use cmd::SrdiType;
 use config::{
     update_beacon_config, 
     update_bind_config, 
@@ -214,12 +215,18 @@ static DEPENDENCICES: &str = "dependencies";
 static RESOURCES_DIR: &str = "./resources/";
 
 fn load_yaml_config(yaml_path: &str) -> anyhow::Result<Implant> {
-    let yaml_content = fs::read_to_string(yaml_path)?;
+    let yaml_content = fs::read_to_string(yaml_path).
+        expect("Failed to read YAML configuration file, 
+            please run malefic-mutant generate on malefic src workdir"
+    );
     let config: Implant = serde_yaml::from_str(&yaml_content)?;
     Ok(config)
 }
 
-fn validate_yaml_config(yaml_path: &str, schema_path: &str) -> anyhow::Result<()> {
+fn validate_yaml_config(
+    yaml_path: &str, 
+    schema_path: &str
+) -> anyhow::Result<()> {
     let yaml_content = fs::read_to_string(yaml_path)?;
     let yaml_value: YamlValue = serde_yaml::from_str(&yaml_content)?;
     let json_value = serde_json::to_value(&yaml_value)?;
@@ -260,7 +267,8 @@ fn parse_generate(
         }
         GenerateCommands::Modules { modules } => {
             if !modules.is_empty() {
-                yaml_config.implants.modules = modules.split(",").map(|x| x.to_string()).collect();
+                yaml_config.implants.modules = 
+                    modules.split(",").map(|x| x.to_string()).collect();
                 println!("Modules: {:?}", yaml_config.implants.modules);
             }
             update_beacon_config(yaml_config)
@@ -280,19 +288,43 @@ fn parse_build(
             println!("TinyTools");
             Ok(())
         },
-        BuildCommands::SRDI { src_path, platform, arch, target_path, function_name, userdata_path } => {
-            link_srdi_generator(
-                src_path, *platform, *arch, target_path, function_name, userdata_path)
+        BuildCommands::SRDI {
+            r#type: srdi_type,
+            input: src_path, 
+            platform, 
+            arch,
+            output: target_path, 
+            function_name, 
+            userdata_path 
+        } => {
+            let userdata = if userdata_path.is_empty() {
+                Vec::new()
+            } else {
+                fs::read(userdata_path)?
+            };
+            match srdi_type {
+                SrdiType::LINK => {
+                    link_srdi_generator(
+                        src_path, *platform, *arch, 
+                        target_path, function_name, &userdata
+                    )
+                },
+                SrdiType::MALEFIC => {
+                    malefic_srdi_generator(
+                        src_path, *platform, *arch, 
+                        target_path, function_name, &userdata
+                    )
+                }
+            }
         }
     }
 }
 
 fn main() -> anyhow::Result<()> {
-    let mut implant_config = load_yaml_config(CONFIG_YAML_PATH)?;
-
     let cli = Cli::parse();
     match &cli.command {
         Commands::Generate {version, source, command } => {
+            let mut implant_config = load_yaml_config(CONFIG_YAML_PATH)?;
             validate_yaml_config(CONFIG_YAML_PATH, CONFIG_SCHEMA_PATH)?;
             parse_generate(&mut implant_config, command, *version, *source)
         },

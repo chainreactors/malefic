@@ -9,13 +9,12 @@ use malefic_core::manager::internal::InternalModule;
 use malefic_core::scheduler::TaskOperator;
 use malefic_helper::debug;
 use malefic_proto::proto::modulepb;
-use malefic_proto::{new_error_spite, new_spite};
+use malefic_proto::{marshal, new_error_spite, new_spite};
 use malefic_proto::proto::implantpb;
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::implantpb::{Spite, Spites};
 use malefic_core::{check_body, config};
 use malefic_core::transport::{Client, SafeTransport};
-use malefic_proto::parser::{marshal};
 use crate::meta::MetaConfig;
 use crate::malefic::MaleficChannel;
 

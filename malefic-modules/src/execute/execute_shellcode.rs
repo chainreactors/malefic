@@ -39,7 +39,7 @@ impl Module for ExecuteShellcode {
             }
             #[cfg(target_os = "windows")]
             {
-                ret = to_error!(malefic_helper::win::inject::apc::loader(
+                ret = to_error!(malefic_helper::win::loader::apc::loader(
                     bin,
                     is_need_sacrifice,
                     cmdline.as_ptr() as _,
@@ -49,7 +49,7 @@ impl Module for ExecuteShellcode {
             }
             #[cfg(target_os = "linux")]
             {
-                ret = to_error!(malefic_helper::linux::inject::memfd::loader(
+                ret = to_error!(malefic_helper::linux::loader::memfd::loader(
                     bin,
                     request.output
                 ))?;

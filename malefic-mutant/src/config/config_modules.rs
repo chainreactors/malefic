@@ -27,5 +27,5 @@ pub fn update_module_toml(modules: &[String]) {
     fs::write(CONFIG_MODULE_TOML_PATH.clone(), module_toml.to_string())
         .expect("Failed to write updated Cargo.toml file");
 
-    println!("{:#?} has been successfully updated.", CONFIG_MODULE_TOML_PATH.clone());
+    println!("Cargo.toml at {:#?} has been successfully updated.", CONFIG_MODULE_TOML_PATH.clone());
 }
