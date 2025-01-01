@@ -1,6 +1,16 @@
+[net]
+retry = 3
+git-fetch-with-cli = true
+
 [target.x86_64-pc-windows-gnu]
 rustflags = [
     "-C", "link-arg=-s",
+    "-C", "link-arg=-fuse-ld=lld",
+]
+[target.i686-pc-windows-gnu]
+rustflags = [
+    "-C", "link-arg=-s",
+    "-C", "link-arg=-fuse-ld=lld",
 ]
 
 [target.x86_64-pc-windows-msvc]
@@ -17,4 +27,5 @@ rustflags = [
 rustflags = [
     "-C", "link-arg=-Wl,--gc-sections",
     "-C", "link-arg=-Wl,--strip-all",
+    "-C", "link-arg=-Wl,--allow-multiple-definition",
 ]

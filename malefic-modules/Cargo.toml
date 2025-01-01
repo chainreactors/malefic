@@ -53,12 +53,12 @@ sys_full = [
     "registry", "taskschd", "getsystem", "runas", "privs", "inject"
 ]
 
-info = []
-ps = []
+info = ["malefic-helper/sysinfo"]
+ps = ["malefic-helper/sysinfo"]
 id = []
 env = []
-whoami = []
-kill = []
+whoami = ["malefic-helper/sysinfo"]
+kill = ["malefic-helper/sysinfo"]
 bypass = []
 netstat = []
 wmi = []
@@ -71,8 +71,11 @@ privs = []
 inject = []
 
 execute_full = [
-    "exec", "execute_shellcode", "execute_assembly", "execute_powershell",
-    "execute_bof", "execute_armory", "execute_exe", "execute_dll", "execute_local"
+#    "execute_assembly",
+#    "execute_powershell",
+    "dllspawn",
+    "inline_local",
+    "exec", "execute_shellcode", "execute_bof", "execute_armory", "execute_exe", "execute_dll", "execute_local"
 ]
 
 exec = []
@@ -84,6 +87,8 @@ execute_armory = []
 execute_exe = []
 execute_dll = []
 execute_local = []
+dllspawn = []
+inline_local = []
 
 net = []
 net_full = ["upload", "download"]

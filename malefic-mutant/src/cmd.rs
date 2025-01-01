@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use clap::{Parser, Subcommand};
 use crate::{GenerateArch, Platform, Version};
 
@@ -69,6 +71,24 @@ pub enum GenerateCommands {
 
 }
 
+#[derive(Clone)]
+pub enum SrdiType {
+    LINK,
+    MALEFIC
+}
+
+impl FromStr for SrdiType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "link" => Ok(SrdiType::LINK),
+            "malefic" => Ok(SrdiType::MALEFIC),
+            _ => Err(format!("'{}' is not a valid value for SrdiType", s)),
+        }
+    }
+}
+
 #[derive(Subcommand)]
 pub enum BuildCommands {
     /// Generate TinyTools
@@ -77,17 +97,25 @@ pub enum BuildCommands {
 
     /// Generate SRDI
     SRDI {
+        /// Srdi type: link(not support TLS)/malefic(support TLS)
+        #[arg(long, short = 't', default_value = "malefic")]
+        r#type: SrdiType,
+        
         /// Source exec path
-        src_path: String,
+        #[arg(long, short = 'i', default_value = "")]
+        input: String,
 
         /// platform, win
+        #[arg(long, short = 'p', default_value = "win")]
         platform: Platform,
 
         /// Choice arch x86/x64
+        #[arg(long, short = 'a', default_value = "x64")]
         arch: GenerateArch,
 
         /// Target shellcode path
-        target_path: String,
+        #[arg(long, short = 'o', default_value = "malefic.bin")]
+        output: String,
 
         /// Function name
         #[arg(long, default_value = "")]

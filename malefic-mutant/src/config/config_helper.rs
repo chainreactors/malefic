@@ -72,5 +72,5 @@ pub fn update_helper_toml(version: &Version, source: bool) {
 
     fs::write(config_helper_toml_path, cargo_toml.to_string())
         .expect("Failed to write updated Cargo.toml file");
-    println!("{:#?} has been updated.", config_helper_toml_path);
+    println!("Cargo.toml file {:#?} has been updated.", config_helper_toml_path);
 }

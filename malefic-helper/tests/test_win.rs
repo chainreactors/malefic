@@ -6,7 +6,7 @@ pub fn test_loader() {
     let file = std::fs::read("../loader.bin").unwrap();
     println!("[+] file size: {}", file.len());
     unsafe {
-        let loader = malefic_helper::win::inject::apc::loader(
+        let loader = malefic_helper::win::loader::apc::loader(
             file,
             false,
             "C:\\Windows\\System32\\notepad.exe\x00".as_ptr() as _,

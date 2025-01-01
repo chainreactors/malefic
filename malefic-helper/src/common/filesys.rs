@@ -1,4 +1,5 @@
 use std::{env, io};
+use std::path::{Path, PathBuf};
 
 #[cfg(target_family = "unix")]
 pub fn chown(path: &str, uid: u32, gid: u32) -> std::io::Result<()> {
@@ -72,4 +73,58 @@ pub fn get_file_mode(meta: &dyn std::os::windows::fs::MetadataExt) -> u32 {
 pub fn get_file_mode(meta: &std::fs::Metadata) -> u32 {
     use std::os::unix::fs::PermissionsExt;
     meta.permissions().mode()
+}
+
+
+pub fn lookup(file_name: &str) -> PathBuf {
+    let mut path = PathBuf::from(file_name);
+
+    #[cfg(windows)]
+    {
+        if path.extension().is_none() {
+            path.set_extension("exe");
+        }
+    }
+    
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+
+    if let Ok(current_dir) = env::current_dir() {
+        let relative_path = current_dir.join(file_name);
+        if relative_path.is_file() {
+            return relative_path;
+        }
+    }
+
+    if let Ok(path_env) = env::var("PATH") {
+        #[cfg(windows)]
+        let separator = ';';
+        #[cfg(not(windows))]
+        let separator = ':';
+
+        for dir in path_env.split(separator) {
+            let executable_path = Path::new(dir).join(file_name);
+            if executable_path.is_file() {
+                return executable_path;
+            }
+        }
+    }
+
+    Path::new(file_name).to_path_buf()
+}
+
+pub fn get_binary(file: &str) -> anyhow::Result<(Vec<u8>, String)> {
+    let path = lookup(file);
+
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| anyhow::anyhow!("not found file"))? // 如果没有文件名，直接返回 Err
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("invalid UTF-8 in file name"))? // 如果文件名无法转换为字符串，直接返回 Err
+        .to_string();
+
+    let content = std::fs::read(&path)?;
+
+    Ok((content, file_name))
 }

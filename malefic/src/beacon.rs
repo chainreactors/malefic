@@ -4,7 +4,7 @@ use malefic_core::transport::{Client, dialer::DialerExt, SafeTransport};
 use malefic_proto::crypto::new_cryptor;
 use std::time::Duration;
 use malefic_helper::debug;
-use malefic_proto::parser::marshal_one;
+use malefic_proto::marshal_one;
 use crate::stub::MaleficStub;
 use crate::malefic::MaleficChannel;
 

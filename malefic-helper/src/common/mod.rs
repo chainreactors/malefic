@@ -7,6 +7,7 @@ pub mod process;
 pub mod net;
 pub mod hot_modules;
 pub mod loader;
+pub mod utils;
 
 pub fn format_cmdline(processname: String, params: Vec<String>) -> String {
     if params.is_empty() {

@@ -15,15 +15,15 @@ pub fn get_os() -> Option<Os> {
     })
 }
 
-pub fn get_sysinfo() -> SysInfo {
+pub fn get_sysinfo() -> Option<SysInfo> {
     let info = malefic_helper::common::sysinfo::get_sysinfo();
-    let os = info.os.unwrap();
-    let process = info.process.unwrap();
-    SysInfo {
+    let os = info.os?;
+    let process = info.process?;
+    Some(SysInfo {
         filepath: info.filepath,
         workdir: info.workdir,
         is_privilege: info.is_privilege,
-        os: Some(Os{
+        os: Some(Os {
             name: os.name,
             version: os.version,
             release: os.release,
@@ -42,12 +42,12 @@ pub fn get_sysinfo() -> SysInfo {
             args: process.args,
             uid: process.uid,
         })
-    }
+    })
 }
 
 #[cfg(feature = "register_info")]
 pub fn get_register_info() -> Option<SysInfo> {
-    Some(get_sysinfo())
+    get_sysinfo()
 }
 
 #[cfg(not(feature = "register_info"))]

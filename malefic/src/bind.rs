@@ -3,7 +3,7 @@ use malefic_core::transport::{Client, listener::Listener, SafeTransport};
 use malefic_proto::crypto::{new_cryptor};
 use malefic_core::transport::listener::ListenerExt;
 use malefic_helper::debug;
-use malefic_proto::parser::marshal_one;
+use malefic_proto::marshal_one;
 use crate::stub::{MaleficStub};
 use crate::malefic::MaleficChannel;
 

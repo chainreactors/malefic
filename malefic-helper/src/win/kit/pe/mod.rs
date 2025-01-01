@@ -1,5 +1,7 @@
 pub mod runpe;
 pub mod inlinepe;
+pub mod utils;
+pub mod reflective_loader;
 
 pub unsafe fn unload_pe(pe_loader: *mut core::ffi::c_void) {
     #[cfg(feature = "prebuild")]

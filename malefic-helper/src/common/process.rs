@@ -2,7 +2,6 @@ use crate::{to_error, CommonError};
 use std::collections::HashMap;
 use std::process;
 use std::process::{Command, Stdio};
-use sysinfo::{ProcessRefreshKind, RefreshKind, System};
 
 #[cfg(target_family = "unix")]
 pub fn kill(pid: u32) -> Result<(), CommonError> {
@@ -166,34 +165,38 @@ pub fn get_process_arch(pid: u32) -> String{
 }
 
 pub fn get_processes() -> Result<HashMap<u32, Process>, CommonError> {
-    let mut processes = HashMap::new();
-
-    for (pid, process) in System::new_with_specifics(
-        RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
-    )
-        .processes()
-        .into_iter()
+    #[cfg(feature = "sysinfo")]
     {
-        processes.insert(
-            pid.as_u32(),
-            Process {
-                name: process.name().to_string_lossy().to_string(),
-                pid: pid.as_u32(),
-                ppid: process.parent().map_or_else(|| 0, |p| p.as_u32()),
-                arch: get_process_arch(pid.as_u32()),
-                uid: process.user_id().map_or_else(||"".to_string(), |uid| uid.to_string()),
-                owner: get_process_owner(pid.as_u32()),
-                path: process.exe().map_or_else(|| "".to_string(), |p| p.to_string_lossy().into_owned()),
-                args: process
-                    .cmd()
-                    .iter()
-                    .map(|os_str| os_str.to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join(" "),
-            },
-        );
+        let mut processes = HashMap::new();
+
+        for (pid, process) in sysinfo::System::new_with_specifics(
+            sysinfo::RefreshKind::new().with_processes(sysinfo::ProcessRefreshKind::everything()),
+        )
+            .processes()
+            .into_iter()
+        {
+            processes.insert(
+                pid.as_u32(),
+                Process {
+                    name: process.name().to_string_lossy().to_string(),
+                    pid: pid.as_u32(),
+                    ppid: process.parent().map_or_else(|| 0, |p| p.as_u32()),
+                    arch: get_process_arch(pid.as_u32()),
+                    uid: process.user_id().map_or_else(||"".to_string(), |uid| uid.to_string()),
+                    owner: get_process_owner(pid.as_u32()),
+                    path: process.exe().map_or_else(|| "".to_string(), |p| p.to_string_lossy().into_owned()),
+                    args: process
+                        .cmd()
+                        .iter()
+                        .map(|os_str| os_str.to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                },
+            );
+        }
+
+        Ok(processes)
     }
-    Ok(processes)
 }
 
 pub fn get_arch() -> String {

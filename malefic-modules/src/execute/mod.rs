@@ -2,20 +2,35 @@ pub mod exec;
 pub mod execute_shellcode;
 
 #[cfg(target_os = "windows")]
-pub mod execute_assemble;
+#[cfg(feature = "execute_assembly")]
+pub mod execute_assembly;
 #[cfg(target_os = "windows")]
+#[cfg(feature = "execute_bof")]
 pub mod execute_bof;
 #[cfg(target_os = "windows")]
+#[cfg(feature = "execute_powershell")]
 pub mod execute_powershell;
 #[cfg(target_os = "windows")]
+#[cfg(feature = "execute_armory")]
 pub mod execute_armory;
 #[cfg(target_os = "windows")]
+#[cfg(feature = "execute_exe")]
 pub mod execute_exe;
 #[cfg(target_os = "windows")]
+#[cfg(feature = "execute_dll")]
 pub mod execute_dll;
 
 #[cfg(target_os = "windows")]
+#[cfg(feature = "execute_local")]
 pub mod execute_local;
+
+#[cfg(target_os = "windows")]
+#[cfg(feature = "dllspawn")]
+pub mod dllspawn;
+
+#[cfg(target_os = "windows")]
+#[cfg(feature = "inline_local")]
+pub mod inline_local;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(PartialEq, Eq)]

@@ -4,20 +4,18 @@ pub mod dialer;
 pub mod listener;
 pub mod conn;
 
-use futures::{AsyncRead, AsyncWrite, FutureExt, join};
+use futures::{join, AsyncRead, AsyncWrite, FutureExt};
 use async_std::task::sleep;
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::time::Duration;
 use std::io;
 use thiserror::Error;
-use anyhow::{Result};
+use anyhow::Result;
 use malefic_helper::debug;
-use malefic_proto::parser::{parser_header, SpiteData, HEADER_LEN};
 use malefic_proto::crypto::{Cryptor, CryptorError};
 use conn::Transport;
-
-
+use malefic_proto::{parser_header, SpiteData, HEADER_LEN};
 
 #[derive(Error, Debug)]
 pub enum TransportError {
@@ -43,7 +41,7 @@ pub enum TransportError {
     IoError(#[from] io::Error), // 转换标准库的 I/O 错误
 
     #[error("Parser error: {0}")]
-    ParserError(#[from] malefic_proto::parser::ParserError),
+    ParserError(#[from] malefic_proto::ParserError),
 
     #[error("Unexpected end of stream")]
     UnexpectedEof,

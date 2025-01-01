@@ -62,7 +62,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           submodules: recursive
+
+      - name: Judge target_triple is win
+        run: |
+          if [[ "${{matrix.target}}" == *"win"* ]]; then
+            echo "is_win=1" >> $GITHUB_ENV
+          else
+            echo "is_win=0" >> $GITHUB_ENV
+          fi
+
+      - name: Install win kit lib
+        run: | 
+          wget https://github.com/chainreactors/malefic/releases/latest/download/resources.zip
+          unzip resources.zip -d resources
 
       - name: Generate config.yaml
         if : ${{ github.event.inputs.malefic_config_yaml != null }}
@@ -81,22 +95,37 @@ jobs:
           echo "SECRET_AUTORUN_YAML_CONTENT=$SECRET_AUTORUN_YAML_CONTENT" >> $GITHUB_ENV
           echo "$SECRET_AUTORUN_YAML_CONTENT" | base64 -d > autorun.yaml
 
-      - name: Build(${{ github.event.inputs.package }},${{matrix.target}})
+      - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
         if : ${{ github.event.inputs.package != 'modules' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          make target_triple=${{matrix.target}} ${{ github.event.inputs.package }}  -f ./Makefiles/Makefile.v0.0.3 
+          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:v0.0.4 \
+           bash -c "make ${{ github.event.inputs.package }} target_triple=${{matrix.target}} -f ./Makefile"
 
       - name: Build(${{ github.event.inputs.package }},${{matrix.target}})
         if : ${{ github.event.inputs.package == 'modules' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          make target_triple=${{matrix.target}} ${{ github.event.inputs.package }} malefic_modules_features=${{ github.event.inputs.malefic_modules_features }} -f ./Makefiles/Makefile.v0.0.3  
+          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:v0.0.4 \
+           bash -c "make ${{ github.event.inputs.package }} target_triple=${{matrix.target}} malefic_modules_features=${{ github.event.inputs.malefic_modules_features }} -f ./Makefile"
 
-      - name: Rename binary for ${{matrix.target}}
+      - name: Move ${{ github.event.inputs.package }} to output
         run: |
+          mkdir -p output
           sudo chmod -R 777 target
           sudo chmod -R 777 output
+          export prefix=./target/${{matrix.target}}/release
+          export suffix=$([ "$is_win" = "1" ] && echo ".exe" || echo "")
+          tree ./target
+          if ${{ github.event.inputs.package == 'beacon' }} || ${{ github.event.inputs.package == 'bind' }}; then \
+            mv $prefix/malefic$suffix output/malefic-${{ github.event.inputs.package }}$suffix; \
+          elif ${{ github.event.inputs.package == 'prelude' }}; then \
+            mv $prefix/malefic-prelude$suffix output/malefic-prelude$suffix; \
+          elif ${{ github.event.inputs.package == 'pulse' }}; then \
+            mv $prefix/malefic-pulse$suffix output/malefic-pulse$suffix;
+          elif ${{ github.event.inputs.package == 'modules' }}; then \
+            mv $prefix/modules.dll output/modules-${{matrix.target}}.dll; \
+          fi
 
       - name: Upload artifact ${{matrix.target}}
         if: ${{ github.event.inputs.release == 'none' }}
@@ -105,19 +134,3 @@ jobs:
           name: malefic-${{matrix.target}}-${{ github.run_id }}
           path: output/*
           retention-days: 3 # you can change this value
-
-      - name: Release ${{ matrix.target }}
-        if: ${{ github.event.inputs.release != 'none' }} # if you want to upload to a GitHub Release, create a release and provide the version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          for file in output/*; do
-            filename=$(basename "$file")
-            if [[ "$filename" == "malefic.exe" || "$filename" == "malefic" ]]; then
-              echo "Uploading $file"
-              gh release upload ${{ github.event.inputs.release }} "$file"
-            else
-              echo "Skipping $file"
-            fi
-          done
-        shell: bash

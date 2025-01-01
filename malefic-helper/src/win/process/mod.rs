@@ -1,12 +1,11 @@
-use windows::Win32::Foundation::{CloseHandle, DuplicateHandle, BOOL, DUPLICATE_SAME_ACCESS, HANDLE};
-use windows::Win32::System::Threading::{GetCurrentProcess, IsWow64Process, OpenProcess, OpenProcessToken, PROCESS_DUP_HANDLE, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
+use windows::Win32::Foundation::{CloseHandle, BOOL, HANDLE};
+use windows::Win32::System::Threading::{ IsWow64Process, OpenProcess, OpenProcessToken, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 use windows::Win32::Security::{GetTokenInformation, LookupAccountSidW, TokenUser, SID_NAME_USE, TOKEN_QUERY};
 use std::ffi::{c_void, OsString};
-use windows::core::{Error, Result, PWSTR};
+use windows::core::{Result, PWSTR};
 use windows::Win32::System::SystemInformation::{GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO};
 use std::os::windows::ffi::OsStringExt;
 use crate::win::common::get_buffer;
-use crate::win::inject::apc::loader;
 
 pub fn get_process_architecture(pid: u32) -> Result<String> {
     unsafe {
@@ -119,41 +118,4 @@ pub fn get_process_owner(pid: u32) -> anyhow::Result<String> {
                 .into_owned()
         ))
     }
-}
-
-
-pub fn remote_inject(process_id: u32, data: &[u8]) -> Result<()> {
-    let process_handle = unsafe { OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, false, process_id) }?;
-    if process_handle.is_invalid() {
-        return Err(Error::from_win32());
-    }
-
-    // 获取当前进程句柄
-    let current_process_handle = unsafe { GetCurrentProcess() };
-    if current_process_handle.is_invalid() {
-        return Err(Error::from_win32());
-    }
-
-    // 目标句柄，存放目标进程的句柄
-    let mut lp_target_handle: HANDLE = HANDLE::default();
-
-    // 复制句柄
-    unsafe {
-        DuplicateHandle(
-            process_handle,
-            current_process_handle,
-            current_process_handle,
-            &mut lp_target_handle,
-            0,
-            false,
-            DUPLICATE_SAME_ACCESS,
-        )?;
-
-        let _ = loader(data.to_vec(), false, "".as_ptr() as _, process_id, true).map_err(|e| {
-            let _ = CloseHandle(lp_target_handle);
-            let _ = CloseHandle(process_handle);
-            e
-        });
-    }
-    Ok(())
 }

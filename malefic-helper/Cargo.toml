@@ -5,7 +5,6 @@ edition = "2021"
 
 [features]
 default = ["Win", "Win_Inject_APC", "prebuild", "community"]
-
 win_template = [
         "Win_Inject_APC",
         "Win",
@@ -42,15 +41,14 @@ anyhow = "1.0.81"
 obfstr = "0.4.3"
 strum = "0.26.3"
 strum_macros = "0.26.4"
-thiserror = "1.0.64"
-sysinfo = "0.31.2"
+thiserror = "1.0.64" 
+sysinfo = { version = "0.31.2", optional = true }
 whoami = "1.5.1"
-netstat2 = "0.11"
+netstat2 = {git = "https://github.com/chainreactors/netstat2-rs", tag = "v0.11.2"}
 sha2 = "0.10"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 detour = { git = "https://github.com/chainreactors/retour-rs", branch = "fix-nightly1.67.0-changes" }
-
 wmi = { git = "https://github.com/chainreactors/wmi-rs" }
 [dependencies.windows]
 version = "0.58.0"
@@ -70,7 +68,8 @@ features = [
         "Win32_System_Registry",
         "Win32_System_Console",
         "Win32_System_LibraryLoader",
-        "Win32_System_Pipes"
+        "Win32_System_Pipes",
+        "Win32_System_Diagnostics_Debug"
 ]
 
 

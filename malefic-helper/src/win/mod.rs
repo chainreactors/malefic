@@ -3,6 +3,7 @@ pub mod kit;
 pub mod types;
 pub mod reg;
 pub mod inject;
+pub mod loader;
 pub mod service;
 pub mod wmi;
 pub mod scheduler;
