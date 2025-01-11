@@ -6,7 +6,7 @@ use malefic_helper::win::kit::pe::{inlinepe::inline_pe, runpe::run_pe};
 
 use crate::{check_request, Module, Result, TaskResult};
 use malefic_trait::module_impl;
-use malefic_helper::common::format_cmdline;
+use malefic_helper::common::utils::format_cmdline;
 use malefic_proto::proto::modulepb::BinaryResponse;
 use crate::execute::Arch;
 

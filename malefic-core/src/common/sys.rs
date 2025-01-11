@@ -40,7 +40,7 @@ pub fn get_sysinfo() -> Option<SysInfo> {
             owner: process.owner,
             path: process.path,
             args: process.args,
-            uid: process.uid,
+            uid: "".to_string(),
         })
     })
 }

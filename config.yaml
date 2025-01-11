@@ -19,11 +19,11 @@ pulse:
     artifact_id: 0
   encryption: xor
   key: "maliceofinternal"
-  target: 127.0.0.1:5002
-  protocol: "tcp"
+  target: 127.0.0.1:80
+  protocol: "http"
   http:
     method: "POST"
-    path: "/pulse.bin"
+    path: "/pulse"
     version: "1.1"
     headers:
       User_Agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"

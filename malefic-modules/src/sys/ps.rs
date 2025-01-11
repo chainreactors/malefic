@@ -23,7 +23,7 @@ impl Module for Ps {
                 owner: process.owner,
                 path: process.path,
                 args: process.args,
-                uid: process.uid,
+                uid: "".to_string(),
             });
         }
 

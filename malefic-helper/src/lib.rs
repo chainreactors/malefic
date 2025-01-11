@@ -20,7 +20,7 @@ use thiserror::Error;
 pub enum CommonError {
     #[error(transparent)]
     AnyError(#[from] anyhow::Error),
-    
+
     #[error("{0}")]
     Win32Error(u32),
 
@@ -56,7 +56,6 @@ macro_rules! debug {
         }
     };
 }
-
 
 pub struct Defer {
     message: String,

@@ -1,12 +1,18 @@
+use crate::debug;
+use crate::win::common::to_wide_string;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
-use windows::core::{PCWSTR, Result, PWSTR, Error};
-use windows::Win32::Foundation::WIN32_ERROR;
-use windows::Win32::System::Registry::{RegCreateKeyExW, RegDeleteKeyExW, RegDeleteTreeW, RegDeleteValueW, RegEnumValueW, RegOpenKeyExW, RegSetValueExW, HKEY, REG_BINARY, REG_DWORD, REG_EXPAND_SZ, REG_MULTI_SZ, REG_QWORD, REG_SZ, REG_VALUE_TYPE, KEY_ALL_ACCESS, KEY_READ, KEY_WRITE, REG_OPTION_NON_VOLATILE, RegEnumKeyExW, RegQueryValueExW};
 use std::ptr::null_mut;
 use strum_macros::{Display, EnumString};
-use crate::win::common::to_wide_string;
+use windows::core::{Error, Result, PCWSTR, PWSTR};
+use windows::Win32::Foundation::WIN32_ERROR;
+use windows::Win32::System::Registry::{
+    RegCreateKeyExW, RegDeleteKeyExW, RegDeleteTreeW, RegDeleteValueW, RegEnumKeyExW,
+    RegEnumValueW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW, HKEY, KEY_ALL_ACCESS, KEY_READ,
+    KEY_WRITE, REG_BINARY, REG_DWORD, REG_EXPAND_SZ, REG_MULTI_SZ, REG_OPTION_NON_VOLATILE,
+    REG_QWORD, REG_SZ, REG_VALUE_TYPE,
+};
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub enum RegistryValue {
@@ -55,7 +61,8 @@ impl RegistryValue {
                 RegistryValue::Dword(data)
             }
             REG_QWORD => {
-                let data: u64 = u64::from_ne_bytes(buffer[..8].try_into().unwrap_or([0, 0, 0, 0, 0, 0, 0, 0]));
+                let data: u64 =
+                    u64::from_ne_bytes(buffer[..8].try_into().unwrap_or([0, 0, 0, 0, 0, 0, 0, 0]));
                 RegistryValue::Qword(data)
             }
             REG_BINARY => RegistryValue::Binary(buffer[..buffer_size as usize].to_vec()),
@@ -86,21 +93,21 @@ impl RegistryValue {
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(Clone, Copy, EnumString, Display)]
 pub enum RegistryHive {
-    #[strum(serialize = "HKEY_CLASSES_ROOT")]
+    #[strum(serialize = "HKEY_CLASSES_ROOT", serialize = "HKCR")]
     ClassesRoot,
-    #[strum(serialize = "HKEY_CURRENT_USER")]
+    #[strum(serialize = "HKEY_CURRENT_USER", serialize = "HKCU")]
     CurrentUser,
-    #[strum(serialize = "HKEY_LOCAL_MACHINE")]
+    #[strum(serialize = "HKEY_LOCAL_MACHINE", serialize = "HKLM")]
     LocalMachine,
-    #[strum(serialize = "HKEY_USERS")]
+    #[strum(serialize = "HKEY_USERS", serialize = "HKU")]
     Users,
-    #[strum(serialize = "HKEY_PERFORMANCE_DATA")]
+    #[strum(serialize = "HKEY_PERFORMANCE_DATA", serialize = "HKPD")]
     PerformanceData,
-    #[strum(serialize = "HKEY_PERFORMANCE_TEXT")]
+    #[strum(serialize = "HKEY_PERFORMANCE_TEXT", serialize = "HKPT")]
     PerformanceText,
     #[strum(serialize = "HKEY_PERFORMANCE_NLSTEXT")]
     PerformanceNlsText,
-    #[strum(serialize = "HKEY_CURRENT_CONFIG")]
+    #[strum(serialize = "HKEY_CURRENT_CONFIG", serialize = "HKCC")]
     CurrentConfig,
     #[strum(serialize = "HKEY_DYN_DATA")]
     DynData,
@@ -110,18 +117,25 @@ pub enum RegistryHive {
 
 impl RegistryHive {
     pub fn to_hkey(&self) -> HKEY {
-        match self.to_string().as_str() {
-            "HKEY_CLASSES_ROOT" => windows::Win32::System::Registry::HKEY_CLASSES_ROOT,
-            "HKEY_CURRENT_USER" => windows::Win32::System::Registry::HKEY_CURRENT_USER,
-            "HKEY_LOCAL_MACHINE" => windows::Win32::System::Registry::HKEY_LOCAL_MACHINE,
-            "HKEY_USERS" => windows::Win32::System::Registry::HKEY_USERS,
-            "HKEY_PERFORMANCE_DATA" => windows::Win32::System::Registry::HKEY_PERFORMANCE_DATA,
-            "HKEY_PERFORMANCE_TEXT" => windows::Win32::System::Registry::HKEY_PERFORMANCE_TEXT,
-            "HKEY_PERFORMANCE_NLSTEXT" => windows::Win32::System::Registry::HKEY_PERFORMANCE_NLSTEXT,
-            "HKEY_CURRENT_CONFIG" => windows::Win32::System::Registry::HKEY_CURRENT_CONFIG,
-            "HKEY_DYN_DATA" => windows::Win32::System::Registry::HKEY_DYN_DATA,
-            "HKEY_CURRENT_USER_LOCAL_SETTINGS" => windows::Win32::System::Registry::HKEY_CURRENT_USER_LOCAL_SETTINGS,
-            _ => unreachable!(),
+        match self {
+            RegistryHive::ClassesRoot => windows::Win32::System::Registry::HKEY_CLASSES_ROOT,
+            RegistryHive::CurrentUser => windows::Win32::System::Registry::HKEY_CURRENT_USER,
+            RegistryHive::LocalMachine => windows::Win32::System::Registry::HKEY_LOCAL_MACHINE,
+            RegistryHive::Users => windows::Win32::System::Registry::HKEY_USERS,
+            RegistryHive::PerformanceData => {
+                windows::Win32::System::Registry::HKEY_PERFORMANCE_DATA
+            }
+            RegistryHive::PerformanceText => {
+                windows::Win32::System::Registry::HKEY_PERFORMANCE_TEXT
+            }
+            RegistryHive::PerformanceNlsText => {
+                windows::Win32::System::Registry::HKEY_PERFORMANCE_NLSTEXT
+            }
+            RegistryHive::CurrentConfig => windows::Win32::System::Registry::HKEY_CURRENT_CONFIG,
+            RegistryHive::DynData => windows::Win32::System::Registry::HKEY_DYN_DATA,
+            RegistryHive::CurrentUserLocalSettings => {
+                windows::Win32::System::Registry::HKEY_CURRENT_USER_LOCAL_SETTINGS
+            }
         }
     }
 }
@@ -137,15 +151,35 @@ impl RegistryKey {
         let mut hkey: HKEY = HKEY(null_mut());
 
         unsafe {
-            let status = RegOpenKeyExW(
+            // 首先尝试使用完整权限打开
+            let mut status = RegOpenKeyExW(
                 hkey_root,
                 PCWSTR(subkey_wide.as_ptr()),
                 0,
-                KEY_READ | KEY_WRITE,
+                KEY_ALL_ACCESS,
                 &mut hkey,
             );
 
+            // 如果失败，则尝试使用有限权限
             if status.0 != 0 {
+                debug!(
+                    "Failed to open registry key with KEY_ALL_ACCESS: {}",
+                    status.0
+                );
+                status = RegOpenKeyExW(
+                    hkey_root,
+                    PCWSTR(subkey_wide.as_ptr()),
+                    0,
+                    KEY_READ | KEY_WRITE,
+                    &mut hkey,
+                );
+            }
+
+            if status.0 != 0 {
+                debug!(
+                    "Failed to open registry key with KEY_READ | KEY_WRITE: {}",
+                    status.0
+                );
                 return Err(Error::from_win32());
             }
         }
@@ -159,7 +193,8 @@ impl RegistryKey {
         let mut hkey: HKEY = HKEY(null_mut());
 
         unsafe {
-            let status = RegCreateKeyExW(
+            // 尝试使用完整权限创建
+            let mut status = RegCreateKeyExW(
                 hkey_root,
                 PCWSTR(subkey_wide.as_ptr()),
                 0,
@@ -172,13 +207,35 @@ impl RegistryKey {
             );
 
             if status.0 != 0 {
+                debug!(
+                    "Failed to create registry key with KEY_ALL_ACCESS: {}",
+                    status.0
+                );
+                // 如果是权限问题（错误码5），尝试使用有限权限
+                if status.0 == 5 {
+                    status = RegCreateKeyExW(
+                        hkey_root,
+                        PCWSTR(subkey_wide.as_ptr()),
+                        0,
+                        None,
+                        REG_OPTION_NON_VOLATILE,
+                        KEY_READ | KEY_WRITE,
+                        None,
+                        &mut hkey,
+                        None,
+                    );
+                }
+            }
+
+            if status.0 != 0 {
+                debug!("Failed to create registry key: {}", status.0);
                 return Err(Error::from_win32());
             }
         }
 
         Ok(RegistryKey { hkey })
     }
-    
+
     pub fn query_value(&self, name: &str) -> Result<RegistryValue> {
         let name_wide = to_wide_string(name);
         let mut data_type = REG_VALUE_TYPE(0);
@@ -190,7 +247,7 @@ impl RegistryKey {
                 self.hkey,
                 PCWSTR(name_wide.as_ptr()),
                 None,
-                Some(&mut data_type),      
+                Some(&mut data_type),
                 Some(buffer.as_mut_ptr()),
                 Some(&mut buffer_size),
             );
@@ -204,25 +261,23 @@ impl RegistryKey {
         }
     }
 
-
     pub fn delete_key(&self, subkey: Option<&str>) -> Result<()> {
         if let Some(subkey) = subkey {
             let subkey_wide = to_wide_string(subkey);
-            let status: WIN32_ERROR = unsafe { RegDeleteTreeW(self.hkey, PCWSTR(subkey_wide.as_ptr())) };
+            let status: WIN32_ERROR =
+                unsafe { RegDeleteTreeW(self.hkey, PCWSTR(subkey_wide.as_ptr())) };
             if status.0 != 0 && status.0 != 2 {
                 return Err(Error::from_win32());
             }
-            let status: WIN32_ERROR = unsafe {
-                RegDeleteKeyExW(self.hkey, PCWSTR(subkey_wide.as_ptr()), 0, 0)
-            };
+            let status: WIN32_ERROR =
+                unsafe { RegDeleteKeyExW(self.hkey, PCWSTR(subkey_wide.as_ptr()), 0, 0) };
             if status.0 != 0 {
                 return Err(Error::from_win32());
             }
         } else {
-            let empty_subkey = to_wide_string("");  // 空字符串
-            let status: WIN32_ERROR = unsafe {
-                RegDeleteKeyExW(self.hkey, PCWSTR(empty_subkey.as_ptr()), 0, 0)
-            };
+            let empty_subkey = to_wide_string(""); // 空字符串
+            let status: WIN32_ERROR =
+                unsafe { RegDeleteKeyExW(self.hkey, PCWSTR(empty_subkey.as_ptr()), 0, 0) };
             if status.0 != 0 {
                 return Err(Error::from_win32());
             }
@@ -243,89 +298,86 @@ impl RegistryKey {
 
     pub fn set_value(&self, name: &str, value: RegistryValue) -> Result<()> {
         let name_wide = to_wide_string(name);
-
         unsafe {
-            match value {
+            let status = match value {
                 RegistryValue::String(data) => {
                     let data_wide = to_wide_string(&data);
-                    let data_slice = std::slice::from_raw_parts(data_wide.as_ptr() as *const u8, data_wide.len() * 2);
-                    let status = RegSetValueExW(
+                    let data_slice = std::slice::from_raw_parts(
+                        data_wide.as_ptr() as *const u8,
+                        data_wide.len() * 2,
+                    );
+                    RegSetValueExW(
                         self.hkey,
                         PCWSTR(name_wide.as_ptr()),
                         0,
                         REG_SZ,
                         Some(data_slice),
-                    );
-                    if status.0 != 0 {
-                        return Err(Error::from_win32());
-                    }
+                    )
                 }
                 RegistryValue::Dword(data) => {
                     let data_bytes = data.to_ne_bytes();
-                    let status = RegSetValueExW(
+                    RegSetValueExW(
                         self.hkey,
                         PCWSTR(name_wide.as_ptr()),
                         0,
                         REG_DWORD,
                         Some(&data_bytes),
-                    );
-                    if status.0 != 0 {
-                        return Err(Error::from_win32());
-                    }
+                    )
                 }
                 RegistryValue::Qword(data) => {
                     let data_bytes = data.to_ne_bytes();
-                    let status = RegSetValueExW(
+                    RegSetValueExW(
                         self.hkey,
                         PCWSTR(name_wide.as_ptr()),
                         0,
                         REG_QWORD,
                         Some(&data_bytes),
-                    );
-                    if status.0 != 0 {
-                        return Err(Error::from_win32());
-                    }
+                    )
                 }
-                RegistryValue::Binary(data) => {
-                    let status = RegSetValueExW(
-                        self.hkey,
-                        PCWSTR(name_wide.as_ptr()),
-                        0,
-                        REG_BINARY,
-                        Some(&data),
-                    );
-                    if status.0 != 0 {
-                        return Err(Error::from_win32());
-                    }
-                }
+                RegistryValue::Binary(data) => RegSetValueExW(
+                    self.hkey,
+                    PCWSTR(name_wide.as_ptr()),
+                    0,
+                    REG_BINARY,
+                    Some(&data),
+                ),
                 RegistryValue::MultiString(data) => {
-                    let data_wide: Vec<u16> = data.iter().flat_map(|s| to_wide_string(s)).chain(Some(0)).collect();
-                    let data_slice = std::slice::from_raw_parts(data_wide.as_ptr() as *const u8, data_wide.len() * 2);
-                    let status = RegSetValueExW(
+                    let data_wide: Vec<u16> = data
+                        .iter()
+                        .flat_map(|s| to_wide_string(s))
+                        .chain(Some(0))
+                        .collect();
+                    let data_slice = std::slice::from_raw_parts(
+                        data_wide.as_ptr() as *const u8,
+                        data_wide.len() * 2,
+                    );
+                    RegSetValueExW(
                         self.hkey,
                         PCWSTR(name_wide.as_ptr()),
                         0,
                         REG_MULTI_SZ,
                         Some(data_slice),
-                    );
-                    if status.0 != 0 {
-                        return Err(Error::from_win32());
-                    }
+                    )
                 }
                 RegistryValue::ExpandString(data) => {
                     let data_wide = to_wide_string(&data);
-                    let data_slice = std::slice::from_raw_parts(data_wide.as_ptr() as *const u8, data_wide.len() * 2);
-                    let status = RegSetValueExW(
+                    let data_slice = std::slice::from_raw_parts(
+                        data_wide.as_ptr() as *const u8,
+                        data_wide.len() * 2,
+                    );
+                    RegSetValueExW(
                         self.hkey,
                         PCWSTR(name_wide.as_ptr()),
                         0,
                         REG_EXPAND_SZ,
                         Some(data_slice),
-                    );
-                    if status.0 != 0 {
-                        return Err(Error::from_win32());
-                    }
+                    )
                 }
+            };
+
+            if status.0 != 0 {
+                debug!("Failed to set registry value: {}", status.0);
+                return Err(Error::from_win32());
             }
         }
 
@@ -355,7 +407,7 @@ impl RegistryKey {
                 if status.0 == 0 {
                     let subkey_name = String::from_utf16_lossy(&name[..name_len as usize]);
                     subkeys.push(subkey_name);
-                    index += 1; 
+                    index += 1;
                 } else if status.0 == 259 {
                     // ERROR_NO_MORE_ITEMS (259)，表示没有更多子键
                     break;
@@ -368,7 +420,7 @@ impl RegistryKey {
 
         Ok(subkeys)
     }
-    
+
     pub fn list_values(&self) -> Result<HashMap<String, RegistryValue>> {
         let mut index = 0;
         let mut values = HashMap::new();

@@ -106,7 +106,7 @@ pub fn convert_to_x86_64_shellcode(
     bootstrap.push(b'\x5e');
     // pop ret
     bootstrap.push(b'\xc3');
-    bootstrap.extend_from_slice(b"\xe9\xcb\x1c\x00\x00");
+    bootstrap.extend_from_slice(b"\xe9\xe7\x1c\x00\x00");
 
     final_shellcode.extend_from_slice(&bootstrap);
     final_shellcode.extend_from_slice(MALEFIC_RDI_SHELLCODE_64);

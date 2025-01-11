@@ -1,5 +1,11 @@
-use netstat2::{AddressFamilyFlags, get_sockets_info, ProtocolFlags, ProtocolSocketInfo};
 use crate::{to_error, CommonError};
+
+#[cfg(target_os = "macos")]
+use crate::darwin::netstat;
+#[cfg(target_os = "linux")]
+use crate::linux::netstat;
+#[cfg(target_os = "windows")]
+use crate::win::netstat;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(Clone)]
@@ -22,39 +28,44 @@ pub struct NetStat {
     pub remote_addr: String,
     pub protocol: String,
     pub pid: String,
-    // pub uid: u32,
     pub sk_state: String,
 }
 
 pub fn get_netstat() -> Result<Vec<NetStat>, CommonError> {
     let mut netstats = Vec::new();
- 
-    let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
-    let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
-    let sockets_info = to_error!(get_sockets_info(af_flags, proto_flags))?;
 
-    for si in sockets_info {
-        let pid: Vec<String> = si.associated_pids.iter().map(|n| n.to_string()).collect();
-        match si.protocol_socket_info {
-            ProtocolSocketInfo::Tcp(tcp_si) => {
-                netstats.push(NetStat{
-                    local_addr: tcp_si.local_addr.to_string(),
-                    remote_addr: tcp_si.remote_addr.to_string(),
-                    protocol: "tcp".to_string(),
-                    pid: pid.join(","),
-                    sk_state: tcp_si.state.to_string()
-                })
-            },
-            ProtocolSocketInfo::Udp(udp_si) => {
-                netstats.push(NetStat{
-                    local_addr: udp_si.local_addr.to_string(),
-                    remote_addr: "".to_string(),
-                    protocol: "udp".to_string(),
-                    pid: pid.join(","),
-                    sk_state: "".to_string()
-                })
-            }
+    let sockets = to_error!(netstat::get_sockets(true, true, true, true))?;
+
+    for socket in sockets {
+        netstats.push(NetStat {
+            local_addr: socket.local_addr,
+            remote_addr: socket.remote_addr,
+            protocol: socket.protocol,
+            pid: socket.pid.to_string(),
+            sk_state: socket.state,
+        });
+    }
+
+    Ok(netstats)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_netstat() {
+        let result = get_netstat();
+        assert!(result.is_ok(), "Should get netstat information");
+        let netstats = result.unwrap();
+        assert!(!netstats.is_empty(), "Should have some network connections");
+
+        for netstat in netstats {
+            assert!(
+                !netstat.local_addr.is_empty(),
+                "Local address should not be empty"
+            );
+            assert!(!netstat.protocol.is_empty(), "Protocol should not be empty");
         }
     }
-    Ok(netstats)
 }

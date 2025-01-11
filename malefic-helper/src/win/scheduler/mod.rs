@@ -1,10 +1,16 @@
+use crate::debug;
 use std::path::PathBuf;
 use std::time::Duration;
-use windows::Win32::System::TaskScheduler::{ITaskService, ITaskFolder, ITaskDefinition, IActionCollection, IExecAction, IRegisteredTask, TASK_ACTION_EXEC, TASK_CREATE, TASK_LOGON_NONE, TASK_STATE, TaskScheduler, ITrigger, IRunningTaskCollection, TASK_TRIGGER_TYPE2, TASK_TRIGGER_DAILY, TASK_TRIGGER_WEEKLY, TASK_TRIGGER_MONTHLY, TASK_TRIGGER_LOGON, TASK_TRIGGER_BOOT};
-use windows::core::{BSTR, Interface, Result, VARIANT, HRESULT};
-use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED};
-use crate::debug;
-
+use windows::core::{Interface, Result, BSTR, HRESULT, VARIANT};
+use windows::Win32::System::Com::{
+    CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED,
+};
+use windows::Win32::System::TaskScheduler::{
+    IActionCollection, IExecAction, IRegisteredTask, IRunningTaskCollection, ITaskDefinition,
+    ITaskFolder, ITaskService, ITrigger, TaskScheduler, TASK_ACTION_EXEC, TASK_CREATE,
+    TASK_LOGON_NONE, TASK_STATE, TASK_TRIGGER_BOOT, TASK_TRIGGER_DAILY, TASK_TRIGGER_LOGON,
+    TASK_TRIGGER_MONTHLY, TASK_TRIGGER_TYPE2, TASK_TRIGGER_WEEKLY,
+};
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum TaskTriggerType {
@@ -25,7 +31,7 @@ impl TaskTriggerType {
             TaskTriggerType::AtStartup => TASK_TRIGGER_BOOT,
         }
     }
-    
+
     pub fn to_int(&self) -> u32 {
         match self {
             TaskTriggerType::Daily => 2,
@@ -77,7 +83,6 @@ pub struct TaskSchedule {
     pub status: TaskStatus,
 }
 
-
 pub struct TaskSchedulerManager {
     task_service: ITaskService,
 }
@@ -98,12 +103,15 @@ impl TaskSchedulerManager {
 
     pub fn create_task(&self, config: TaskConfig) -> Result<TaskConfig> {
         unsafe {
-            let task_folder: ITaskFolder = self.task_service.GetFolder(&BSTR::from(&config.path))?;
+            let task_folder: ITaskFolder =
+                self.task_service.GetFolder(&BSTR::from(&config.path))?;
             let task_definition: ITaskDefinition = self.task_service.NewTask(0)?;
 
             // 设置触发器
             let trigger_collection = task_definition.Triggers()?;
-            let trigger = trigger_collection.Create(config.trigger_type.to_win32())?.cast::<ITrigger>()?;
+            let trigger = trigger_collection
+                .Create(config.trigger_type.to_win32())?
+                .cast::<ITrigger>()?;
             trigger.SetStartBoundary(&BSTR::from(&config.start_boundary))?;
 
             // 设置执行动作
@@ -138,7 +146,7 @@ impl TaskSchedulerManager {
             Ok(())
         }
     }
-    
+
     pub fn start_task(&self, path: &str, task_name: &str) -> Result<()> {
         unsafe {
             let task_folder: ITaskFolder = self.task_service.GetFolder(&BSTR::from(path))?;
@@ -175,12 +183,12 @@ impl TaskSchedulerManager {
         unsafe {
             let task_folder: ITaskFolder = self.task_service.GetFolder(&BSTR::from(path))?;
             let task: IRegisteredTask = task_folder.GetTask(&BSTR::from(task_name))?;
-            
+
             let _ = task.Definition()?;
             self.get_task(&task)
         }
     }
-    
+
     fn get_task(&self, task: &IRegisteredTask) -> Result<TaskSchedule> {
         unsafe {
             // 获取任务定义
@@ -202,11 +210,14 @@ impl TaskSchedulerManager {
 
                 let mut interval_bstr: BSTR = BSTR::new();
                 trigger.Repetition()?.Interval(&mut interval_bstr)?;
-                duration = Duration::from_secs(interval_bstr.to_string().parse::<u64>().unwrap_or(0) / 10_000_000);
+                duration = Duration::from_secs(
+                    interval_bstr.to_string().parse::<u64>().unwrap_or(0) / 10_000_000,
+                );
 
                 let mut trigger_type_value = TASK_TRIGGER_TYPE2(0);
                 trigger.Type(&mut trigger_type_value)?;
-                trigger_type = TaskTriggerType::from_int(trigger_type_value.0 as u32).unwrap_or(TaskTriggerType::Daily);
+                trigger_type = TaskTriggerType::from_int(trigger_type_value.0 as u32)
+                    .unwrap_or(TaskTriggerType::Daily);
             }
 
             let action_collection = task_definition.Actions()?;
@@ -216,7 +227,9 @@ impl TaskSchedulerManager {
             exec_action.Path(&mut path_bstr)?;
 
             let mut description_bstr: BSTR = BSTR::new();
-            task_definition.RegistrationInfo()?.Description(&mut description_bstr)?;
+            task_definition
+                .RegistrationInfo()?
+                .Description(&mut description_bstr)?;
 
             let config = TaskConfig {
                 name: task.Name()?.to_string(),
@@ -295,16 +308,25 @@ impl TaskSchedulerManager {
     // 修改 list_tasks 以返回 Vec<TaskSchedule>
     pub fn list_tasks(&self, start_folder_path: &str) -> Result<Vec<TaskSchedule>> {
         let start_folder = unsafe {
-            self.task_service.GetFolder(&BSTR::from(start_folder_path))?
+            self.task_service
+                .GetFolder(&BSTR::from(start_folder_path))?
         };
         let mut all_schedules = self.list_tasks_in_folder(&start_folder)?;
-
         let sub_folders = self.list_recu_sub_folders(&start_folder)?;
         for folder in sub_folders {
+            debug!("Listing tasks in folder {:#?}", folder);
             match self.list_tasks_in_folder(&folder) {
-                Ok(mut folder_tasks) => all_schedules.append(&mut folder_tasks),
+                Ok(mut folder_tasks) => {
+                    // debug!("Listed tasks in folder {:#?}", folder_tasks);
+                    all_schedules.append(&mut folder_tasks)
+                }
                 Err(e) => unsafe {
-                    debug!("Failed to list tasks in folder {:?}{:?}: {:?}", folder.Path(), folder.Name(), e)
+                    debug!(
+                        "Failed to list tasks in folder {:?}{:?}: {:?}",
+                        folder.Path(),
+                        folder.Name(),
+                        e
+                    )
                 },
             }
         }
@@ -313,10 +335,10 @@ impl TaskSchedulerManager {
     }
 }
 
-impl Drop for TaskSchedulerManager {
-    fn drop(&mut self) {
-        unsafe {
-            CoUninitialize();
-        }
-    }
-}
+// impl Drop for TaskSchedulerManager {
+//     fn drop(&mut self) {
+//         unsafe {
+//             CoUninitialize();
+//         }
+//     }
+// }

