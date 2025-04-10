@@ -6,6 +6,8 @@ blog posts:
 - [v0.0.2 the Real Beginning](https://chainreactors.github.io//wiki/blog/2024/09/23/IoM_v0.0.2/)
 - [v0.0.3 RedTeam Infra&C2 framework](https://chainreactors.github.io//wiki/blog/2024/11/20/IoM_v0.0.3/)
 - [v0.0.4 Bootstrapping](https://chainreactors.github.io//wiki/blog/2025/01/02/IoM_v0.0.4/)
+- [PELoader&RDI的TLS之殇](https://chainreactors.github.io/wiki/blog/2025/01/07/IoM_advanced_TLS/)
+
 # Usage
 
 See: https://chainreactors.github.io/wiki/IoM/manual/implant/
