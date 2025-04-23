@@ -11,7 +11,10 @@ pub struct ExecuteAssembly {}
 
 #[async_trait]
 #[module_impl("execute_assembly")]
-impl Module for ExecuteAssembly {
+impl Module for ExecuteAssembly {}
+
+#[async_trait]
+impl crate::ModuleImpl for ExecuteAssembly {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
@@ -56,4 +59,5 @@ impl Module for ExecuteAssembly {
             err: "".to_string(),
         })))
     }
+
 }

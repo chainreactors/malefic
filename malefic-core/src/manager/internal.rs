@@ -27,10 +27,14 @@ pub enum InternalModule {
     CancelTask,
     #[strum(serialize = "query_task")]
     QueryTask,
+    #[strum(serialize = "list_task")]
+    ListTask,
     #[strum(serialize = "sleep")]
     Sleep,
     #[strum(serialize = "suicide")]
     Suicide,
+    #[strum(serialize = "login")]
+    Login,
 }
 
 impl InternalModule {
@@ -48,8 +52,10 @@ impl InternalModule {
             InternalModule::Clear,
             InternalModule::CancelTask,
             InternalModule::QueryTask,
+            InternalModule::ListTask,
             InternalModule::Sleep,
-            InternalModule::Suicide
+            InternalModule::Suicide,
+            InternalModule::Login,
         ]
             .iter()
             .map(|m| m.to_string()) // Display 自动提供 to_string() 方法

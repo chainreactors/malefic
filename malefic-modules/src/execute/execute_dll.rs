@@ -15,8 +15,11 @@ pub struct ExecuteDll {}
 
 #[async_trait]
 #[module_impl("execute_dll")]
-impl Module for ExecuteDll {
-    #[allow(unused_variables)]
+impl Module for ExecuteDll {}
+
+#[async_trait]
+impl crate::ModuleImpl for ExecuteDll {
+     #[allow(unused_variables)]
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let timeout = request.timeout;
@@ -76,4 +79,5 @@ impl Module for ExecuteDll {
             err: "".to_string(),
         })))
     }
+
 }

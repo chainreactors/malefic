@@ -1,11 +1,11 @@
 [package]
 name = "malefic-prelude"
-version = "0.0.3"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 anyhow = "1.0.89"
-async-std = "1.12.0"
+futures = "0.3.31"
 lazy_static = "1.5.0"
 
 malefic-core = { path = "../malefic-core"}
@@ -13,5 +13,5 @@ malefic-modules = { path = "../malefic-modules"}
 malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
 malefic-proto = { path= "../malefic-proto", features = [ "Crypto_AES" ] }
 
-[build-dependencies]
-winres = "0.1"
+[target.'cfg(windows)'.build-dependencies]
+embed-resource = "3.0.2"

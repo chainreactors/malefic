@@ -1,16 +1,13 @@
-use std::{env, io};
 use std::path::{Path, PathBuf};
+use std::{env, io};
 
 #[cfg(target_family = "unix")]
 pub fn chown(path: &str, uid: u32, gid: u32) -> std::io::Result<()> {
-    use std::path::Path;
     use std::os::unix::ffi::OsStrExt;
     let path = Path::new(path);
-    let ret = unsafe {
-        libc::chown(path.as_os_str().as_bytes().as_ptr() as _, uid, gid)
-    };
+    let ret = unsafe { libc::chown(path.as_os_str().as_bytes().as_ptr() as _, uid, gid) };
     if ret.eq(&0) {
-            Ok(())
+        Ok(())
     } else {
         Err(std::io::Error::last_os_error())
     }
@@ -28,11 +25,10 @@ pub fn chmod(path: &str, mode: u32) -> std::io::Result<()> {
     // std::fs::set_permissions(path, std::fs::Permissions::from(mode))
 }
 
-
 pub fn check_sum(path: &str) -> std::io::Result<String> {
+    use sha2::{Digest, Sha256};
     use std::fs::File;
     use std::io::{BufReader, Read};
-    use sha2::{Sha256, Digest};
     // use std::path::Path;
 
     let file = File::open(path)?;
@@ -52,7 +48,6 @@ pub fn check_sum(path: &str) -> std::io::Result<String> {
 
     Ok(format!("{:x}", hasher.finalize()))
 }
-
 
 pub(crate) fn get_cwd() -> Result<String, io::Error> {
     let path = env::current_dir()?;
@@ -75,7 +70,6 @@ pub fn get_file_mode(meta: &std::fs::Metadata) -> u32 {
     meta.permissions().mode()
 }
 
-
 pub fn lookup(file_name: &str) -> PathBuf {
     let mut path = PathBuf::from(file_name);
 
@@ -85,7 +79,7 @@ pub fn lookup(file_name: &str) -> PathBuf {
             path.set_extension("exe");
         }
     }
-    
+
     if path.is_absolute() {
         return path.to_path_buf();
     }

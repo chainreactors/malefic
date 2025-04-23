@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
-use clap::{Parser, Subcommand};
 use crate::{GenerateArch, Platform, Version};
+use clap::{Parser, Subcommand};
+use strum_macros::Display;
 
 #[derive(Parser)]
 #[command(name = "malefic-config", about = "Config malefic beacon and prelude.")]
@@ -12,7 +13,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Config related commands
+    /// auto generate config
     Generate {
         /// Choice professional or community
         #[arg(long, short = 'v', global = true, default_value = "community")]
@@ -22,25 +23,39 @@ pub enum Commands {
         #[arg(long, short = 's', global = true)]
         source: bool,
 
+        /// Config file path
+        #[arg(long, short = 'c', global = true, default_value = "config.yaml")]
+        config: String,
+
         #[command(subcommand)]
         command: GenerateCommands,
     },
 
-    /// Generate related commands
-    #[command(subcommand)]
-    Build(BuildCommands),
-}
+    /// auto build
+    Build{
+        /// Config file path
+        #[arg(long, short = 'c', global = true, default_value = "config.yaml")]
+        config: String,
 
-// `ConfigOptions` 包含 `ConfigCommands` 子命令和全局配置选项
+        #[arg(long, short = 't', global = true, default_value = "x86_64-pc-windows-gnu")]
+        target: String,
+
+        #[command(subcommand)]
+        command: BuildCommands
+    },
+
+    #[command(subcommand)]
+    Tool(Tool)
+}
 
 // 配置类命令
 #[derive(Subcommand)]
 pub enum GenerateCommands {
     /// Config beacon
-    Beacon ,
+    Beacon,
 
     /// Config bind
-    Bind ,
+    Bind,
 
     /// Config prelude
     Prelude {
@@ -52,6 +67,10 @@ pub enum GenerateCommands {
 
         #[arg(long, default_value = "maliceofinternal")]
         key: String,
+
+        /// Custom spite.bin output path
+        #[arg(long, default_value = "spite.bin")]
+        spite: String,
     },
 
     /// Config modules
@@ -68,13 +87,12 @@ pub enum GenerateCommands {
         /// platform, win
         platform: Platform,
     },
-
 }
 
-#[derive(Clone)]
+#[derive(Clone, Display)]
 pub enum SrdiType {
     LINK,
-    MALEFIC
+    MALEFIC,
 }
 
 impl FromStr for SrdiType {
@@ -89,18 +107,64 @@ impl FromStr for SrdiType {
     }
 }
 
+#[derive(Clone, Display)]
+pub enum PayloadType {
+    #[strum(serialize = "malefic-pulse")]
+    PULSE,
+    #[strum(serialize = "malefic")]
+    MALEFIC,
+    #[strum(serialize = "malefic-prelude")]
+    PRELUDE,
+    #[strum(serialize = "malefic-modules")]
+    MODULES,
+}
+
 #[derive(Subcommand)]
 pub enum BuildCommands {
-    /// Generate TinyTools
-    #[command(subcommand)]
-    TinyTools(TinyTools),
+    /// Build beacon
+    Malefic,
+
+    /// Build prelude
+    Prelude,
+
+    /// Build modules
+    Modules,
+
+    /// Build pulse
+    Pulse
+}
+
+#[derive(Subcommand)]
+pub enum Tool {
+    // /// Generate calc shellcode
+    // Calc {
+    //     /// choice platform,
+    //     platform: String,
+    //     /// choice arch x86/x64
+    //     arch: String,
+    // },
+    //
+    // /// Generate reverse shell shellcode
+    // ReverseShell {
+    //     /// choice platform,
+    //     platform: String,
+    //     /// choice arch x86/x64
+    //     arch: String,
+    //     /// choice type
+    //     #[arg(long, default_value = "tcp")]
+    //     r#type: String,
+    //     /// choice ip
+    //     ip: String,
+    //     /// choice port
+    //     port: String,
+    // },
 
     /// Generate SRDI
     SRDI {
         /// Srdi type: link(not support TLS)/malefic(support TLS)
         #[arg(long, short = 't', default_value = "malefic")]
         r#type: SrdiType,
-        
+
         /// Source exec path
         #[arg(long, short = 'i', default_value = "")]
         input: String,
@@ -125,29 +189,4 @@ pub enum BuildCommands {
         #[arg(long, default_value = "")]
         userdata_path: String,
     },
-}
-
-#[derive(Subcommand)]
-pub enum TinyTools {
-    /// generate calc shellcode
-    Calc {
-        /// choice platform,
-        platform: String,
-        /// choice arch x86/x64
-        arch: String,
-    },
-    /// generate reverse shell shellcode
-    ReverseShell {
-        /// choice platform,
-        platform: String,
-        /// choice arch x86/x64
-        arch: String,
-        /// choice type
-        #[arg(long, default_value = "tcp")]
-        r#type: String,
-        /// choice ip
-        ip: String,
-        /// choice port
-        port: String,
-    }
 }

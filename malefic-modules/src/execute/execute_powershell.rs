@@ -11,7 +11,10 @@ pub struct ExecutePowershell {}
 
 #[async_trait]
 #[module_impl("powerpick")]
-impl Module for ExecutePowershell {
+impl Module for ExecutePowershell {}
+
+#[async_trait]
+impl crate::ModuleImpl for ExecutePowershell {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
@@ -46,6 +49,7 @@ impl Module for ExecutePowershell {
             message: Vec::new(),
             data: result,
             err: "".to_string(),
-        })))
+        }))
+        )
     }
 }

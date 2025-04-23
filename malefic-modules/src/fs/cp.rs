@@ -8,9 +8,11 @@ pub struct Cp {}
 
 #[async_trait]
 #[module_impl("cp")]
-impl Module for Cp{
-    #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
+impl Module for Cp{}
+
+#[async_trait]
+impl crate::ModuleImpl for Cp {
+    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
         let params = check_field!(request.args, 2)?;
 

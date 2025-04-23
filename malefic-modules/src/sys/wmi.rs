@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{Module, TaskResult, Result, Input, Output, check_request, check_field};
+use crate::{check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult};
 use malefic_proto::proto::implantpb::{spite::Body};
 use async_trait::async_trait;
 use malefic_helper::win::wmi::{variant_to_string_map, string_to_variant_map, WmiManager};
@@ -11,7 +11,10 @@ pub struct WmiQuery {}
 
 #[async_trait]
 #[module_impl("wmi_query")]
-impl Module for WmiQuery {
+impl Module for WmiQuery {}
+
+#[async_trait]
+impl ModuleImpl for WmiQuery {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::WmiRequest)?;
         let cmdline = check_field!(req.args)?.join(" ");
@@ -37,7 +40,10 @@ pub struct WmiExecuteMethod {}
 
 #[async_trait]
 #[module_impl("wmi_execute")]
-impl Module for WmiExecuteMethod {
+impl Module for WmiExecuteMethod {}
+
+#[async_trait]
+impl ModuleImpl for WmiExecuteMethod {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         // 获取请求中的 WMI 方法调用信息
         let req = check_request!(receiver, Body::WmiMethodRequest)?;

@@ -17,7 +17,7 @@ pub fn get_message_len<M: Message>(message: &M) -> usize {
 }
 
 pub fn new_spite(task_id: u32, name: String, body: Body) -> implantpb::Spite {
-    implantpb::Spite {
+    Spite {
         task_id,
         r#async: true,
         timeout: 0,
@@ -33,7 +33,7 @@ pub fn new_spite(task_id: u32, name: String, body: Body) -> implantpb::Spite {
 }
 
 pub fn new_empty_spite(task_id: u32, name: String) -> implantpb::Spite {
-    implantpb::Spite {
+    Spite {
         task_id,
         r#async: true,
         timeout: 0,
@@ -48,7 +48,7 @@ pub fn new_empty_spite(task_id: u32, name: String) -> implantpb::Spite {
     }
 }
 pub fn new_error_spite(task_id: u32, name: String, error: u32) -> implantpb::Spite {
-    implantpb::Spite {
+    Spite {
         task_id,
         r#async: true,
         timeout: 0,

@@ -9,7 +9,10 @@ pub struct Ps {}
 
 #[async_trait]
 #[module_impl("ps")]
-impl Module for Ps {
+impl Module for Ps {}
+
+#[async_trait]
+impl crate::ModuleImpl for Ps {
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
         let _ = check_request!(receiver, Body::Request)?;
         

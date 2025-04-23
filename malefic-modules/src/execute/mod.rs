@@ -31,6 +31,7 @@ pub mod dllspawn;
 #[cfg(target_os = "windows")]
 #[cfg(feature = "inline_local")]
 pub mod inline_local;
+pub(crate) mod open;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(PartialEq, Eq)]

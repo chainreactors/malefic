@@ -8,7 +8,10 @@ pub struct Exec {}
 
 #[async_trait]
 #[module_impl("exec")]
-impl Module for Exec {
+impl Module for Exec {}
+
+#[async_trait]
+impl crate::ModuleImpl for Exec {
     #[allow(unused_variables)]
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> crate::Result {
         let request = check_request!(receiver, Body::ExecRequest)?;

@@ -11,7 +11,10 @@ pub struct ExecuteDllSpawn {}
 
 #[async_trait]
 #[module_impl("dllspawn")]
-impl Module for ExecuteDllSpawn {
+impl Module for ExecuteDllSpawn {}
+
+#[async_trait]
+impl crate::ModuleImpl for ExecuteDllSpawn {
     async fn run(
         &mut self,
         id: u32,

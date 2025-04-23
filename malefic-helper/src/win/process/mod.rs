@@ -111,10 +111,8 @@ pub fn get_process_architecture(handle: HANDLE) -> anyhow::Result<String> {
         GetNativeSystemInfo(&mut system_info);
 
         let mut is_wow64: BOOL = BOOL(0);
-        debug!("Checking WOW64 process with IsWow64Process");
 
         if IsWow64Process(handle, &mut is_wow64).is_ok() {
-            debug!("IsWow64Process result: {}", is_wow64.as_bool());
             if is_wow64.as_bool() {
                 return Ok("x86".to_string());
             }
@@ -233,21 +231,15 @@ unsafe fn ph_query_process_variable_size(
     process_information_class: PROCESSINFOCLASS,
 ) -> Option<Vec<u16>> {
     let mut return_length = 0u32;
-
-    debug!("Querying process information size");
-    let status = NtQueryInformationProcess(
+    
+    let _ = NtQueryInformationProcess(
         process_handle,
         process_information_class,
         null_mut(),
         0,
         &mut return_length,
     );
-
-    debug!(
-        "First query status: {:?}, return_length: {}",
-        status, return_length
-    );
-
+    
     // 分配足够的空间来存储UNICODE_STRING结构
     let mut buffer = vec![0u8; return_length as usize];
     if NtQueryInformationProcess(
@@ -265,11 +257,7 @@ unsafe fn ph_query_process_variable_size(
 
     // 解析UNICODE_STRING结构
     let unicode_str = &*(buffer.as_ptr() as *const UNICODE_STRING);
-    debug!(
-        "UNICODE_STRING Length: {}, MaximumLength: {}, Buffer: {:?}",
-        unicode_str.Length, unicode_str.MaximumLength, unicode_str.Buffer
-    );
-
+    
     // 计算实际的字符数（Length是字节数，UTF-16每个字符2字节）
     let str_len = unicode_str.Length as usize / 2;
     let mut result = vec![0u16; str_len];
@@ -278,11 +266,7 @@ unsafe fn ph_query_process_variable_size(
     if str_len > 0 {
         std::ptr::copy_nonoverlapping(unicode_str.Buffer.0, result.as_mut_ptr(), str_len);
     }
-
-    debug!(
-        "Successfully read command line, length in chars: {}",
-        str_len
-    );
+    
     Some(result)
 }
 
@@ -308,9 +292,7 @@ unsafe fn get_cmdline_from_buffer(buffer: PCWSTR) -> Vec<OsString> {
 
 fn get_process_args(handle: HANDLE) -> String {
     unsafe {
-        debug!("Getting process args for handle: {:?}", handle);
         if let Some(buffer) = ph_query_process_variable_size(handle, PROCESSINFOCLASS(60)) {
-            debug!("Got buffer with length: {}", buffer.len());
             if buffer.is_empty() {
                 return String::new();
             }

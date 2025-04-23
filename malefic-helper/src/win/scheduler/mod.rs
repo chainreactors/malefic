@@ -1,16 +1,14 @@
 use crate::debug;
 use std::path::PathBuf;
 use std::time::Duration;
-use windows::core::{Interface, Result, BSTR, HRESULT, VARIANT};
-use windows::Win32::System::Com::{
-    CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED,
-};
-use windows::Win32::System::TaskScheduler::{
-    IActionCollection, IExecAction, IRegisteredTask, IRunningTaskCollection, ITaskDefinition,
-    ITaskFolder, ITaskService, ITrigger, TaskScheduler, TASK_ACTION_EXEC, TASK_CREATE,
-    TASK_LOGON_NONE, TASK_STATE, TASK_TRIGGER_BOOT, TASK_TRIGGER_DAILY, TASK_TRIGGER_LOGON,
-    TASK_TRIGGER_MONTHLY, TASK_TRIGGER_TYPE2, TASK_TRIGGER_WEEKLY,
-};
+use windows::core::{Interface, Result, BSTR, VARIANT};
+use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
+use windows::Win32::System::TaskScheduler::{IActionCollection, IExecAction, 
+                                            IRegisteredTask, IRunningTaskCollection, 
+                                            ITaskDefinition, ITaskFolder, ITaskService, ITrigger, 
+                                            TaskScheduler, TASK_ACTION_EXEC, TASK_CREATE_OR_UPDATE, TASK_LOGON_NONE, 
+                                            TASK_STATE, TASK_TRIGGER_BOOT, TASK_TRIGGER_DAILY, TASK_TRIGGER_LOGON, 
+                                            TASK_TRIGGER_MONTHLY, TASK_TRIGGER_TYPE2, TASK_TRIGGER_WEEKLY};
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum TaskTriggerType {
@@ -89,14 +87,17 @@ pub struct TaskSchedulerManager {
 
 impl TaskSchedulerManager {
     pub fn initialize() -> Result<Self> {
+
         unsafe {
-            let hr = CoInitializeEx(None, COINIT_MULTITHREADED);
-            if hr != HRESULT(0) {
-                return Err(hr.into());
-            }
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            // if hr != HRESULT(0) {
+            //     debug!("Failed to initialize COM: {:#?}", hr);
+            //     return Err(hr.into());
+            // }
 
             let task_service: ITaskService = CoCreateInstance(&TaskScheduler, None, CLSCTX_ALL)?;
             task_service.Connect(None, None, None, None)?;
+            // CoUninitialize();
             Ok(TaskSchedulerManager { task_service })
         }
     }
@@ -124,7 +125,7 @@ impl TaskSchedulerManager {
             task_folder.RegisterTaskDefinition(
                 &BSTR::from(&config.name),
                 &task_definition,
-                TASK_CREATE.0 as i32,
+                TASK_CREATE_OR_UPDATE.0,
                 None,
                 None,
                 TASK_LOGON_NONE,

@@ -18,7 +18,7 @@ pub struct Socket {
     pub state: String,
 }
 
-trait SocketTable {
+pub trait SocketTable {
     fn get_table() -> Result<Vec<u8>, Error>;
     fn get_rows_count(table: &[u8]) -> usize;
     fn get_socket_info(table: &[u8], index: usize) -> Socket;

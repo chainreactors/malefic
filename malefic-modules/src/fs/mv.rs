@@ -8,13 +8,18 @@ pub struct Mv {}
 
 #[async_trait]
 #[module_impl("mv")]
-impl Module for Mv {
-    #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
-        let request = check_request!(receiver, Body::Request)?;
-        let params = check_field!(request.args, 2)?;
+impl Module for Mv {}
 
-        std::fs::rename(&params[0], &params[1])?;
+#[async_trait]
+impl crate::ModuleImpl for Mv {
+    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
+        let request = check_request!(receiver, Body::Request)?;
+
+        let args = check_field!(request.args, 2)?;
+
+        if let [src, dst] = &args[..] {
+            std::fs::rename(&src, &dst)?;
+        }
 
         Ok(TaskResult::new(id))
     }

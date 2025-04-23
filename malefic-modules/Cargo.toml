@@ -1,11 +1,11 @@
 cargo-features = ["profile-rustflags"]
 [package]
 name = "malefic-modules"
-version = "0.0.3"
+version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "modules"
+name = "malefic_modules"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
@@ -26,9 +26,24 @@ base = [
 ]
 
 extend = [
-    "bypass", "kill", "whoami", "ps", "netstat", "registry", "service", "taskschd", "wmi",
-    "execute_bof", "execute_shellcode", "execute_assembly", "execute_armory",
-    "execute_exe", "execute_dll", "execute_local", "mkdir", "chmod"
+    "bypass", 
+    "kill", 
+    "whoami", 
+    "ps", 
+    "netstat", 
+    "registry", 
+    "service", 
+    "taskschd", 
+    "wmi",
+    "execute_bof", 
+    "execute_shellcode", 
+    "execute_assembly", 
+    "execute_armory",
+    "execute_exe", 
+    "execute_dll", 
+    "execute_local", 
+    "mkdir", 
+    "chmod"
 ]
 
 fs_full = [
@@ -61,7 +76,7 @@ whoami = ["malefic-helper/sysinfo"]
 kill = ["malefic-helper/sysinfo"]
 bypass = []
 netstat = []
-wmi = []
+wmi = ["malefic-helper/wmi"]
 service = []
 registry = []
 taskschd = []
@@ -71,14 +86,22 @@ privs = []
 inject = []
 
 execute_full = [
-#    "execute_assembly",
-#    "execute_powershell",
+    "execute_assembly", 
+    "execute_powershell",
     "dllspawn",
     "inline_local",
-    "exec", "execute_shellcode", "execute_bof", "execute_armory", "execute_exe", "execute_dll", "execute_local"
+    "exec",
+    "open",
+    "execute_shellcode",
+    "execute_bof",
+    "execute_armory",
+    "execute_exe",
+    "execute_dll",
+    "execute_local"
 ]
 
 exec = []
+open = []
 execute_shellcode = []
 execute_assembly = []
 execute_bof = []
@@ -102,16 +125,12 @@ thiserror = "1.0.64"
 futures = "0.3.31"
 obfstr = "0.4.3"
 async-trait = "0.1.83"
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 cfg-if = "1.0"
 malefic-helper = { path= "../malefic-helper" }
 malefic-trait = { path = "../malefic-trait"}
 malefic-proto = { path = "../malefic-proto" }
 
-[dependencies.async-std]
-version = "1.7.0"
-features = ["unstable", "attributes"]
-
 [build-dependencies]
 prost-build = "0.13.1"
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
