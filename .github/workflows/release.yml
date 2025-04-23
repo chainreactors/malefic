@@ -52,6 +52,39 @@ jobs:
           draft: true
           prerelease: false
 
+      - name: Download win-kit resources
+        uses: robinraju/release-downloader@v1.11
+        with:
+          repository: "chainreactors/malefic-win-kit"
+          latest: true
+          fileName: "community_resource.zip"
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Download rem lib
+        uses: robinraju/release-downloader@v1.11
+        with:
+          repository: "chainreactors/rem-community"
+          latest: true
+          fileName: "rem_lib.zip"
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Extract zip
+        run: |
+          unzip community_resource.zip -d community_resource
+          unzip rem_lib.zip -d rem_lib
+          mkdir resources_dir
+          mv community_resource/* resources_dir/
+          mv rem_lib/dist/lib/*.a resources_dir/
+          cd resources_dir
+          zip -r ../resources.zip ./*
+          cd ..
+
+      - name: Upload resources
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run : |
+          gh release upload ${{ steps.set_version.outputs.VERSION }} resources.zip
+
   release-mutant:
     needs: create-release
     runs-on: ubuntu-22.04
