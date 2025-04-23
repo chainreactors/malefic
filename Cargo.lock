@@ -1857,7 +1857,6 @@ dependencies = [
  "hex",
  "jsonschema",
  "lazy_static",
- "litemap",
  "log",
  "malefic-proto",
  "prost 0.13.2",
@@ -1869,7 +1868,6 @@ dependencies = [
  "strum_macros",
  "toml_edit",
  "walkdir",
- "zerofrom",
 ]
 
 [[package]]
