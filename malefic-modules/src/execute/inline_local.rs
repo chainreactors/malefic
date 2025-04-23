@@ -14,8 +14,12 @@ pub struct InlineLocal;
 
 #[async_trait]
 #[module_impl("inline_local")]
-impl Module for InlineLocal {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _: &mut crate::Output) -> Result {
+impl Module for InlineLocal {}
+
+#[async_trait]
+impl crate::ModuleImpl for InlineLocal {
+    #[allow(unused_variables)]
+    async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let (bin_content, bin_name) = to_error!(get_binary(&request.path))?;
 

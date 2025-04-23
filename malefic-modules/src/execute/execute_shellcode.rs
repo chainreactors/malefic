@@ -11,7 +11,11 @@ pub struct ExecuteShellcode {}
 
 #[async_trait]
 #[module_impl("execute_shellcode")]
-impl Module for ExecuteShellcode {
+impl Module for ExecuteShellcode {}
+
+#[async_trait]
+impl crate::ModuleImpl for ExecuteShellcode {
+
     #[allow(unused_variables)]
     async fn run(
         &mut self,
@@ -64,4 +68,5 @@ impl Module for ExecuteShellcode {
             err: "".to_string(),
         })))
     }
+
 }

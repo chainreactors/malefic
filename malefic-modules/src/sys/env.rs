@@ -1,4 +1,4 @@
-use crate::{Module, TaskResult, check_request, Result, check_field};
+use crate::{check_field, check_request, Module, ModuleImpl, Result, TaskResult};
 use malefic_proto::proto::modulepb::Response;
 use malefic_proto::proto::implantpb::spite::Body;
 use async_trait::async_trait;
@@ -8,7 +8,10 @@ pub struct Env {}
 
 #[async_trait]
 #[module_impl("env")]
-impl Module for Env {
+impl Module for Env {}
+
+#[async_trait]
+impl ModuleImpl for Env {
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
         let _ = check_request!(receiver, Body::Request)?;
 
@@ -25,7 +28,10 @@ pub struct Setenv {}
 
 #[async_trait]
 #[module_impl("env_set")]
-impl Module for Setenv {
+impl Module for Setenv {}
+
+#[async_trait]
+impl ModuleImpl for Setenv {
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
 
@@ -45,7 +51,10 @@ pub struct Unsetenv {}
 
 #[async_trait]
 #[module_impl("env_unset")]
-impl Module for Unsetenv {
+impl Module for Unsetenv {}
+
+#[async_trait]
+impl ModuleImpl for Unsetenv {
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
 

@@ -9,7 +9,10 @@ pub struct ExecuteBof {}
 
 #[async_trait]
 #[module_impl("bof")]
-impl Module for ExecuteBof {
+impl Module for ExecuteBof {}
+
+#[async_trait]
+impl crate::ModuleImpl for ExecuteBof {
     #[allow(unused_variables)]
     async fn run(
         &mut self,

@@ -1,6 +1,5 @@
 /target
 implantpb.rs
-/Cargo.lock
 .vscode
 .DS_store
 .idea

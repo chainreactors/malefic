@@ -11,7 +11,10 @@ pub struct Pwd {}
 
 #[async_trait]
 #[module_impl("pwd")]
-impl Module for Pwd {
+impl Module for Pwd {}
+
+#[async_trait]
+impl crate::ModuleImpl for Pwd {
     #[allow(unused_variables)]
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
         let _ = check_request!(receiver, Body::Request)?;
@@ -23,4 +26,3 @@ impl Module for Pwd {
         Ok(TaskResult::new_with_body(id, Body::Response(response)))
     }
 }
-

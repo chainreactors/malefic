@@ -6,8 +6,8 @@ lazy_static! {
     pub static ref NAME: String = obfstr::obfstr!("malefic").to_string();
     pub static ref PROXY: String = obfstr::obfstr!("").to_string();
     pub static ref URLS: Vec<String> = vec![
-        		obfstr::obfstr!("127.0.0.1:5001").to_string(),
+		obfstr::obfstr!("127.0.0.1:5001").to_string(),
       ];
-    pub static ref CA: &'static [u8] = b"";
-    pub static ref KEY: Vec<u8> = "maliceofinternal".into();
+    pub static ref CA: Vec<u8> = obfstr::obfstr!("").into();
+    pub static ref KEY: Vec<u8> = obfstr::obfstr!("maliceofinternal").into();
 }

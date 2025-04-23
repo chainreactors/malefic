@@ -1,39 +1,40 @@
 [package]
 name = "malefic"
-version = "0.0.3"
+version = "0.1.0"
 edition = "2021"
 build = "build.rs"
 
 [lib]
 name = "malefic_dll"
 path = "src/lib.rs"
-crate-type = ["staticlib", "cdylib"]
 
 [features]
-default = ["beacon"]
-
+default = ["beacon", "runtime_tokio"]
 bind = ["malefic-core/bind"]
 beacon = []
 
+# runtime
+runtime_asyncstd = ["malefic-core/async-std"]
+runtime_tokio = ["malefic-core/tokio", "tokio"]
+runtime_smol = ["malefic-core/smol"]
+
 [dependencies]
 cfg-if = "1.0"
-async-trait = "0.1.83"
 futures = "0.3.31"
+futures-timer = "3.0.0"
 obfstr = "0.4.3"
 anyhow = "1.0.81"
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
+tokio = { version = "1", features = ["rt", "rt-multi-thread"], optional = true }
 
 malefic-core = { path = "../malefic-core", features = [ "default" ] }
 malefic-modules = { path = "../malefic-modules"}
 malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
 malefic-proto = { path = "../malefic-proto" }
-
-[dependencies.async-std]
-version = "1.7.0"
-features = ["unstable", "attributes"]
+malefic-prelude = { path = "../malefic-prelude", optional = true}
 
 [build-dependencies]
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 
-[target.'cfg(windows)'.build-dependencies]
-winres = "0.1"
+[target.'cfg(target_os = "windows")'.build-dependencies]
+embed-resource = "3.0.2"

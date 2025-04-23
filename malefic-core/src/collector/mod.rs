@@ -1,57 +1,56 @@
-// use tokio::sync::mpsc;
-use async_std::channel::{Sender, Receiver};
-use async_std::channel::unbounded as channel;
-use futures::FutureExt;
+use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::{FutureExt, SinkExt, StreamExt};
 use malefic_proto::proto::implantpb::{Spite, Spites};
 
 pub struct Collector {
-    request_sender: Sender<bool>,
-    request_receiver: Receiver<bool>,
+    request_sender: UnboundedSender<bool>,
+    request_receiver: UnboundedReceiver<bool>,
 
-    response_sender: Sender<Spites>,
+    response_sender: UnboundedSender<Spites>,
 
-    data_sender: Sender<Spite>,
-    data_receiver: Receiver<Spite>,
+    data_sender: UnboundedSender<Spite>,
+    data_receiver: UnboundedReceiver<Spite>,
 
-    data: Vec<Spite>
+    data: Vec<Spite>,
 }
 
 impl Collector {
-    pub fn new(response_sender: Sender<Spites>) -> Self {
-        let (request_sender, request_receiver) = channel();
-        let (data_sender, data_receiver) = channel();
+    pub fn new(response_sender: UnboundedSender<Spites>) -> Self {
+        let (request_sender, request_receiver) = mpsc::unbounded();
+        let (data_sender, data_receiver) = mpsc::unbounded();
         Collector {
             request_sender,
             request_receiver,
             response_sender,
             data_sender,
             data_receiver,
-            data: Vec::new()
+            data: Vec::new(),
         }
     }
 
-    pub fn get_request_sender(&self) -> Sender<bool> {
+    pub fn get_request_sender(&self) -> UnboundedSender<bool> {
         self.request_sender.clone()
     }
 
-    pub fn get_data_sender(&self) -> Sender<Spite> {
+    pub fn get_data_sender(&self) -> UnboundedSender<Spite> {
         self.data_sender.clone()
     }
 
     pub async fn run(&mut self) -> Result<(), ()> {
         #[cfg(debug_assertions)]
         let _defer = malefic_helper::Defer::new("[collector] collector exit!");
+        
         loop {
             futures::select! {
-                _ = self.request_receiver.recv().fuse() => {
+                _ = self.request_receiver.next().fuse() => {
                     let data = self.get_spites();
                     let _ = self.response_sender.send(data).await;
                 },
-                data = self.data_receiver.recv().fuse() => match data {
-                    Err(_) => {
+                data = self.data_receiver.next().fuse() => match data {
+                    None => {
                         continue;
                     },
-                    Ok(data) => {
+                    Some(data) => {
                         self.data.push(data);
                     }
                 }
@@ -61,7 +60,7 @@ impl Collector {
 
     fn get_spites(&mut self) -> Spites {
         let spites = Spites {
-            spites: self.data.to_vec()
+            spites: self.data.to_vec(),
         };
         self.data.clear();
         spites

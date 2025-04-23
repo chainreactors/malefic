@@ -1,8 +1,6 @@
 use std::ffi::{CStr, OsString};
 use std::fs;
-use std::io::{Error, ErrorKind};
 use std::os::unix::ffi::OsStringExt;
-use std::path::Path;
 
 pub fn username() -> Option<OsString> {
     std::env::var_os("USER").or_else(|| unsafe {

@@ -1,9 +1,9 @@
 #[macro_export]
 macro_rules! check_request {
     ($receiver:expr, $variant:path) => {
-        match $receiver.recv().await {
-            Ok($variant(request)) => Ok(request),
-            _ => Err(crate::TaskError::NotExpectBody)
+        match futures::StreamExt::next($receiver).await {
+            Some($variant(request)) => Ok(request),
+            _ => Err($crate::TaskError::NotExpectBody),
         }
     };
 }
@@ -12,15 +12,17 @@ macro_rules! check_request {
 macro_rules! check_field {
     ($field:expr) => {
         if $field.is_empty() {
-            Err($crate::TaskError::FieldRequired { msg: stringify!($field).to_string()})
-        }else{
+            Err($crate::TaskError::FieldRequired {
+                msg: stringify!($field).to_string(),
+            })
+        } else {
             Ok($field)
         }
     };
     ($field:expr, $len:expr) => {
         if $field.len() != $len {
             Err($crate::TaskError::FieldLengthMismatch {
-                msg: format!("{} expected length {}", stringify!($field), $len)
+                msg: format!("{} expected length {}", stringify!($field), $len),
             })
         } else {
             Ok($field)
@@ -33,20 +35,21 @@ macro_rules! check_optional {
     ($field:expr) => {
         match $field {
             Some(field) => Ok(field),
-            None => Err($crate::TaskError::FieldRequired { msg: stringify!($field).to_string()})
+            None => Err($crate::TaskError::FieldRequired {
+                msg: stringify!($field).to_string(),
+            }),
         }
     };
     ($field:expr, $len:expr) => {
         if $field.len() != $len {
             Err($crate::TaskError::FieldLengthMismatch {
-                msg: format!("{} expected length {}", stringify!($field), $len)
+                msg: format!("{} expected length {}", stringify!($field), $len),
             })
         } else {
             Ok($field)
         }
     };
 }
-
 
 #[macro_export]
 macro_rules! register_module {

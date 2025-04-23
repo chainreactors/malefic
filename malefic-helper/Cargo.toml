@@ -1,14 +1,11 @@
 [package]
 name = "malefic-helper"
-version = "0.0.3"
+version = "0.1.0"
 edition = "2021"
 
+
 [features]
-default = ["Win", "Win_Inject_APC", "prebuild", "community"]
-win_template = [
-        "Win_Inject_APC",
-        "Win",
-]
+default = ["Win_Inject_APC", "prebuild", "community"]
 community = []
 professional = []
 source = []
@@ -24,18 +21,16 @@ Win_Inject_Func_Pointer = ["Inject"]
 Win_Inject_Process = ["Inject"]
 Win_Inject_Thread = ["Inject"]
 
-Linux_Inject_Asm = ["Inject"]
-Linux_Inject_Fiber = ["Inject"]
-Linux_Inject_Func = ["Inject"]
-Linux_Inject_Func_Pointer = ["Inject"]
-Linux_Inject_Process = ["Inject"]
-Linux_Inject_Thread = ["Inject"]
+#Linux_Inject_Asm = ["Inject"]
+#Linux_Inject_Fiber = ["Inject"]
+#Linux_Inject_Func = ["Inject"]
+#Linux_Inject_Func_Pointer = ["Inject"]
+#Linux_Inject_Process = ["Inject"]
+#Linux_Inject_Thread = ["Inject"]
 
-
-Win = []
-Darwin = []
-Linux = []
-Unix = []
+rem = []
+rem_static = ["rem"]
+rem_reflection = ["rem"]
 
 [dependencies]
 anyhow = "1.0.81"
@@ -45,13 +40,9 @@ strum_macros = "0.26.4"
 thiserror = "1.0.64"
 sha2 = "0.10"
 
-[dependencies.winapi]
-version = "0.3"
-features = ["errhandlingapi", "handleapi", "ioapiset", "minwindef", "namedpipeapi", "synchapi", "winbase", "winerror", "ntdef", "fileapi", "winnt", "minwinbase"]
-
 [target.'cfg(target_os = "windows")'.dependencies]
 detour = { git = "https://github.com/chainreactors/retour-rs", branch = "fix-nightly1.67.0-changes" }
-wmi = { git = "https://github.com/chainreactors/wmi-rs" }
+wmi = { git = "https://github.com/chainreactors/wmi-rs" , optional = true}
 
 [dependencies.windows]
 version = "0.58.0"
@@ -80,7 +71,8 @@ features = [
     "Win32_UI",
     "Wdk_System_Threading",
     "Wdk_System",
-    "Win32_UI_Shell"
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
 ]
 
 [target.'cfg(unix)'.dependencies]

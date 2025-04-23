@@ -14,7 +14,10 @@ pub struct ExecuteLocal {}
 
 #[async_trait]
 #[module_impl("execute_local")]
-impl Module for ExecuteLocal {
+impl Module for ExecuteLocal {}
+
+#[async_trait]
+impl crate::ModuleImpl for ExecuteLocal {
     #[allow(unused_variables)]
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> crate::Result {
         let request = check_request!(receiver, Body::ExecuteBinary)?;

@@ -1,0 +1,34 @@
+[package]
+name = "malefic-3rd"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "malefic_3rd"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["full"]
+full = ["memory_dial", "rem", "curl"]
+memory_dial = []
+as_cdylib = []
+
+rem = ["rem_reflection"]
+rem_static = ["malefic-helper/rem_static"]
+rem_reflection = ["malefic-helper/rem_reflection"]
+
+curl = ["surf"]
+[dependencies]
+malefic-modules = { path = "../malefic-modules" }
+malefic-trait = { path = "../malefic-trait" }
+malefic-proto = { path = "../malefic-proto" }
+malefic-helper = { path = "../malefic-helper"}
+async-trait = "0.1"
+anyhow = "1.0"
+futures = "0.3.31"
+obfstr = "0.4.3"
+surf = { version = "2.3", default-features = false, features = ["h1-client-rustls"] , optional = true}
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

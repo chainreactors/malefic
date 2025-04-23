@@ -1,51 +1,51 @@
 [package]
 name = "malefic-core"
-version = "0.0.3"
+version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["hot_load", "register_info", "Transport_Tcp"]
-
+default = ["hot_load", "register_info", "transport_tcp"]
 bind = []
 hot_load = []
 register_info = []
 
-Transport = []
-Transport_Dns = ["Transport"]
-Transport_Http = ["Transport"]
-Transport_Tls = ["Transport", "async-tls", "rustls", "rustls-pemfile"]
-Transport_Tcp = ["Transport"]
-Transport_Wireguard = ["Transport"]
+# internal feature
+tcp = []
+tls = ["async-tls", "rustls", "rustls-pemfile"]
 
+# 对外暴露的transport feature
+transport_http = ["httparse", "tcp"]
+transport_tcp = ["tcp"]
+transport_rem = ["malefic-helper/rem_static"]
 
 [dependencies]
-malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
-malefic-proto = { path = "../malefic-proto" }
-malefic-modules = { path = "../malefic-modules"}
-
 cfg-if = "1.0.0"
 async-trait = "0.1.83"
+async-net = "2.0.0"
 futures = "0.3.31"
+futures-timer = "3.0.0"
 strum = "0.26.3"
 strum_macros = "0.26.4"
 lazy_static = "1.5.0"
 anyhow = "1.0.86"
 thiserror = "1.0.64"
 obfstr = "0.4.3"
+httparse = { version = "1.8", optional = true }
 
-[dependencies.async-std]
-version = "1.7.0"
-features = ["unstable", "attributes"]
+# Runtime
+async-std = { version = "1.13.0", features = ["unstable", "attributes"], optional = true }
+tokio = { version = "1", features = ["rt", "rt-multi-thread"], optional = true }
+smol = { version = "2.0.2",optional = true }
 
-[dependencies.rustls]
-version = "0.20.6"
-features = ["dangerous_configuration"]
-optional = true
+# tls
+async-tls = { version = "0.12.0", optional = true }
+rustls = { version = "0.20.6", features = ["dangerous_configuration"], optional = true }
+rustls-pemfile = { version = "1.0.4", optional = true }
+webpki-roots = { version = "0.22", optional = true }
 
-[dependencies.async-tls]
-version = "0.12.0"
-optional = true
 
-[dependencies.rustls-pemfile]
-version = "1.0.4"
-optional = true
+malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
+malefic-proto = { path = "../malefic-proto" }
+malefic-modules = { path = "../malefic-modules"}
+malefic-3rd = { path = "../malefic-3rd" , optional = true}
+

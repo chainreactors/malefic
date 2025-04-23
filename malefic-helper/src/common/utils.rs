@@ -1,11 +1,9 @@
-use std::ffi::OsString;
-
 pub unsafe fn pointer_add<T>(base_point: *const T, offset: usize) -> *const core::ffi::c_void {
-    return ((base_point as *const core::ffi::c_void) as usize + offset) as _;
+    ((base_point as *const core::ffi::c_void) as usize + offset) as _
 }
 
 pub unsafe fn pointer_sub<T>(base_point: *const T, offset: usize) -> *const core::ffi::c_void {
-    return ((base_point as *const core::ffi::c_void) as usize - offset) as _;
+    ((base_point as *const core::ffi::c_void) as usize - offset) as _
 }
 
 pub fn dbj2_str_hash(buffer: &[u8]) -> u32 {
@@ -58,13 +56,13 @@ pub fn format_cmdline(processname: String, params: Vec<String>) -> String {
     }
 
     let param_str = params.join(" ");
-    return format_osstring(processname + " " + &param_str);
+    format_osstring(processname + " " + &param_str)
 }
 
 pub fn format_osstring(os_string: String) -> String {
+    use std::ffi::OsString;
     #[cfg(target_os = "windows")]
     {
-        use std::ffi::OsString;
         use std::os::windows::ffi::OsStrExt;
         String::from_utf16_lossy(
             &OsString::from(os_string)

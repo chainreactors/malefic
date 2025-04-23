@@ -11,7 +11,8 @@ members = [
     "malefic-core",
     "malefic-prelude",
     "malefic-proto",
-    "malefic-pulse"
+    "malefic-pulse",
+    "malefic-3rd",
 ]
 
 [profile.dev]
