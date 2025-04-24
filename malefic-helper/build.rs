@@ -138,6 +138,7 @@ fn main() {
 
     #[cfg(feature = "prebuild")]
     {
+        let mut ollvm = "";
         if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
             let (prefix, suffix, destination) =
                 match env::var("CARGO_CFG_TARGET_ENV").unwrap().as_str() {
@@ -146,11 +147,21 @@ fn main() {
                         ".lib",
                         "malefic_win_kit.lib",
                     ),
-                    _ => (
+                    _ => {
+                        let ollvm_flag_path = env::current_dir()
+                            .unwrap()
+                            .parent()
+                            .unwrap()
+                            .join("resources/ollvm-flags");
+                        if ollvm_flag_path.exists() {
+                            ollvm = "ollvm";
+                        }
+                        (
                         "libmalefic-win-kit-community-gnu",
                         ".a",
                         "libmalefic_win_kit.a",
-                    ),
+                        )
+                    },
                 };
 
             let arch = if env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "x86" {
@@ -159,7 +170,7 @@ fn main() {
                 "x64"
             };
 
-            let lib_name = format!("{prefix}-{arch}{suffix}");
+            let lib_name = format!("{prefix}-{arch}-{ollvm}{suffix}");
             let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
             let source_path = env::current_dir()
                 .unwrap()

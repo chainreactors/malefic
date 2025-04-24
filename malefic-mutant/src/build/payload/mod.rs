@@ -4,16 +4,19 @@ use duct::cmd;
 use std::str::FromStr;
 use strum_macros::Display;
 
+
+static OLLVM_FLGAS: &str = "resources/ollvm-flags";
+
 #[derive(Clone, Display)]
 pub enum OllvmAllow {
     #[strum(serialize = "x86_64-pc-windows-gnu")]
     X86_64_WINDOWS_GNU,
     #[strum(serialize = "x86_64-unknown-linux-gnu")]
     X86_64_LINUX_GNU,
-    #[strum(serialize = "i686-pc-windows-gnu")]
-    I686_WINDOWS_GNU,
-    #[strum(serialize = "i686-unknown-linux-gnu")]
-    I686_LINUX_GNU,
+    // #[strum(serialize = "i686-pc-windows-gnu")]
+    // I686_WINDOWS_GNU,
+    // #[strum(serialize = "i686-unknown-linux-gnu")]
+    // I686_LINUX_GNU,
 }
 
 impl FromStr for OllvmAllow {
@@ -23,8 +26,8 @@ impl FromStr for OllvmAllow {
         match s.to_lowercase().as_str() {
             "x86_64-pc-windows-gnu" => Ok(OllvmAllow::X86_64_WINDOWS_GNU),
             "x86_64-unknown-linux-gnu" => Ok(OllvmAllow::X86_64_LINUX_GNU),
-            "i686-pc-windows-gnu" => Ok(OllvmAllow::I686_WINDOWS_GNU),
-            "i686-unknown-linux-gnu" => Ok(OllvmAllow::I686_LINUX_GNU),
+            // "i686-pc-windows-gnu" => Ok(OllvmAllow::I686_WINDOWS_GNU),
+            // "i686-unknown-linux-gnu" => Ok(OllvmAllow::I686_LINUX_GNU),
             _ => Err(format!("'{}' is not a valid value for OllvmAllow", s)),
         }
     }
@@ -38,8 +41,12 @@ pub fn build_payload(
     let mut args = Vec::new();
     let package = payload_type.to_string();
 
+    let ollvm_flag = std::fs::File::open(OLLVM_FLGAS);
     if config.ollvm.enable && OllvmAllow::from_str(&target).is_ok() {
-        let _ = cmd("rustup", ["default", "ollvm16-rust-1.74.0"]);
+        if ollvm_flag.is_err() {
+            std::fs::File::create(OLLVM_FLGAS)?;
+        }
+        let _ = cmd("rustup", ["default", "ollvm16-rust-1.74.0"]).run()?;
         args.push("rustc");
         let build_type = match payload_type {
             PayloadType::MODULES => "--lib",
@@ -66,7 +73,10 @@ pub fn build_payload(
         }
         args.push("-Cdebuginfo=0 -Cstrip=symbols -Cpanic=abort -Copt-level=3");
     } else {
-        let _ = cmd("rustup", ["default", "nightly-2023-09-18"]);
+        if ollvm_flag.is_ok() {
+            std::fs::remove_file(OLLVM_FLGAS)?;
+        }
+        let _ = cmd("rustup", ["default", "nightly-2023-09-18"]).run()?;
         if config.zigbuild {
             args.push("zigbuild");
         }else{

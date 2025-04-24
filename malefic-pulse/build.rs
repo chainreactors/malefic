@@ -45,6 +45,7 @@ fn main() {
         let mut default_prefix = "libmalefic-win-kit-community-pulse-gnu";
         let mut default_suffix = ".a";
         let mut default_destination = "libmalefic_win_kit_pulse.a";
+        let mut ollvm = "";
         if env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "x86" {
             default_arch = "x32";
         }
@@ -52,9 +53,20 @@ fn main() {
             default_prefix = "malefic-win-kit-community-pulse-msvc";
             default_suffix = ".lib";
             default_destination = "malefic_win_kit_pulse.lib";
+        } else {
+            let ollvm_flag_path = env::current_dir()
+                            .unwrap()
+                            .parent()
+                            .unwrap()
+                            .join("resources/ollvm-flags");
+            if ollvm_flag_path.exists() {
+                ollvm = "ollvm";
+            }
         }
-        let lib_name = format!("{}-{}{}", 
-            default_prefix, default_arch, default_suffix);
+        
+
+        let lib_name = format!("{}-{}-{}{}", 
+            default_prefix, default_arch, ollvm, default_suffix);
         let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
         let current_dir = env::current_dir().unwrap();
         let root_dir = current_dir.parent().unwrap();
