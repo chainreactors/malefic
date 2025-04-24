@@ -30,9 +30,9 @@ mod tool;
 struct Implant {
     basic: BasicConfig,
     implants: ImplantConfig,
-    metadata: MetaData,
-    pulse: PulseConfig,
-    build: BuildConfig,
+    metadata: Option<MetaData>,
+    pulse: Option<PulseConfig>,
+    build: Option<BuildConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,7 +134,7 @@ struct ImplantConfig {
     thread_stack_spoofer: bool,
     pe_signature_modify: PESignatureModify,
     #[serde(default)]
-    pack: Vec<PackResource>,
+    pack: Option<Vec<PackResource>>,
     autorun: String,
 }
 
@@ -346,7 +346,11 @@ fn parse_generate(
         GenerateCommands::Pulse { platform, arch } => {
             log_info!("Generating pulse configuration for {} {}", platform, arch);
             update_pulse_config(source)?;
-            pulse_generate(yaml_config.pulse.clone(), *platform, *arch, version, source)
+            let pulse_config = yaml_config
+                .pulse
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("pulse configuration is required but not found"))?;
+            pulse_generate(pulse_config, *platform, *arch, version, source)
         }
     };
 
@@ -356,16 +360,17 @@ fn parse_generate(
     result
 }
 
-fn parse_build(
-    config: &mut BuildConfig,
-    build: &BuildCommands,
-    target: &String,
-) -> anyhow::Result<()> {
+fn parse_build(config: &mut Implant, build: &BuildCommands, target: &String) -> anyhow::Result<()> {
+    let build_config = config
+        .build
+        .as_mut()
+        .ok_or_else(|| anyhow::anyhow!("build configuration is required but not found"))?;
+
     let result = match build {
-        BuildCommands::Malefic => build_payload(config, &PayloadType::MALEFIC, target),
-        BuildCommands::Modules => build_payload(config, &PayloadType::MODULES, target),
-        BuildCommands::Pulse => build_payload(config, &PayloadType::PULSE, target),
-        BuildCommands::Prelude => build_payload(config, &PayloadType::PRELUDE, target),
+        BuildCommands::Malefic => build_payload(build_config, &PayloadType::MALEFIC, target),
+        BuildCommands::Modules => build_payload(build_config, &PayloadType::MODULES, target),
+        BuildCommands::Pulse => build_payload(build_config, &PayloadType::PULSE, target),
+        BuildCommands::Prelude => build_payload(build_config, &PayloadType::PRELUDE, target),
     };
     result
 }
@@ -450,7 +455,7 @@ fn main() -> anyhow::Result<()> {
         } => {
             let mut implant_config = load_yaml_config(config)?;
             validate_yaml_config(config)?;
-            parse_build(&mut implant_config.build, command, target)
+            parse_build(&mut implant_config, command, target)
         }
         Commands::Tool(tool) => parse_tool(tool),
     }

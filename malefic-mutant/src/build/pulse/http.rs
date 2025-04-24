@@ -97,6 +97,12 @@ extern "C" {
         buf: *mut u8,
         buf_len: usize,
     );
+    pub fn boyer_moore_search(
+        text: *const u8,
+        text_len: usize,
+        pattern: *const u8,
+        pattern_len: usize,
+    ) -> isize;
 }
 "#;
 

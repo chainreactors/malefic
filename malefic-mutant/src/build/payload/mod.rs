@@ -39,7 +39,7 @@ pub fn build_payload(
     let package = payload_type.to_string();
 
     if config.ollvm.enable && OllvmAllow::from_str(&target).is_ok() {
-        cmd("rustup", ["default", "ollvm16-rust-1.74.0"]);
+        let _ = cmd("rustup", ["default", "ollvm16-rust-1.74.0"]);
         args.push("rustc");
         let build_type = match payload_type {
             PayloadType::MODULES => "--lib",
@@ -66,7 +66,7 @@ pub fn build_payload(
         }
         args.push("-Cdebuginfo=0 -Cstrip=symbols -Cpanic=abort -Copt-level=3");
     } else {
-        cmd("rustup", ["default", "nightly-2023-09-18"]);
+        let _ = cmd("rustup", ["default", "nightly-2023-09-18"]);
         if config.zigbuild {
             args.push("zigbuild");
         }else{

@@ -21,7 +21,7 @@ mod config_prelude;
 mod config_proto;
 mod config_pulse;
 mod config_toml;
-mod config_winkit;
+// mod config_winkit;
 
 use crate::generate::config_malefic::update_malefic_spites;
 use crate::generate::config_prelude::update_prelude_spites;
@@ -47,7 +47,13 @@ pub fn update_common_config(implant: &mut Implant, version: &Version, source: bo
 fn update_config(r#mod: &str, implant: &mut Implant) -> anyhow::Result<()> {
     implant.implants.r#mod = r#mod.to_string();
     update_core_config(&implant.basic, &implant.implants);
-    update_resources(&implant.metadata);
+
+    let metadata = implant
+        .metadata
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("metadata configuration is required but not found"))?;
+    update_resources(metadata);
+
     update_proto_toml(&implant.basic);
     update_core_toml(&implant.basic, &implant.implants);
     update_beacon_toml(&implant.implants);
