@@ -71,7 +71,10 @@ pub fn build_payload(
         if config.ollvm.constenc {
             args.push("-Cllvm-args=-enable-constenc");
         }
-        args.push("-Cdebuginfo=0 -Cstrip=symbols -Cpanic=abort -Copt-level=3");
+        args.push("-Cdebuginfo=0");
+        args.push("-Cstrip=symbols");
+        args.push("-Cpanic=abort");
+        args.push("-Copt-level=3");
     } else {
         if ollvm_flag.is_ok() {
             std::fs::remove_file(OLLVM_FLGAS)?;
