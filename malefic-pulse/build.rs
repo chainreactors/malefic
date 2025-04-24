@@ -60,12 +60,12 @@ fn main() {
                             .unwrap()
                             .join("resources/ollvm-flags");
             if ollvm_flag_path.exists() {
-                ollvm = "ollvm";
+                ollvm = "-ollvm";
             }
         }
         
 
-        let lib_name = format!("{}-{}-{}{}", 
+        let lib_name = format!("{}-{}{}{}", 
             default_prefix, default_arch, ollvm, default_suffix);
         let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
         let current_dir = env::current_dir().unwrap();

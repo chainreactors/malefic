@@ -154,7 +154,7 @@ fn main() {
                             .unwrap()
                             .join("resources/ollvm-flags");
                         if ollvm_flag_path.exists() {
-                            ollvm = "ollvm";
+                            ollvm = "-ollvm";
                         }
                         (
                         "libmalefic-win-kit-community-gnu",
@@ -170,7 +170,7 @@ fn main() {
                 "x64"
             };
 
-            let lib_name = format!("{prefix}-{arch}-{ollvm}{suffix}");
+            let lib_name = format!("{prefix}-{arch}{ollvm}{suffix}");
             let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
             let source_path = env::current_dir()
                 .unwrap()
