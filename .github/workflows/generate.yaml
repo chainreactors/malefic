@@ -67,7 +67,7 @@ jobs:
 
       - name: Judge target_triple is win
         run: |
-          if [[ "${{matrix.target}}" == *"win"* ]]; then
+          if [[ "${{matrix.target}}" == *"windows"* ]]; then
             echo "is_win=1" >> $GITHUB_ENV
           else
             echo "is_win=0" >> $GITHUB_ENV
