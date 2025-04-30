@@ -121,8 +121,10 @@ fn main() {
             .join("resources");
 
         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
-        let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-
+        let target_arch = match env::var("CARGO_CFG_TARGET_ARCH").unwrap().as_str() {
+            "x86_64" => "amd64",
+            _ => panic!("Unsupported architecture"),
+        };
         let rem_config = LibraryConfig::new(
             "REM",
             vec!["windows", "linux"],
@@ -130,7 +132,8 @@ fn main() {
             "librem_community_{os}_{arch}.a",
             vec!["ws2_32", "userenv"],
         );
-
+        
+        println!("{} {}",target_os, target_arch);
         if let Err(e) = rem_config.link_library(&resources_path, &target_os, &target_arch) {
             panic!("{}", e);
         }

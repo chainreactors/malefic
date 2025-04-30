@@ -71,7 +71,12 @@ implants:
     - "full"
   enable_3rd: false       # enable 3rd module
   3rd_modules:            # 3rd module when malefic compile
-    - "full"
+    - full
+#    - curl
+#    - rem_dial
+#    - rem_static
+#    - rem_reflection
+
   autorun: ""             # autorun config filename
   pack:                   # pack
   #    - src: "1.docx"

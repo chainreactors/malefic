@@ -10,15 +10,17 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["full"]
-full = ["memory_dial", "rem", "curl"]
-memory_dial = []
+full = ["memory_dial", "rem_dial", "rem_reflection", "curl"]
+
 as_cdylib = []
 
-rem = ["rem_reflection"]
+curl = ["surf"]
+memory_dial = []
+rem_dial = []
 rem_static = ["malefic-helper/rem_static"]
 rem_reflection = ["malefic-helper/rem_reflection"]
 
-curl = ["surf"]
+
 [dependencies]
 malefic-modules = { path = "../malefic-modules" }
 malefic-trait = { path = "../malefic-trait" }
