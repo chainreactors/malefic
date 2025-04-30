@@ -4,7 +4,6 @@ mod rem_static;
 #[cfg(all(
     target_os = "windows",
     feature = "rem_reflection",
-    not(feature = "rem_static")
 ))]
 mod rem_reflection;
 
@@ -13,12 +12,11 @@ use rem_static::RemStatic as RemImpl;
 
 #[cfg(all(
     target_os = "windows",
-    feature = "rem_reflection",
-    not(feature = "rem_static")
+    feature = "rem_reflection"
 ))]
 use rem_reflection::RemReflection as RemImpl;
 
-#[cfg(all(feature = "rem_reflection", not(feature = "rem_static")))]
+#[cfg(feature = "rem_reflection")]
 pub use rem_reflection::RemReflection;
 
 use std::ffi::{CStr, CString};

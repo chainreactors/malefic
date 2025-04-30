@@ -13,7 +13,7 @@ register_info = []
 tcp = []
 tls = ["async-tls", "rustls", "rustls-pemfile"]
 
-# 对外暴露的transport feature
+# export transport feature
 transport_http = ["httparse", "tcp"]
 transport_tcp = ["tcp"]
 transport_rem = ["malefic-helper/rem_static"]
