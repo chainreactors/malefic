@@ -9,7 +9,6 @@ use config_metadata::update_resources;
 use config_modules::update_module_toml;
 use config_prelude::parse_yaml;
 use config_proto::update_proto_toml;
-use config_winkit::update_winkit_toml;
 
 mod config_3rd;
 mod config_core;
@@ -41,7 +40,11 @@ pub fn update_pulse_config(source: bool) -> anyhow::Result<()> {
 pub fn update_common_config(implant: &mut Implant, version: &Version, source: bool) {
     log_step!("Updating version and build-type...");
     update_helper_toml(version, source);
-    update_winkit_toml(&implant.implants, version, source);
+    #[cfg(feature = "source")]
+    {
+        use config_winkit::update_winkit_toml;
+        update_winkit_toml(&implant.implants, version, source);
+    }
 }
 
 fn update_config(r#mod: &str, implant: &mut Implant) -> anyhow::Result<()> {

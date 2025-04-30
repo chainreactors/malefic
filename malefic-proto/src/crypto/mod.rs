@@ -44,7 +44,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "Crypto_XOR")] {
         pub use xor::XorEncryptor as cryptor;
         pub fn new_cryptor(key: Vec<u8>, iv: Vec<u8>) -> cryptor {
-            cryptor::new(key, iv) 
+            Cryptor{cryptor: cryptor::new(key, iv)}
         }
     } else {
         compile_error!("No cryptor selected");

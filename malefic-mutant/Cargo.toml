@@ -3,6 +3,11 @@ name = "malefic-mutant"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+
+source = []
+
 [dependencies]
 lazy_static = { version = "1.5.0", features = ["spin_no_std"]}
 prost = { git = "https://github.com/chainreactors/prost", branch = "relax-message-debug-trait-bound"  }
