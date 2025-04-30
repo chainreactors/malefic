@@ -13,5 +13,5 @@ malefic-modules = { path = "../malefic-modules"}
 malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
 malefic-proto = { path= "../malefic-proto", features = [ "Crypto_AES" ] }
 
-[target.'cfg(windows)'.build-dependencies]
+[target.'cfg(target_os = "windows")'.build-dependencies]
 embed-resource = "3.0.2"

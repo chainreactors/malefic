@@ -129,11 +129,43 @@ mod tests {
             "Working directory should not be empty"
         );
         assert!(!info.filepath.is_empty(), "File path should not be empty");
+        assert!(!info.os.is_none(), "OS info should not be None");
+        assert!(!info.process.is_none(), "Process info should not be None");
 
         if let Some(os) = info.os {
             assert!(!os.username.is_empty(), "OS username should not be empty");
             assert!(!os.hostname.is_empty(), "OS hostname should not be empty");
             assert!(!os.locale.is_empty(), "OS locale should not be empty");
         }
+
+        if let Some(process) = info.process {
+            assert!(!process.name.is_empty(), "Process name should not be empty");
+            assert!(!process.path.is_empty(), "Process path should not be empty");
+            assert!(!process.args.is_empty(), "Process args should not be empty");
+            assert!(!process.pid.le(&0), "Process PID should be greater than 0");
+            assert!(!process.ppid.le(&0), "Process PPID should be greater than 0");
+        }
+    }
+
+    #[test]
+    fn test_sysinfo_print() {
+        let info = get_sysinfo();
+        println!("info file path: {}", info.filepath);
+        println!("info work dir: {}", info.workdir);
+        println!("info os name: {}", info.os.as_ref().unwrap().name);
+        println!("info os version: {}", info.os.as_ref().unwrap().version);
+        println!("info os release: {}", info.os.as_ref().unwrap().release);
+        println!("info os arch: {}", info.os.as_ref().unwrap().arch);
+        println!("info os username: {}", info.os.as_ref().unwrap().username);
+        println!("info os hostname: {}", info.os.as_ref().unwrap().hostname);
+        println!("info os locale: {}", info.os.as_ref().unwrap().locale);
+        println!("info process name: {}", info.process.as_ref().unwrap().name);
+        println!("info process pid: {}", info.process.as_ref().unwrap().pid);
+        println!("info process ppid: {}", info.process.as_ref().unwrap().ppid);
+        println!("info process arch: {}", info.process.as_ref().unwrap().arch);
+        println!("info process owner: {}", info.process.as_ref().unwrap().owner);
+        println!("info process path: {}", info.process.as_ref().unwrap().path);
+        println!("info process args: {}", info.process.as_ref().unwrap().args);
+        println!("info is privilege: {}", info.is_privilege);
     }
 }

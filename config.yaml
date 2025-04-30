@@ -19,7 +19,7 @@ basic:
     version: "1.1"
     headers:
       User-Agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
-
+      #any-header: any-value
 build:
   zigbuild: false
   ollvm:
@@ -81,6 +81,8 @@ implants:
     end: 0x42
     magic: "beautiful"
     artifact_id: 0x1
+
+  # for professional
   apis:
     # apis_level: "sys_apis", "nt_apis"
     level: "nt_apis"

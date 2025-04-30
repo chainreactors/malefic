@@ -1,8 +1,10 @@
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use crate::transport::{DialerExt, Stream, TransportTrait};
 use anyhow::Result;
 use async_net::TcpStream;
 use async_trait::async_trait;
-use futures::{AsyncReadExt, AsyncWriteExt};
+use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use std::time::Duration;
 
 #[cfg(feature = "tls")]
@@ -89,6 +91,61 @@ impl TCPTransport {
         Ok(())
     }
 }
+
+impl AsyncRead for TCPTransport {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        #[cfg(feature = "tls")]
+        if let Some(ref mut tls_stream) = self.tls_stream {
+            return Pin::new(tls_stream).poll_read(cx, buf);
+        }
+
+        Pin::new(&mut self.stream).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for TCPTransport {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        #[cfg(feature = "tls")]
+        if let Some(ref mut tls_stream) = self.tls_stream {
+            return Pin::new(tls_stream).poll_write(cx, buf);
+        }
+
+        Pin::new(&mut self.stream).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        #[cfg(feature = "tls")]
+        if let Some(ref mut tls_stream) = self.tls_stream {
+            return Pin::new(tls_stream).poll_flush(cx);
+        }
+
+        Pin::new(&mut self.stream).poll_flush(cx)
+    }
+
+    fn poll_close(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        #[cfg(feature = "tls")]
+        if let Some(ref mut tls_stream) = self.tls_stream {
+            return Pin::new(tls_stream).poll_close(cx);
+        }
+
+        Pin::new(&mut self.stream).poll_close(cx)
+    }
+}
+
 
 #[async_trait]
 impl TransportTrait for TCPTransport {

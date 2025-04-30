@@ -1,3 +1,4 @@
+use std::io;
 use crate::config::HTTP;
 use crate::transport::tcp::TCPTransport;
 use crate::transport::{DialerExt, Stream, TransportError, TransportTrait};
@@ -5,11 +6,12 @@ use anyhow::Result;
 use async_net::TcpStream;
 use async_trait::async_trait;
 use futures::lock::Mutex;
-use futures::{AsyncWriteExt};
+use futures::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use malefic_helper::debug;
 use std::io::{Cursor, Read};
+use std::pin::Pin;
 use std::sync::Arc;
-
+use std::task::{Context, Poll};
 
 #[derive(Clone)]
 pub struct HTTPTransport {
@@ -174,6 +176,50 @@ impl TransportTrait for HTTPTransport {
     }
 }
 
+
+impl AsyncRead for HTTPTransport {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        if let Some(transport) = self.inner.as_mut() {
+            Pin::new(transport).poll_read(cx, buf)
+        } else {
+            Poll::Ready(Ok(0))
+        }
+    }
+}
+
+impl AsyncWrite for HTTPTransport {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        if let Some(transport) = self.inner.as_mut() {
+            Pin::new(transport).poll_write(cx, buf)
+        } else {
+            Poll::Ready(Ok(0))
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        if let Some(transport) = self.inner.as_mut() {
+            Pin::new(transport).poll_flush(cx)
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        if let Some(transport) = self.inner.as_mut() {
+            Pin::new(transport).poll_close(cx)
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct HTTPClient {

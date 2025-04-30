@@ -8,7 +8,7 @@ pub mod rem;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::lock::Mutex;
-use futures::{join, FutureExt};
+use futures::{join, AsyncRead, AsyncWrite, FutureExt};
 use futures_timer::Delay;
 use malefic_helper::debug;
 use malefic_proto::crypto::{Cryptor, CryptorError};
@@ -88,7 +88,7 @@ pub enum TransportError {
 }
 
 #[async_trait]
-pub trait TransportTrait: Send + Sync {
+pub trait TransportTrait: AsyncRead + AsyncWrite + Send + Sync {
     async fn recv(&mut self, len: usize) -> Result<Vec<u8>>;
     async fn send(&mut self, data: Vec<u8>) -> Result<usize>;
     async fn done(&mut self) -> Result<()>;

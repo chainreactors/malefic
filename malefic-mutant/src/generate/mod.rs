@@ -9,7 +9,7 @@ use config_metadata::update_resources;
 use config_modules::update_module_toml;
 use config_prelude::parse_yaml;
 use config_proto::update_proto_toml;
-// use config_winkit::update_winkit_toml;
+use config_winkit::update_winkit_toml;
 
 mod config_3rd;
 mod config_core;
@@ -21,7 +21,7 @@ mod config_prelude;
 mod config_proto;
 mod config_pulse;
 mod config_toml;
-// mod config_winkit;
+mod config_winkit;
 
 use crate::generate::config_malefic::update_malefic_spites;
 use crate::generate::config_prelude::update_prelude_spites;
@@ -41,7 +41,7 @@ pub fn update_pulse_config(source: bool) -> anyhow::Result<()> {
 pub fn update_common_config(implant: &mut Implant, version: &Version, source: bool) {
     log_step!("Updating version and build-type...");
     update_helper_toml(version, source);
-    // update_winkit_toml(&implant.implants, version, source);
+    update_winkit_toml(&implant.implants, version, source);
 }
 
 fn update_config(r#mod: &str, implant: &mut Implant) -> anyhow::Result<()> {
