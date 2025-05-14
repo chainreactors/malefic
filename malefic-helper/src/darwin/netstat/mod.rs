@@ -1,28 +1,31 @@
-mod socket;
+pub mod socket;
 mod sysctl;
-
 mod libproc_bindings;
+
 use socket::{Protocol, Socket};
 use std::io::Error;
+use std::process::Command;
+use std::str::FromStr;
 
+use crate::darwin::netstat::sysctl::get_sockets_sysctl;
 pub fn get_sockets(ipv4: bool, ipv6: bool, tcp: bool, udp: bool) -> Result<Vec<Socket>, Error> {
     let mut sockets = Vec::new();
 
     if tcp {
         if ipv4 {
-            sockets.extend(sysctl::get_sockets_sysctl(Protocol::Tcp)?);
+            sockets.extend(get_sockets_sysctl(Protocol::Tcp)?);
         }
         if ipv6 {
-            sockets.extend(sysctl::get_sockets_sysctl(Protocol::Tcp6)?);
+            sockets.extend(get_sockets_sysctl(Protocol::Tcp6)?);
         }
     }
 
     if udp {
         if ipv4 {
-            sockets.extend(sysctl::get_sockets_sysctl(Protocol::Udp)?);
+            sockets.extend(get_sockets_sysctl(Protocol::Udp)?);
         }
         if ipv6 {
-            sockets.extend(sysctl::get_sockets_sysctl(Protocol::Udp6)?);
+            sockets.extend(get_sockets_sysctl(Protocol::Udp6)?);
         }
     }
 
@@ -43,9 +46,10 @@ mod tests {
     fn test_tcp_sockets() {
         let sockets = get_sockets(true, false, true, false).unwrap();
         for socket in sockets {
-            assert_eq!(socket.protocol, "tcp");
-            assert!(!socket.local_addr.is_empty());
-            assert!(!socket.state.is_empty());
+            match socket.protocol_socket_info {
+                socket::ProtocolSocketInfo::Tcp(_) => (),
+                _ => panic!("Expected TCP socket"),
+            }
         }
     }
 
@@ -53,10 +57,10 @@ mod tests {
     fn test_udp_sockets() {
         let sockets = get_sockets(true, false, false, true).unwrap();
         for socket in sockets {
-            assert_eq!(socket.protocol, "udp");
-            assert!(!socket.local_addr.is_empty());
-            assert!(socket.state.is_empty());
-            assert!(socket.remote_addr.is_empty());
+            match socket.protocol_socket_info {
+                socket::ProtocolSocketInfo::Udp(_) => (),
+                _ => panic!("Expected UDP socket"),
+            }
         }
     }
 }

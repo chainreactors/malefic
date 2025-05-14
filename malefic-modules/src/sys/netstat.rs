@@ -17,16 +17,16 @@ impl ModuleImpl for Netstat {
         let _re = check_request!(receiver, Body::Request)?;
 
         let mut response = NetstatResponse::default();
-        for sock in malefic_helper::common::net::get_netstat()?.into_iter(){
-            response.socks.push(SockTabEntry{
+        for sock in malefic_helper::common::net::get_netstat()?.into_iter() {
+            response.socks.push(SockTabEntry {
                 local_addr: sock.local_addr,
                 remote_addr: sock.remote_addr,
                 protocol: sock.protocol,
-                pid: sock.pid,
-                sk_state: sock.sk_state,
+                pid: sock.pid.to_string(),
+                sk_state: sock.state,
             });
         }
 
-        Ok(TaskResult::new_with_body(id, Body::NetstatResponse(response))) // 响应体为空
+        Ok(TaskResult::new_with_body(id, Body::NetstatResponse(response)))
     }
 }

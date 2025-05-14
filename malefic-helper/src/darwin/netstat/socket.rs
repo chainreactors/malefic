@@ -1,15 +1,6 @@
-use std::net::{IpAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-#[derive(Debug, Clone)]
-pub struct Socket {
-    pub local_addr: String,
-    pub remote_addr: String,
-    pub protocol: String,
-    pub pid: u32,
-    pub state: String,
-}
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Protocol {
     Tcp,
     Tcp6,
@@ -28,26 +19,96 @@ impl Protocol {
     }
 }
 
-pub fn tcp_state_to_string(state: u8) -> String {
-    match state {
-        0 => "CLOSED".to_string(),
-        1 => "LISTEN".to_string(),
-        2 => "SYN_SENT".to_string(),
-        3 => "SYN_RCVD".to_string(),
-        4 => "ESTABLISHED".to_string(),
-        5 => "CLOSE_WAIT".to_string(),
-        6 => "FIN_WAIT_1".to_string(),
-        7 => "CLOSING".to_string(),
-        8 => "LAST_ACK".to_string(),
-        9 => "FIN_WAIT_2".to_string(),
-        10 => "TIME_WAIT".to_string(),
-        _ => format!("UNKNOWN({})", state),
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TcpState {
+    Closed,
+    Listen,
+    SynSent,
+    SynReceived,
+    Established,
+    CloseWait,
+    FinWait1,
+    Closing,
+    LastAck,
+    FinWait2,
+    TimeWait,
+}
+
+impl TcpState {
+    pub fn to_string(&self) -> &'static str {
+        match self {
+            TcpState::Closed => "CLOSED",
+            TcpState::Listen => "LISTEN",
+            TcpState::SynSent => "SYN_SENT",
+            TcpState::SynReceived => "SYN_RECEIVED",
+            TcpState::Established => "ESTABLISHED",
+            TcpState::CloseWait => "CLOSE_WAIT",
+            TcpState::FinWait1 => "FIN_WAIT_1",
+            TcpState::Closing => "CLOSING",
+            TcpState::LastAck => "LAST_ACK",
+            TcpState::FinWait2 => "FIN_WAIT_2",
+            TcpState::TimeWait => "TIME_WAIT",
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        self.to_string()
     }
 }
 
-pub fn format_ip(ip: IpAddr, port: u16) -> String {
+#[derive(Debug, Clone)]
+pub struct TcpSocketInfo {
+    pub local_addr: IpAddr,
+    pub local_port: u16,
+    pub remote_addr: IpAddr,
+    pub remote_port: u16,
+    pub state: TcpState,
+}
+
+#[derive(Debug, Clone)]
+pub struct UdpSocketInfo {
+    pub local_addr: IpAddr,
+    pub local_port: u16,
+}
+
+#[derive(Debug, Clone)]
+pub enum ProtocolSocketInfo {
+    Tcp(TcpSocketInfo),
+    Udp(UdpSocketInfo),
+}
+
+#[derive(Debug, Clone)]
+pub struct Socket {
+    pub protocol_socket_info: ProtocolSocketInfo,
+    pub pid: u32,
+}
+
+pub fn format_ip(ip: IpAddr) -> String {
     match ip {
-        IpAddr::V4(addr) => format!("{}:{}", addr, port),
-        IpAddr::V6(addr) => format!("[{}]:{}", addr, port),
+        IpAddr::V4(ip) => ip.to_string(),
+        IpAddr::V6(ip) => {
+            if ip.is_unspecified() {
+                "::".to_string()
+            } else {
+                ip.to_string()
+            }
+        }
     }
+}
+
+pub fn tcp_state_to_string(state: u8) -> String {
+    match state {
+        0 => "CLOSED",
+        1 => "LISTEN",
+        2 => "SYN_SENT",
+        3 => "SYN_RECEIVED",
+        4 => "ESTABLISHED",
+        5 => "CLOSE_WAIT",
+        6 => "FIN_WAIT_1",
+        7 => "CLOSING",
+        8 => "LAST_ACK",
+        9 => "FIN_WAIT_2",
+        10 => "TIME_WAIT",
+        _ => "UNKNOWN",
+    }.to_string()
 }

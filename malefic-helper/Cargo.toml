@@ -39,43 +39,54 @@ strum = "0.26.3"
 strum_macros = "0.26.4"
 thiserror = "1.0.64"
 sha2 = "0.10"
+libc = "0.2"
+byteorder = "1.4"
+num-traits = "0.2"
+num-derive = "0.3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-detour = { git = "https://github.com/chainreactors/retour-rs", branch = "fix-nightly1.67.0-changes" }
-wmi = { git = "https://github.com/chainreactors/wmi-rs" , optional = true}
+windows = { version = "0.48", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
+wmi = { git = "https://github.com/chainreactors/wmi-rs", optional = true }
 
-[dependencies.windows]
-version = "0.58.0"
-features = [
-    "Win32_Storage_FileSystem",
-    "Win32_Storage",
-    "Win32_System_IO",
-    "Win32_System_Threading",
-    "Win32_System_Memory",
-    "Win32_System_Diagnostics_ToolHelp",
-    "Win32_Foundation",
-    "Win32_Security",
-    "Win32_System_Services",
-    "Win32_System_TaskScheduler",
-    "Win32_System_SystemServices",
-    "Win32_System_SystemInformation",
-    "Win32_System_Registry",
-    "Win32_System_Console",
-    "Win32_System_LibraryLoader",
-    "Win32_System_Pipes",
-    "Win32_System_Diagnostics_Debug",
-    "Win32_NetworkManagement_IpHelper",
-    "Win32_Networking_WinSock",
-    "Win32_System_ProcessStatus",
-    "Win32_System_WindowsProgramming",
-    "Win32_UI",
-    "Wdk_System_Threading",
-    "Wdk_System",
-    "Win32_UI_Shell",
-    "Win32_UI_WindowsAndMessaging",
-]
+[target.'cfg(target_os = "windows")'.dev-dependencies]
+windows = { version = "0.48", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
+wmi = { git = "https://github.com/chainreactors/wmi-rs" }
+
+[[test]]
+name = "test_pipe"
+harness = true
+required-features = ["windows"]
+
+[[test]]
+name = "test_process"
+harness = true
+required-features = ["windows"]
+
+[[test]]
+name = "test_wmi"
+harness = true
+required-features = ["windows"]
+
+[[test]]
+name = "test_schelduler"
+harness = true
+required-features = ["windows"]
+
+[[test]]
+name = "test_token"
+harness = true
+required-features = ["windows"]
+
+[[test]]
+name = "test_service"
+harness = true
+required-features = ["windows"]
+
+[[test]]
+name = "test_reg"
+harness = true
+required-features = ["windows"]
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.26"
-libc = "0.2"
 users = "0.11"
