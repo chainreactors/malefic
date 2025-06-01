@@ -63,18 +63,22 @@ pub fn new_error_spite(task_id: u32, name: String, error: u32) -> implantpb::Spi
     }
 }
 
+fn get_timeu64() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_secs()
+}
+
 pub fn get_sid() -> [u8; 4] {
-    let mut rng = WyRand::new();
-    let seed = rng.generate();
-    let mut seeded_rng = WyRand::new_seed(seed);
-    
+    let mut rng = WyRand::new_seed(get_timeu64());
     let instance_id: [u8; 4];
 
     if cfg!(debug_assertions) {
         instance_id = [1, 2, 3, 4];
     } else {
         let mut temp_id = [0u8; 4];
-        seeded_rng.fill(&mut temp_id);
+        rng.fill(&mut temp_id);
         instance_id = temp_id;
     }
     instance_id

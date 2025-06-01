@@ -1,8 +1,4 @@
 use crate::{to_error, CommonError};
-use crate::darwin::netstat::get_sockets;
-use crate::darwin::netstat::socket::{ProtocolSocketInfo, Socket};
-use std::io::Error;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 #[cfg(target_os = "macos")]
 use crate::darwin::netstat;
@@ -20,40 +16,36 @@ pub struct NetInterface {
     pub ips: Vec<String>,
 }
 
-pub fn get_network_interfaces() -> Result<Vec<String>, Error> {
-    // TODO: 实现获取网络接口信息
-    Ok(Vec::new())
+pub fn get_network_interfaces() -> Result<Vec<NetInterface>, CommonError> {
+    let interfaces = Vec::new();
+    Ok(interfaces)
 }
 
-#[derive(Debug, Clone)]
-pub struct Netstat {
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
+pub struct NetStat {
     pub local_addr: String,
     pub remote_addr: String,
     pub protocol: String,
-    pub pid: u32,
-    pub state: String,
+    pub pid: String,
+    pub sk_state: String,
 }
 
-pub fn get_netstat() -> Result<Vec<Netstat>, Error> {
-    let sockets = get_sockets(true, true, true, true)?;
-    let netstats = sockets.into_iter().map(|socket| {
-        match socket.protocol_socket_info {
-            ProtocolSocketInfo::Tcp(tcp) => Netstat {
-                local_addr: format!("{}:{}", tcp.local_addr, tcp.local_port),
-                remote_addr: format!("{}:{}", tcp.remote_addr, tcp.remote_port),
-                protocol: "tcp".to_string(),
-                pid: socket.pid,
-                state: tcp.state.as_str().to_string(),
-            },
-            ProtocolSocketInfo::Udp(udp) => Netstat {
-                local_addr: format!("{}:{}", udp.local_addr, udp.local_port),
-                remote_addr: String::new(),
-                protocol: "udp".to_string(),
-                pid: socket.pid,
-                state: String::new(),
-            },
-        }
-    }).collect();
+pub fn get_netstat() -> Result<Vec<NetStat>, CommonError> {
+    let mut netstats = Vec::new();
+
+    let sockets = to_error!(netstat::get_sockets(true, true, true, true))?;
+
+    for socket in sockets {
+        netstats.push(NetStat {
+            local_addr: socket.local_addr,
+            remote_addr: socket.remote_addr,
+            protocol: socket.protocol,
+            pid: socket.pid.to_string(),
+            sk_state: socket.state,
+        });
+    }
+
     Ok(netstats)
 }
 
