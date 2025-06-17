@@ -26,4 +26,4 @@ cfg-if = "1.0.0"
 anyhow = "1.0.89"
 
 [build-dependencies]
-prost-build = "0.14.0"
+prost-build = "0.13.5"

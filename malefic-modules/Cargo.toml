@@ -135,5 +135,5 @@ malefic-proto = { path = "../malefic-proto" }
 
 
 [build-dependencies]
-prost-build = "0.14.0"
+prost-build = "0.13.5"
 lazy_static = "1.5.0"
