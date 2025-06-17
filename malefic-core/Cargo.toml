@@ -13,6 +13,10 @@ register_info = []
 tcp = []
 tls = ["async-tls", "rustls", "rustls-pemfile"]
 
+proxy = []
+http_proxy = ["httparse"]
+socks5_proxy = []
+
 # export transport feature
 transport_http = ["httparse", "tcp"]
 transport_tcp = ["tcp"]
@@ -30,7 +34,8 @@ lazy_static = "1.5.0"
 anyhow = "1.0.86"
 thiserror = "1.0.64"
 obfstr = "0.4.3"
-httparse = { version = "1.8", optional = true }
+httparse = { version = "1.8" , optional = true}
+
 
 # Runtime
 async-std = { version = "1.13.0", features = ["unstable", "attributes"], optional = true }
@@ -48,4 +53,5 @@ malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
 malefic-proto = { path = "../malefic-proto" }
 malefic-modules = { path = "../malefic-modules"}
 malefic-3rd = { path = "../malefic-3rd" , optional = true}
+base64 = "0.22"
 

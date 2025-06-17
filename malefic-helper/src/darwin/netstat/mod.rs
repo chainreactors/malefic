@@ -1,6 +1,11 @@
 pub mod socket;
 mod sysctl;
 mod libproc_bindings;
+// #[allow(unused)]
+// mod libproc_bindings {
+//     include!(concat!(env!("OUT_DIR"), "/libproc_bindings.rs"));
+// }
+
 
 use socket::{Protocol, Socket};
 use std::io::Error;

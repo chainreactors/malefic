@@ -62,7 +62,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
           submodules: recursive
 
       - name: Judge target_triple is win
@@ -72,11 +72,6 @@ jobs:
           else
             echo "is_win=0" >> $GITHUB_ENV
           fi
-
-      - name: Install win kit lib
-        run: | 
-          wget https://github.com/chainreactors/malefic/releases/latest/download/resources.zip
-          unzip resources.zip -d resources
 
       - name: Generate config.yaml
         if : ${{ github.event.inputs.malefic_config_yaml != null }}

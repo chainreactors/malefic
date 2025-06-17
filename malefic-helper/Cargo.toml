@@ -58,6 +58,7 @@ features = [
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_Foundation",
     "Win32_Security",
+    "Win32_System_Com",
     "Win32_System_Services",
     "Win32_System_TaskScheduler",
     "Win32_System_SystemServices",
@@ -82,3 +83,6 @@ features = [
 nix = "0.26"
 libc = "0.2"
 users = "0.11"
+
+[build-dependencies]
+bindgen = "0.71.1"

@@ -4,7 +4,7 @@ basic:
     - "127.0.0.1:5001"
   protocol: "tcp"
   tls: false
-  proxy:
+  proxy: 
   interval: 5
   jitter: 0.2
   ca:
@@ -14,11 +14,12 @@ basic:
     link:
   http:
     method: "POST"
-    path: "/pulse"
+    path: "/jquery.js"
     host: "127.0.0.1"
     version: "1.1"
     headers:
       User-Agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
+      Content-Type: "application/octet-stream"
       #any-header: any-value
 build:
   zigbuild: false

@@ -23,6 +23,7 @@ impl crate::ModuleImpl for Open {
                 stdout: "File is in use, skipped".as_bytes().to_vec(),
                 stderr: vec![],
                 pid: 0,
+                end: true,
             })))
         }else{
             exec::shell_execute(&request.path, "open")?;

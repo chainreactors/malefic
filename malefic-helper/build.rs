@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use std::{env, path::PathBuf};
+use bindgen;
 
 struct LibraryConfig {
     name: String,
@@ -113,6 +114,56 @@ impl LibraryConfig {
 }
 
 fn main() {
+    // let os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+
+    // match os.as_str() {
+    //     "macos" => {
+    //         // 生成 libproc 绑定
+    //         let bindings = bindgen::builder()
+    //         .header_contents("libproc_rs.h", r#"
+    //             #include <libproc.h>
+    //             #include <sys/proc_info.h>
+    //         "#)
+    //         .layout_tests(false)
+    //         .clang_args(&[
+    //             "-x",
+    //             "c++",
+    //             "-I",
+    //             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/",
+    //         ])
+    //         // 只允许必要的类型和函数
+    //         .allowlist_type("proc_fdinfo")
+    //         .allowlist_type("proc_fileinfo")
+    //         .allowlist_type("socket_fdinfo")
+    //         .allowlist_type("socket_info")
+    //         .allowlist_type("socket_info__bindgen_ty_1")
+    //         .allowlist_type("in_sockinfo")
+    //         .allowlist_type("in_sockinfo__bindgen_ty_1")
+    //         .allowlist_type("in_sockinfo__bindgen_ty_2")
+    //         .allowlist_type("tcp_sockinfo")
+    //         .allowlist_type("in4in6_addr")
+    //         .allowlist_type("in6_addr")
+    //         .allowlist_type("in6_addr__bindgen_ty_1")
+    //         .allowlist_function("proc_listpids")
+    //         .allowlist_function("proc_pidinfo")
+    //         .allowlist_function("proc_pidfdinfo")
+    //         // 添加必要的常量
+    //         .allowlist_var("PROC_.*")
+    //         .generate()
+    //         .expect("Failed to build libproc bindings");
+
+    //     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    //     let bindings_path = out_path.join("libproc_bindings.rs");
+    //     bindings
+    //         .write_to_file(&bindings_path)
+    //         .expect("Couldn't write bindings!");
+    
+    //     //修复 bindgen 生成的非法语法：unsafe extern "C"
+    //     let original = std::fs::read_to_string(&bindings_path).expect("read bindings failed");
+    //     let patched = original.replace("unsafe extern", "extern");
+    //     std::fs::write(&bindings_path, patched).expect("failed to patch bindings");
+    // }
+
     #[cfg(feature = "rem_static")]
     {
         let resources_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

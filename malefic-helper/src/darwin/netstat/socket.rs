@@ -35,7 +35,23 @@ pub enum TcpState {
 }
 
 impl TcpState {
-    pub fn to_string(&self) -> &'static str {
+    pub fn to_string(&self) -> String {
+        match self {
+            TcpState::Closed => "CLOSED".to_string(),
+            TcpState::Listen => "LISTEN".to_string(),
+            TcpState::SynSent => "SYN_SENT".to_string(),
+            TcpState::SynReceived => "SYN_RECEIVED".to_string(),
+            TcpState::Established => "ESTABLISHED".to_string(),
+            TcpState::CloseWait => "CLOSE_WAIT".to_string(),
+            TcpState::FinWait1 => "FIN_WAIT_1".to_string(),
+            TcpState::Closing => "CLOSING".to_string(),
+            TcpState::LastAck => "LAST_ACK".to_string(),
+            TcpState::FinWait2 => "FIN_WAIT_2".to_string(),
+            TcpState::TimeWait => "TIME_WAIT".to_string(),
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
         match self {
             TcpState::Closed => "CLOSED",
             TcpState::Listen => "LISTEN",
@@ -49,10 +65,6 @@ impl TcpState {
             TcpState::FinWait2 => "FIN_WAIT_2",
             TcpState::TimeWait => "TIME_WAIT",
         }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        self.to_string()
     }
 }
 
@@ -81,6 +93,38 @@ pub enum ProtocolSocketInfo {
 pub struct Socket {
     pub protocol_socket_info: ProtocolSocketInfo,
     pub pid: u32,
+    pub local_addr: String,
+    pub remote_addr: String,
+    pub protocol: String,
+    pub state: String,
+}
+
+impl Socket {
+    pub fn new(protocol_socket_info: ProtocolSocketInfo, pid: u32) -> Self {
+        let (local_addr, remote_addr, protocol, state) = match &protocol_socket_info {
+            ProtocolSocketInfo::Tcp(info) => (
+                format!("{}:{}", format_ip(info.local_addr), info.local_port),
+                format!("{}:{}", format_ip(info.remote_addr), info.remote_port),
+                String::from("tcp"),
+                info.state.to_string(),
+            ),
+            ProtocolSocketInfo::Udp(info) => (
+                format!("{}:{}", format_ip(info.local_addr), info.local_port),
+                String::new(),
+                String::from("udp"),
+                String::new(),
+            ),
+        };
+
+        Self {
+            protocol_socket_info,
+            pid,
+            local_addr,
+            remote_addr,
+            protocol,
+            state,
+        }
+    }
 }
 
 pub fn format_ip(ip: IpAddr) -> String {

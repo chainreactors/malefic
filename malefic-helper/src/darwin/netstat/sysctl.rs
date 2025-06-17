@@ -1,5 +1,5 @@
 use super::socket::{Protocol, Socket, TcpState, TcpSocketInfo, UdpSocketInfo, ProtocolSocketInfo};
-use super::libproc_bindings::*;
+use crate::darwin::netstat::libproc_bindings::*;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 use std::{io, mem};
@@ -8,7 +8,6 @@ use libc::{self, PF_INET, AF_INET6,AF_INET, IPPROTO_TCP, IPPROTO_UDP};
 use std::fs::OpenOptions;
 use std::io::Write;
 use byteorder::{ByteOrder, NetworkEndian};
-use crate::darwin::netstat::libproc_bindings::{socket_fdinfo};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 // macOS specific sysctl MIB names
@@ -215,10 +214,7 @@ pub fn get_sockets_sysctl(protocol: Protocol) -> Result<Vec<Socket>, io::Error> 
                 }
             };
 
-            sockets.push(Socket {
-                protocol_socket_info,
-                pid: pid as u32,
-            });
+            sockets.push(Socket::new(protocol_socket_info, pid as u32));
         }
     }
     Ok(sockets)

@@ -33,8 +33,8 @@ pub enum InternalModule {
     Sleep,
     #[strum(serialize = "suicide")]
     Suicide,
-    #[strum(serialize = "login")]
-    Login,
+    #[strum(serialize = "switch")]
+    Switch,
 }
 
 impl InternalModule {
@@ -55,7 +55,7 @@ impl InternalModule {
             InternalModule::ListTask,
             InternalModule::Sleep,
             InternalModule::Suicide,
-            InternalModule::Login,
+            InternalModule::Switch,
         ]
             .iter()
             .map(|m| m.to_string()) // Display 自动提供 to_string() 方法

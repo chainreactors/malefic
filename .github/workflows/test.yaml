@@ -1,0 +1,45 @@
+name: validate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        target: ["x86_64-pc-windows-gnu", "x86_64-unknown-linux-musl", "aarch64-apple-darwin"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+          submodules: recursive
+          
+      - name: Authorize Git
+        run: |
+          git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config --global user.name "$GITHUB_ACTOR"
+          
+      - name: Update submodule
+        run: |
+          git submodule update  --init --recursive --remote -f
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+      - name: Build for ${{matrix.target}})
+        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+        run: |
+          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "cargo build --release -p malefic-mutant && ./target/release/malefic-mutant generate beacon -s && ./target/release/malefic-mutant build malefic --target ${{matrix.target}}"
+          
+      - name: Build completed
+        run: |
+          echo "Build for ${{matrix.target}} completed successfully"

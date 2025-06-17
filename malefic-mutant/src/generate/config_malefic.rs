@@ -133,6 +133,7 @@ pub fn update_malefic_spites(implant_config: &ImplantConfig, key: &str) -> anyho
                     ],
                     output: false,
                     singleton: true,
+                    realtime: false,
                 });
                 spites.push(Spite {
                     name: "exec".to_string(),

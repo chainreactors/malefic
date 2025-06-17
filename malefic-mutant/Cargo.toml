@@ -10,7 +10,7 @@ source = []
 
 [dependencies]
 lazy_static = { version = "1.5.0", features = ["spin_no_std"]}
-prost = { git = "https://github.com/chainreactors/prost", branch = "relax-message-debug-trait-bound"  }
+prost = { version = "0.14.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1.0"
@@ -19,7 +19,7 @@ toml_edit = "0.22.15"
 strum = "0.26.3"
 strum_macros = "0.26.4"
 clap = { version = "4.5.20", features = ["derive"] }
-base64 = "0.22.1"
+base64 = "0.22"
 hex = "0.4.3"
 anyhow = "1.0.89"
 embed-resource = "3.0.2"
@@ -33,3 +33,4 @@ duct = "0.13"
 malefic-proto = { path = "../malefic-proto", features = ["Crypto_AES", "enable_serde"] }
 rand = "0.8.5"
 walkdir = "2.3.2"
+url = "2.5.4"

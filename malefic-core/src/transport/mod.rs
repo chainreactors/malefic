@@ -5,6 +5,9 @@ pub mod http;
 #[cfg(feature = "transport_rem")]
 pub mod rem;
 
+#[cfg(feature = "proxy")]
+pub mod proxie;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::lock::Mutex;

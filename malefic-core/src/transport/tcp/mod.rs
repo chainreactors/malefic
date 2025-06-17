@@ -1,11 +1,17 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use crate::transport::{DialerExt, Stream, TransportTrait};
 use anyhow::Result;
 use async_net::TcpStream;
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use std::time::Duration;
+use futures_timer::Delay;
+
+use crate::transport::{DialerExt, Stream, TransportTrait};
+#[cfg(feature = "proxy")]
+use crate::config::{PROXY_HOST, PROXY_PASSWORD, PROXY_PORT, PROXY_USERNAME};
+#[cfg(feature = "proxy")]
+use crate::transport::proxie::{SOCKS5Proxy, AsyncProxy, Auth};
 
 #[cfg(feature = "tls")]
 use {
@@ -227,7 +233,26 @@ pub struct TCPClient {
 #[async_trait]
 impl DialerExt for TCPClient {
     async fn connect(&mut self, addr: &str) -> Result<TCPTransport> {
-        let tcp_stream = TcpStream::connect(addr).await?;
+        let tcp_stream: TcpStream = {
+            #[cfg(all(feature = "proxy", feature = "socks5_proxy"))]
+            {
+                SOCKS5Proxy::new(&PROXY_HOST, PROXY_PORT.parse()?, Auth::new(&PROXY_USERNAME, &PROXY_PASSWORD))
+                    .connect(addr)
+                    .await?
+                    .into_tcpstream()
+            }
+            #[cfg(all(feature = "proxy", feature = "http_proxy"))]
+            {
+                HTTPProxy::new(&PROXY_HOST, PROXY_PORT.parse()?, Auth::new(&PROXY_USERNAME, &PROXY_PASSWORD))
+                    .connect(addr)
+                    .await?
+                    .into_tcpstream()
+            }
+            #[cfg(not(feature = "proxy"))]
+            {
+                TcpStream::connect(addr).await?
+            }
+        };
 
         #[cfg(feature = "tls")]
         if addr.starts_with("tls://") {
@@ -247,7 +272,7 @@ impl DialerExt for TCPClient {
 use crate::transport::ListenerExt;
 #[cfg(feature = "bind")]
 use async_net::TcpListener;
-use futures_timer::Delay;
+
 
 #[cfg(feature = "bind")]
 pub struct TCPListenerExt {
