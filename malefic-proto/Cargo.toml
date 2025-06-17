@@ -14,7 +14,7 @@ Crypto_Chacha20 = ["Crypto", "chacha20"]
 enable_serde = []
 
 [dependencies]
-prost = { version = "0.14.0" }
+prost = { git = "https://github.com/tokio-rs/prost" , tag = "v0.14.0" }
 serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0.64"
 snap = "1.1.1"
