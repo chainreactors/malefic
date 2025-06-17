@@ -3,7 +3,7 @@ name: release_config_and_modules
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 permissions:
   contents: write
@@ -65,14 +65,14 @@ jobs:
       - name: Build malefic-mutant for ${{matrix.target}}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          
+
           docker run -v "$(pwd):/root/src" --rm -it ghcr.io/chainreactors/${{matrix.target}}:nightly-2024-08-16-latest \
             cargo build --release -p malefic-mutant --target ${{matrix.target}}  
           sudo chmod -R 777 target
-          
+
           target_dir="target/${{matrix.target}}/release"
           binary_name="malefic-mutant"
-          
+
           if [[ -f ${target_dir}/${binary_name}.exe ]]; then
             mv ${target_dir}/${binary_name}.exe output/${binary_name}-${{matrix.target}}.exe
           else
@@ -99,15 +99,12 @@ jobs:
         run: |
           sudo chmod -R 777 output
 
-      - name: Release ${{ matrix.target }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          for file in output/*; do
-            filename=$(basename "$file")
-            echo "Uploading $file"
-            sha256sum $file >> $file.sha256
-            gh release upload ${{ needs.create-release.outputs.VERSION }} $file.sha256
-            gh release upload ${{ needs.create-release.outputs.VERSION }} $file
-          done
-        shell: bash
+      - name: Upload Release Assets with Checksums
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: output/*
+          tag: ${{ needs.create-release.outputs.VERSION }}
+          overwrite: true
+          file_glob: true
+          draft: true # Set to true if your release is a draft
