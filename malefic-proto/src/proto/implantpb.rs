@@ -50,7 +50,7 @@ pub mod spite {
         #[prost(message, tag = "16")]
         Init(super::super::modulepb::Init),
         #[prost(message, tag = "17")]
-        LoginRequest(super::super::modulepb::Login),
+        Switch(super::super::modulepb::Switch),
         #[prost(message, tag = "18")]
         TaskInfo(super::super::modulepb::TaskInfo),
         #[prost(message, tag = "19")]

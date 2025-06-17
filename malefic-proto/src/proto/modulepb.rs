@@ -230,6 +230,8 @@ pub struct ExecRequest {
     pub output: bool,
     #[prost(bool, tag = "4")]
     pub singleton: bool,
+    #[prost(bool, tag = "5")]
+    pub realtime: bool,
     #[prost(uint32, tag = "10")]
     pub ppid: u32,
 }
@@ -243,6 +245,8 @@ pub struct ExecResponse {
     pub stderr: ::prost::alloc::vec::Vec<u8>,
     #[prost(uint32, tag = "4")]
     pub pid: u32,
+    #[prost(bool, tag = "5")]
+    pub end: bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BinaryResponse {
@@ -600,7 +604,7 @@ pub struct PipeRequest {
     pub pipe: ::core::option::Option<Pipe>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Login {
+pub struct Switch {
     #[prost(string, repeated, tag = "1")]
     pub urls: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
