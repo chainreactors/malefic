@@ -1,9 +1,19 @@
-name: release_config_and_modules
+name: release
 
 on:
   push:
     tags:
-      - "v*.*.*"
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'The tag name for the release'
+        required: true
+        default: 'v0.0.1'
+      draft:
+        description: 'Create a draft release'
+        required: false
+        default: 'true'
 
 permissions:
   contents: write
@@ -18,93 +28,107 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.GH_PAT }}
 
       - name: Set Version
         id: set_version
         run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" == "push" ]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=${{ inputs.tag_name }}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.set_version.outputs.VERSION }}
           release_name: Release ${{ steps.set_version.outputs.VERSION }}
           body: |
             Release ${{ steps.set_version.outputs.VERSION }}
-          draft: false
+          draft: true
           prerelease: false
 
-  config-release:
+      - name: Download win-kit resources
+        uses: robinraju/release-downloader@v1.11
+        with:
+          repository: "chainreactors/malefic-win-kit"
+          latest: true
+          fileName: "community_resource.zip"
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Download rem lib
+        uses: robinraju/release-downloader@v1.11
+        with:
+          repository: "chainreactors/rem-community"
+          latest: true
+          fileName: "rem_lib.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract zip
+        run: |
+          unzip community_resource.zip -d community_resource
+          unzip rem_lib.zip -d rem_lib
+          mkdir resources_dir
+          mv community_resource/* resources_dir/
+          mv rem_lib/dist/lib/*.a resources_dir/
+          cd resources_dir
+          zip -r ../resources.zip ./*
+          cd ..
+
+      - name: Upload resources
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run : |
+          gh release upload ${{ steps.set_version.outputs.VERSION }} resources.zip
+
+  release-mutant:
     needs: create-release
     runs-on: ubuntu-22.04
     continue-on-error: true
     strategy:
       matrix:
         target:
-          - x86_64-pc-windows-msvc
-          - i686-pc-windows-msvc
+          - x86_64-pc-windows-gnu
+          #          - i686-pc-windows-msvc
           - x86_64-unknown-linux-musl
-          - i686-unknown-linux-musl
+          #          - i686-unknown-linux-musl
           - x86_64-apple-darwin
           - aarch64-apple-darwin
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.GH_PAT }}
-
-      - name: Create output directory
-        run: |
-          mkdir -p output/
 
       - name: Build malefic-mutant for ${{matrix.target}}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-
-          docker run -v "$(pwd):/root/src" --rm -it ghcr.io/chainreactors/${{matrix.target}}:nightly-2024-08-16-latest \
-            cargo build --release -p malefic-mutant --target ${{matrix.target}}  
-          sudo chmod -R 777 target
-
-          target_dir="target/${{matrix.target}}/release"
+          mkdir -p output/
           binary_name="malefic-mutant"
-
+          release_dir="release"
+          target_dir="target/${{matrix.target}}/${release_dir}"
+          docker run -v "$(pwd):/root/src" --rm -it ghcr.io/chainreactors/malefic-builder:v0.0.4 \
+            cargo build --release -p malefic-mutant --target ${{matrix.target}}
+          
+          sudo chmod 777 -R target/
           if [[ -f ${target_dir}/${binary_name}.exe ]]; then
             mv ${target_dir}/${binary_name}.exe output/${binary_name}-${{matrix.target}}.exe
           else
             mv ${target_dir}/${binary_name} output/${binary_name}-${{matrix.target}}
           fi
 
-      - name: Build malefic-modules for ${{matrix.target}}
-        if: ${{ contains(matrix.target, 'windows') }}
-        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+      - name: Release ${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          docker run -v "$(pwd):/root/src" --rm -it ghcr.io/chainreactors/${{matrix.target}}:nightly-2024-08-16-latest bash -c "\
-            cargo build --release -p malefic-mutant && \
-            ./target/release/malefic-mutant generate modules "base" && \
-            cargo build --release -p malefic-modules --features "base" --target ${{matrix.target}} && 
-            mv target/${{matrix.target}}/release/modules.dll output/modules-base-${{matrix.target}}.dll && \
-            ./target/release/malefic-mutant generate modules "extend" && \
-            cargo build --release -p malefic-modules --features "extend" --target ${{matrix.target}} && 
-            mv target/${{matrix.target}}/release/modules.dll output/modules-extend-${{matrix.target}}.dll && \
-            ./target/release/malefic-mutant generate modules "full" && \
-            cargo build --release -p malefic-modules --features "full" --target ${{matrix.target}} && 
-            mv target/${{matrix.target}}/release/modules.dll output/modules-full-${{matrix.target}}.dll "
-
-      - name: Chmod output
-        run: |
-          sudo chmod -R 777 output
-
-      - name: Upload Release Assets with Checksums
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: output/*
-          tag: ${{ needs.create-release.outputs.VERSION }}
-          overwrite: true
-          file_glob: true
-          draft: true # Set to true if your release is a draft
+          cd output
+          for file in *; do
+            filename=$(basename "$file")
+            echo "Uploading $filename"
+            gh release upload ${{ needs.create-release.outputs.VERSION }} $filename
+          done
+        shell: bash
