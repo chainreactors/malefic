@@ -93,9 +93,9 @@ jobs:
       matrix:
         target:
           - x86_64-pc-windows-gnu
-          #          - i686-pc-windows-msvc
+          #- i686-pc-windows-msvc
           - x86_64-unknown-linux-musl
-          #          - i686-unknown-linux-musl
+          #- i686-unknown-linux-musl
           - x86_64-apple-darwin
           - aarch64-apple-darwin
     steps:
@@ -103,6 +103,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - name: Build malefic-mutant for ${{matrix.target}}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
@@ -111,7 +112,7 @@ jobs:
           binary_name="malefic-mutant"
           release_dir="release"
           target_dir="target/${{matrix.target}}/${release_dir}"
-          docker run -v "$(pwd):/root/src" --rm -it ghcr.io/chainreactors/malefic-builder:v0.0.4 \
+          docker run -v "$(pwd):/root/src" --rm -it ghcr.io/chainreactors/malefic-builder:latest \
             cargo build --release -p malefic-mutant --target ${{matrix.target}}
           
           sudo chmod 777 -R target/

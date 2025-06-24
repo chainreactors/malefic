@@ -62,13 +62,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           submodules: recursive
+          fetch-depth: 0
 
       - name: Judge target_triple is win
         run: |
           if [[ "${{matrix.target}}" == *"windows"* ]]; then
             echo "is_win=1" >> $GITHUB_ENV
+            wget https://github.com/chainreactors/malefic/releases/latest/download/resources.zip
+            unzip resources.zip -d resources
+            wget https://github.com/chainreactors/malefic/releases/latest/download/malefic-mutant-x86_64-unknown-linux-musl
+            chmod +x malefic-mutant-x86_64-unknown-linux-musl
           else
             echo "is_win=0" >> $GITHUB_ENV
           fi
@@ -91,18 +96,39 @@ jobs:
           echo "$SECRET_AUTORUN_YAML_CONTENT" | base64 -d > autorun.yaml
 
       - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
-        if : ${{ github.event.inputs.package != 'modules' }}
+        if : ${{ github.event.inputs.package == 'beacon' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:v0.0.4 \
-           bash -c "make ${{ github.event.inputs.package }} target_triple=${{matrix.target}} -f ./Makefile"
+          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate beacon;./malefic-mutant-x86_64-unknown-linux-musl build malefic --target ${{matrix.target}} "
+
+      - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
+        if : ${{ github.event.inputs.package == 'pulse' }}
+        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+        run: |
+          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate pulse x64 win;./malefic-mutant-x86_64-unknown-linux-musl build pulse;"
+
+      - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
+        if : ${{ github.event.inputs.package == 'bind' }}
+        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+        run: |
+          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate bind;./malefic-mutant-x86_64-unknown-linux-musl build bind --target ${{matrix.target}} "
+
+      - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
+        if : ${{ github.event.inputs.package == 'prelude' }}
+        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+        run: |
+          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
+          bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate prelude autorun.yaml;./malefic-mutant-x86_64-unknown-linux-musl build prelude"
 
       - name: Build(${{ github.event.inputs.package }},${{matrix.target}})
         if : ${{ github.event.inputs.package == 'modules' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
           docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:v0.0.4 \
-           bash -c "make ${{ github.event.inputs.package }} target_triple=${{matrix.target}} malefic_modules_features=${{ github.event.inputs.malefic_modules_features }} -f ./Makefile"
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate modules ${{ github.event.inputs.malefic_modules_features }};./malefic-mutant-x86_64-unknown-linux-musl build modules"
 
       - name: Move ${{ github.event.inputs.package }} to output
         run: |
