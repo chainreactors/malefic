@@ -72,11 +72,11 @@ jobs:
             echo "is_win=1" >> $GITHUB_ENV
             wget https://github.com/chainreactors/malefic/releases/latest/download/resources.zip
             unzip resources.zip -d resources
-            wget https://github.com/chainreactors/malefic/releases/latest/download/malefic-mutant-x86_64-unknown-linux-musl
-            chmod +x malefic-mutant-x86_64-unknown-linux-musl
           else
             echo "is_win=0" >> $GITHUB_ENV
           fi
+          wget https://github.com/chainreactors/malefic/releases/latest/download/malefic-mutant-x86_64-unknown-linux-musl
+          chmod +x malefic-mutant-x86_64-unknown-linux-musl
 
       - name: Generate config.yaml
         if : ${{ github.event.inputs.malefic_config_yaml != null }}
