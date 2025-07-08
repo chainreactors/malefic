@@ -8,6 +8,5 @@ lazy_static! {
     pub static ref URLS: Vec<String> = vec![
 		obfstr::obfstr!("127.0.0.1:5001").to_string(),
       ];
-    pub static ref CA: Vec<u8> = obfstr::obfstr!("").into();
     pub static ref KEY: Vec<u8> = obfstr::obfstr!("maliceofinternal").into();
 }

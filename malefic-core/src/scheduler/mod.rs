@@ -1,12 +1,5 @@
 mod task;
 
-#[cfg(feature = "async-std")]
-use async_std::task::spawn;
-#[cfg(feature = "smol")]
-use smol::spawn;
-#[cfg(feature = "tokio")]
-use tokio::task::spawn;
-
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures::{select, FutureExt};
 use futures::{SinkExt, StreamExt};
@@ -14,6 +7,7 @@ use futures_timer::Delay;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::common::spawn;
 use malefic_helper::debug;
 use malefic_modules::{MaleficModule, TaskResult};
 use malefic_proto::new_spite;

@@ -1,26 +1,48 @@
 #[cfg(feature = "rem_static")]
 mod rem_static;
 
-#[cfg(all(
-    target_os = "windows",
-    feature = "rem_reflection",
-))]
-mod rem_reflection;
-
 #[cfg(feature = "rem_static")]
 use rem_static::RemStatic as RemImpl;
 
-#[cfg(all(
-    target_os = "windows",
-    feature = "rem_reflection"
-))]
-use rem_reflection::RemReflection as RemImpl;
-
-#[cfg(feature = "rem_reflection")]
-pub use rem_reflection::RemReflection;
-
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
+
+// REM 统一错误码常量
+const ERR_CMD_PARSE_FAILED: c_int = 1;  // Command line parsing error
+const ERR_ARGS_PARSE_FAILED: c_int = 2; // Parameter parsing error
+const ERR_PREPARE_FAILED: c_int = 3;    // Preparation failed
+const ERR_NO_CONSOLE_URL: c_int = 4;    // No console URL
+const ERR_CREATE_CONSOLE: c_int = 5;    // Failed to create console
+const ERR_DIAL_FAILED: c_int = 6;       // Connection failed
+
+/// 统一的rem错误处理函数
+fn handle_rem_error(err_code: c_int) -> String {
+    match err_code {
+        ERR_CMD_PARSE_FAILED => "Command line parsing error".to_string(),
+        ERR_ARGS_PARSE_FAILED => "Parameter parsing error".to_string(),
+        ERR_PREPARE_FAILED => "Preparation failed".to_string(),
+        ERR_NO_CONSOLE_URL => "No console URL".to_string(),
+        ERR_CREATE_CONSOLE => "Failed to create console".to_string(),
+        ERR_DIAL_FAILED => "Connection failed".to_string(),
+        _ => format!("Unknown REM error: {}", err_code),
+    }
+}
+
+// #[cfg(all(
+//     target_os = "windows",
+//     feature = "rem_reflection",
+// ))]
+// mod rem_reflection;
+// #[cfg(all(
+//     target_os = "windows",
+//     feature = "rem_reflection"
+// ))]
+// use rem_reflection::RemReflection as RemImpl;
+// 
+// #[cfg(feature = "rem_reflection")]
+// pub use rem_reflection::RemReflection;
+
+
 
 extern "C" {
     fn RemDial(cmdline: *const c_char) -> (*mut c_char, c_int);
@@ -72,16 +94,7 @@ pub fn rem_dial(cmdline: &str) -> Result<String, String> {
         let (agent_id_ptr, err_code) = (funcs.rem_dial.unwrap())(c_cmdline.as_ptr());
 
         if err_code != 0 {
-            let error_msg = match err_code {
-                1 => "Command line parsing error",
-                2 => "Parameter parsing error",
-                3 => "Preparation failed",
-                4 => "No console URL",
-                5 => "Failed to create console",
-                6 => "Connection failed",
-                _ => "Unknown error",
-            };
-            Err(error_msg.to_string())
+            Err(handle_rem_error(err_code))
         } else {
             if agent_id_ptr.is_null() {
                 return Err("Invalid agent ID".to_string());
@@ -100,12 +113,7 @@ pub fn memory_dial(memhandle: &str, dst: &str) -> Result<i32, String> {
         let (handle, err_code) = (funcs.memory_dial.unwrap())(c_memhandle.as_ptr(), c_dst.as_ptr());
 
         if err_code != 0 {
-            let error_msg = match err_code {
-                1 => "Failed to create client",
-                2 => "Connection failed",
-                _ => "Unknown error",
-            };
-            Err(error_msg.to_string())
+            Err(handle_rem_error(err_code))
         } else {
             Ok(handle)
         }
@@ -122,12 +130,7 @@ pub fn memory_read(handle: i32, buf: &mut [u8]) -> Result<usize, String> {
         );
 
         if err_code != 0 {
-            let error_msg = match err_code {
-                1 => "Invalid connection handle",
-                2 => "Read error",
-                _ => "Unknown error",
-            };
-            Err(error_msg.to_string())
+            Err(handle_rem_error(err_code))
         } else {
             Ok(n as usize)
         }
@@ -144,12 +147,7 @@ pub fn memory_write(handle: i32, buf: &[u8]) -> Result<usize, String> {
         );
 
         if err_code != 0 {
-            let error_msg = match err_code {
-                1 => "Invalid connection handle",
-                2 => "Write error",
-                _ => "Unknown error",
-            };
-            Err(error_msg.to_string())
+            Err(handle_rem_error(err_code))
         } else {
             Ok(n as usize)
         }
@@ -161,12 +159,7 @@ pub fn memory_close(handle: i32) -> Result<(), String> {
     unsafe {
         let err_code = (funcs.memory_close.unwrap())(handle);
         if err_code != 0 {
-            let error_msg = match err_code {
-                1 => "Invalid connection handle",
-                2 => "Close error",
-                _ => "Unknown error",
-            };
-            Err(error_msg.to_string())
+            Err(handle_rem_error(err_code))
         } else {
             Ok(())
         }

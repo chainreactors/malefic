@@ -44,6 +44,7 @@ impl InternalModule {
             InternalModule::Init,
             InternalModule::RefreshModule,
             InternalModule::ListModule,
+            #[cfg(target_family = "windows")]
             InternalModule::LoadModule,
             InternalModule::LoadAddon,
             InternalModule::ListAddon,

@@ -120,13 +120,11 @@ pub fn get_process_architecture(handle: HANDLE) -> anyhow::Result<String> {
 
         let arch = system_info.Anonymous.Anonymous.wProcessorArchitecture;
         if arch == PROCESSOR_ARCHITECTURE_AMD64 {
-            debug!("System architecture: AMD64");
             Ok("x64".to_string())
         } else if arch == PROCESSOR_ARCHITECTURE_INTEL {
-            debug!("System architecture: INTEL");
             Ok("x86".to_string())
         } else {
-            debug!("Unknown system architecture: {:?}", arch);
+
             Ok("Unknown".to_string())
         }
     }
@@ -300,13 +298,11 @@ fn get_process_args(handle: HANDLE) -> String {
             let buffer = PCWSTR::from_raw(buffer.as_ptr());
             let args = get_cmdline_from_buffer(buffer);
             if !args.is_empty() {
-                debug!("Got command line arguments: {:?}", args);
                 args.iter()
                     .map(|s| s.to_string_lossy().into_owned())
                     .collect::<Vec<String>>()
                     .join(" ")
             } else {
-                debug!("No command line arguments found");
                 String::new()
             }
         } else {

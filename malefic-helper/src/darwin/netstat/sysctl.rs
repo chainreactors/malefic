@@ -8,8 +8,6 @@ use libc::{self, PF_INET, AF_INET6,AF_INET, IPPROTO_TCP, IPPROTO_UDP};
 use std::fs::OpenOptions;
 use std::io::Write;
 use byteorder::{ByteOrder, NetworkEndian};
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
 // macOS specific sysctl MIB names
 const NET_RT_IFLIST2: i32 = 6;
 const PF_ROUTE: i32 = 17;
@@ -42,7 +40,7 @@ struct XInPcb {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, FromPrimitive)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub enum ProcFDType {
     Atalk = 0,
     Vnode = 1,
@@ -53,6 +51,23 @@ pub enum ProcFDType {
     Pipe = 6,
     FsEvents = 7,
     NetPolicy = 9,
+}
+
+impl ProcFDType {
+    fn from_u32(value: u32) -> Option<Self> {
+        match value {
+            0 => Some(ProcFDType::Atalk),
+            1 => Some(ProcFDType::Vnode),
+            2 => Some(ProcFDType::Socket),
+            3 => Some(ProcFDType::PSHM),
+            4 => Some(ProcFDType::PSEM),
+            5 => Some(ProcFDType::Kqueue),
+            6 => Some(ProcFDType::Pipe),
+            7 => Some(ProcFDType::FsEvents),
+            9 => Some(ProcFDType::NetPolicy),
+            _ => None,
+        }
+    }
 }
 
 
@@ -75,7 +90,7 @@ impl ProcFDInfo {
     fn try_from_proc_fdinfo(other: proc_fdinfo) -> Result<Self, io::Error> {
         Ok(ProcFDInfo {
             proc_fd: other.proc_fd,
-            proc_fdtype: ProcFDType::from_i32(other.proc_fdtype as i32)
+            proc_fdtype: ProcFDType::from_u32(other.proc_fdtype)
                 .ok_or_else(|| io::Error::last_os_error())?,
         })
     }

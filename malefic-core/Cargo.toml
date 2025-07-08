@@ -1,21 +1,22 @@
 [package]
 name = "malefic-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [features]
-default = ["hot_load", "register_info", "transport_tcp"]
+default = ["hot_load", "register_info", "transport_tcp", "tls"]
 bind = []
 hot_load = []
 register_info = []
 
 # internal feature
 tcp = []
-tls = ["async-tls", "rustls", "rustls-pemfile"]
+tls = ["async-tls", "rustls", "rustls-pemfile", "webpki-roots"]
+mtls = ["tls"]
 
 proxy = []
-http_proxy = ["httparse"]
-socks5_proxy = []
+http_proxy = ["httparse", "proxy"]
+socks5_proxy = ["proxy"]
 
 # export transport feature
 transport_http = ["httparse", "tcp"]

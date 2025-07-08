@@ -1,9 +1,8 @@
 #![allow(non_camel_case_types)]
-use crate::{cmd::{PayloadType}, log_error, log_step, BuildConfig};
+use crate::{cmd::PayloadType, log_error, log_step, BuildConfig};
 use duct::cmd;
 use std::str::FromStr;
 use strum_macros::Display;
-
 
 static OLLVM_FLGAS: &str = "resources/ollvm-flags";
 
@@ -37,9 +36,13 @@ pub fn build_payload(
     config: &BuildConfig,
     payload_type: &PayloadType,
     target: &String,
+    features: Option<&Vec<String>>,
 ) -> anyhow::Result<()> {
     let mut args = Vec::new();
-    let package = payload_type.to_string();
+    let package = match payload_type {
+        PayloadType::THIRD => "malefic-3rd".to_string(),
+        _ => payload_type.to_string(),
+    };
 
     let ollvm_flag = std::fs::File::open(OLLVM_FLGAS);
     if config.ollvm.enable && OllvmAllow::from_str(&target).is_ok() {
@@ -53,7 +56,14 @@ pub fn build_payload(
             _ => "--bin",
         };
         args.extend_from_slice(&[
-            "-r", "--target", &target, "-p", &package, build_type, &package, "--",
+            "--release",
+            "--target",
+            &target,
+            "-p",
+            &package,
+            build_type,
+            &package,
+            "--",
         ]);
 
         if config.ollvm.bcfobf {
@@ -72,6 +82,15 @@ pub fn build_payload(
             args.push("-Cllvm-args=-enable-constenc");
         }
         args.push("-Cdebuginfo=0 -Cstrip=symbols -Cpanic=abort -Copt-level=3");
+
+        if let Some(feats) = features {
+            if !feats.is_empty() {
+                args.push("--features");
+                let feature_string = feats.join(",");
+                let leaked: &'static str = Box::leak(feature_string.into_boxed_str());
+                args.push(leaked);
+            }
+        }
     } else {
         if ollvm_flag.is_ok() {
             std::fs::remove_file(OLLVM_FLGAS)?;
@@ -79,10 +98,19 @@ pub fn build_payload(
         let _ = cmd("rustup", ["default", "nightly-2023-09-18"]).run()?;
         if config.zigbuild {
             args.push("zigbuild");
-        }else{
+        } else {
             args.push("build")
         }
-        args.extend_from_slice(&["-r", "--target", &target, "-p", &package]);
+        args.extend_from_slice(&["--release", "--target", &target, "-p", &package]);
+
+        if let Some(feats) = features {
+            if !feats.is_empty() {
+                args.push("--features");
+                let feature_string = feats.join(",");
+                let leaked: &'static str = Box::leak(feature_string.into_boxed_str());
+                args.push(leaked);
+            }
+        }
     };
 
     let result = cmd("cargo", args)
@@ -92,17 +120,26 @@ pub fn build_payload(
 
     use std::io::{BufRead, BufReader};
     let reader = BufReader::new(result);
+    let mut has_error = false;
+
     for line in reader.lines() {
         match line {
             Ok(line) => {
                 if line.contains("error:") {
                     log_error!("{}", line);
+                    has_error = true;
                 } else {
                     log_step!("{}", line);
                 }
             }
             Err(_) => break,
         }
+    }
+
+    if has_error {
+        return Err(anyhow::anyhow!(
+            "Build failed - compilation errors detected"
+        ));
     }
 
     Ok(())

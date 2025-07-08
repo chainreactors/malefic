@@ -58,7 +58,6 @@ jobs:
       matrix:
         target: ${{ fromJson(needs.set_targets.outputs.targets_json) }}
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -66,16 +65,55 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Judge target_triple is win
+      - name: Judge platform and arch
         run: |
           if [[ "${{matrix.target}}" == *"windows"* ]]; then
-            echo "is_win=1" >> $GITHUB_ENV
-            wget https://github.com/chainreactors/malefic/releases/latest/download/resources.zip
-            unzip resources.zip -d resources
-          else
-            echo "is_win=0" >> $GITHUB_ENV
+            echo "platform=win" >> $GITHUB_ENV
+          elif [[ "${{matrix.target}}" == *"linux"* ]]; then
+            echo "platform=linux" >> $GITHUB_ENV
+          elif [[ "${{matrix.target}}" == *"darwin"* ]]; then
+            echo "platform=darwin" >> $GITHUB_ENV
           fi
-          wget https://github.com/chainreactors/malefic/releases/latest/download/malefic-mutant-x86_64-unknown-linux-musl
+          
+          if [[ "${{matrix.target}}" == *"x86_64"* ]]; then
+            echo "arch=x64" >> $GITHUB_ENV
+          else
+            echo "arch=x86" >> $GITHUB_ENV
+          fi
+
+      - name: Install Resource
+        run: |
+          wget https://github.com/chainreactors/malefic/releases/latest/download/resources.zip
+          unzip resources.zip -d resources
+
+      - name: Generate cache key
+        id: mutant_cache_key
+        run: |
+          HASH=$(find malefic-mutant -name "*.rs" -o -name "Cargo.toml" -o -name "Cargo.lock" | sort | xargs cat | sha256sum | cut -d' ' -f1)
+          echo "key=mutant-$HASH" >> $GITHUB_OUTPUT
+
+      - name: Cache malefic-mutant binary
+        id: cache_mutant
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/x86_64-unknown-linux-musl/release/malefic-mutant
+          key: ${{ steps.mutant_cache_key.outputs.key }}
+
+      - name: Pull Docker image
+        run: |
+          docker pull ghcr.io/chainreactors/malefic-builder:latest
+
+      - name: Build malefic-mutant
+        if: steps.cache_mutant.outputs.cache-hit != 'true'
+        run: |
+          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "cargo build -p malefic-mutant --release --target x86_64-unknown-linux-musl"
+
+      - name: Setup malefic-mutant
+        run: |
+          mkdir -p target/x86_64-unknown-linux-musl/release/
+          cp target/x86_64-unknown-linux-musl/release/malefic-mutant malefic-mutant-x86_64-unknown-linux-musl
           chmod +x malefic-mutant-x86_64-unknown-linux-musl
 
       - name: Generate config.yaml
@@ -95,40 +133,76 @@ jobs:
           echo "SECRET_AUTORUN_YAML_CONTENT=$SECRET_AUTORUN_YAML_CONTENT" >> $GITHUB_ENV
           echo "$SECRET_AUTORUN_YAML_CONTENT" | base64 -d > autorun.yaml
 
+      - name: Setup Cargo cache directories
+        run: |
+          mkdir -p ~/.cargo/registry
+          mkdir -p ~/.cargo/git
+          mkdir -p ./cargo-cache/registry
+          mkdir -p ./cargo-cache/git
+
+      - name: Cache Rust dependencies
+        id: cache_rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./cargo-cache/registry
+            ./cargo-cache/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.target }}-${{ github.event.inputs.package }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-
+            ${{ runner.os }}-cargo-
+
+      - name: Verify cache restore
+        run: |
+          echo "Cache hit: ${{ steps.cache_rust.outputs.cache-hit }}"
+          echo "Checking cargo cache directories:"
+          ls -la ./cargo-cache/ || echo "cargo-cache directory not found"
+          ls -la ./cargo-cache/registry/ || echo "registry directory not found"
+          ls -la ./cargo-cache/git/ || echo "git directory not found"
+
       - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
         if : ${{ github.event.inputs.package == 'beacon' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
-           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate beacon;./malefic-mutant-x86_64-unknown-linux-musl build malefic --target ${{matrix.target}} "
+          docker run -v $(pwd):/root/src -v $(pwd)/cargo-cache/registry:/root/cargo/registry -v $(pwd)/cargo-cache/git:/root/cargo/git ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate beacon && ./malefic-mutant-x86_64-unknown-linux-musl build malefic --target ${{matrix.target}}"
 
       - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
         if : ${{ github.event.inputs.package == 'pulse' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
-           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate pulse x64 win;./malefic-mutant-x86_64-unknown-linux-musl build pulse;"
+          docker run -v $(pwd):/root/src -v $(pwd)/cargo-cache/registry:/root/cargo/registry -v $(pwd)/cargo-cache/git:/root/cargo/git ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate pulse -p $platform -a $arch && ./malefic-mutant-x86_64-unknown-linux-musl build pulse --target ${{matrix.target}}"
 
       - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
         if : ${{ github.event.inputs.package == 'bind' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
-           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate bind;./malefic-mutant-x86_64-unknown-linux-musl build bind --target ${{matrix.target}} "
+          docker run -v $(pwd):/root/src -v $(pwd)/cargo-cache/registry:/root/cargo/registry -v $(pwd)/cargo-cache/git:/root/cargo/git ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate bind && ./malefic-mutant-x86_64-unknown-linux-musl build bind --target ${{matrix.target}}"
 
       - name: Build(${{ github.event.inputs.package }}, ${{matrix.target}})
         if : ${{ github.event.inputs.package == 'prelude' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
-          bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate prelude autorun.yaml;./malefic-mutant-x86_64-unknown-linux-musl build prelude"
+          docker run -v $(pwd):/root/src -v $(pwd)/cargo-cache/registry:/root/cargo/registry -v $(pwd)/cargo-cache/git:/root/cargo/git ghcr.io/chainreactors/malefic-builder:latest \
+          bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate prelude autorun.yaml && ./malefic-mutant-x86_64-unknown-linux-musl build prelude --target ${{matrix.target}}"
+
+      - name: Build(${{ github.event.inputs.package }},${{matrix.target}})
+        if : ${{ github.event.inputs.package == '3rd' }}
+        shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
+        run: |
+          docker run -v $(pwd):/root/src -v $(pwd)/cargo-cache/registry:/root/cargo/registry -v $(pwd)/cargo-cache/git:/root/cargo/git ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate modules -m full && ./malefic-mutant-x86_64-unknown-linux-musl build 3rd -m ${{ github.event.inputs.malefic_modules_features }} --target ${{matrix.target}}"
 
       - name: Build(${{ github.event.inputs.package }},${{matrix.target}})
         if : ${{ github.event.inputs.package == 'modules' }}
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
-          docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:v0.0.4 \
-           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate modules ${{ github.event.inputs.malefic_modules_features }};./malefic-mutant-x86_64-unknown-linux-musl build modules"
+          docker run -v $(pwd):/root/src -v $(pwd)/cargo-cache/registry:/root/cargo/registry -v $(pwd)/cargo-cache/git:/root/cargo/git ghcr.io/chainreactors/malefic-builder:latest \
+           bash -c "./malefic-mutant-x86_64-unknown-linux-musl generate modules -m ${{ github.event.inputs.malefic_modules_features }} && ./malefic-mutant-x86_64-unknown-linux-musl build modules -m ${{ github.event.inputs.malefic_modules_features }} --target ${{matrix.target}}"
 
       - name: Move ${{ github.event.inputs.package }} to output
         run: |
@@ -136,7 +210,7 @@ jobs:
           sudo chmod -R 777 target
           sudo chmod -R 777 output
           export prefix=./target/${{matrix.target}}/release
-          export suffix=$([ "$is_win" = "1" ] && echo ".exe" || echo "")
+          export suffix=$([ "$platform" = "win" ] && echo ".exe" || echo "")
           tree ./target
           if ${{ github.event.inputs.package == 'beacon' }} || ${{ github.event.inputs.package == 'bind' }}; then \
             mv $prefix/malefic$suffix output/malefic-${{ github.event.inputs.package }}$suffix; \
@@ -145,7 +219,9 @@ jobs:
           elif ${{ github.event.inputs.package == 'pulse' }}; then \
             mv $prefix/malefic-pulse$suffix output/malefic-pulse$suffix;
           elif ${{ github.event.inputs.package == 'modules' }}; then \
-            mv $prefix/modules.dll output/modules-${{matrix.target}}.dll; \
+            mv $prefix/malefic_modules.dll output/malefic_modules-${{matrix.target}}.dll; \
+          elif ${{ github.event.inputs.package == '3rd' }}; then \
+            mv $prefix/malefic_3rd.dll output/malefic_3rd-${{matrix.target}}.dll; \
           fi
 
       - name: Upload artifact ${{matrix.target}}
@@ -154,4 +230,4 @@ jobs:
         with:
           name: malefic-${{matrix.target}}-${{ github.run_id }}
           path: output/*
-          retention-days: 3 # you can change this value
+          retention-days: 2 # you can change this value

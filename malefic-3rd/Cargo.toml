@@ -1,6 +1,6 @@
 [package]
 name = "malefic-3rd"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [lib]
@@ -9,20 +9,21 @@ path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["full"]
-full = ["memory_dial", "rem_dial", "rem_reflection", "curl"]
+default = ["rem", "as_cdylib"]
+full = ["rem", "curl"]
 
-as_cdylib = []
+as_cdylib = ["malefic-modules/disable_register"]
 
 curl = ["surf"]
 memory_dial = []
 rem_dial = []
-rem_static = ["malefic-helper/rem_static"]
-rem_reflection = ["malefic-helper/rem_reflection"]
+load_rem = []
+rem = ["malefic-helper/rem_static", "rem_dial", "memory_dial"]
+#rem_reflection = ["malefic-helper/rem_reflection", "rem_dial", "load_rem", "memory_dial"]
 
 
 [dependencies]
-malefic-modules = { path = "../malefic-modules" }
+malefic-modules = { path = "../malefic-modules", features = ["nano"]}
 malefic-trait = { path = "../malefic-trait" }
 malefic-proto = { path = "../malefic-proto" }
 malefic-helper = { path = "../malefic-helper"}

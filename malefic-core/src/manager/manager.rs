@@ -49,7 +49,9 @@ impl MaleficManager{
         self.addons.clear();
         Ok(())
     }
+
     pub fn reload(&mut self) -> Result<(), MaleficError> {
+        self.modules.clear();
         for (name, bundle) in self.bundles.iter() {
             let bundle_modules = bundle();
             debug!("refresh module: {} {:?}", name, bundle_modules.keys());
@@ -59,7 +61,9 @@ impl MaleficManager{
         }
         Ok(())
     }
-    pub fn load_module(&mut self, spite: Spite) -> Result<(), MaleficError> {
+
+    pub fn load_module(&mut self, spite: Spite) -> Result<Vec<String>, MaleficError> {
+        let mut modules = Vec::new();
         #[cfg(feature = "hot_load")]
         {
             let module = check_body!(spite, Body::LoadModule)?;
@@ -69,22 +73,23 @@ impl MaleficManager{
                 let bundle = malefic_helper::common::hot_modules::load_module(bin, bundle_name.clone())
                     .map_err(|_| MaleficError::ModuleError)?;
 
-                let ret = malefic_helper::common::hot_modules::call_fresh_modules(bundle)
+                let ret = malefic_helper::common::hot_modules::call_fresh_modules(bundle as _)
                     .ok_or_else(|| MaleficError::ModuleError)?;
 
                 let register_func: ModuleRegister = core::mem::transmute(ret);
                 self.bundles.insert(bundle_name.to_string(), register_func);
-
+                
                 let bundle_modules = register_func();
                 debug!("load modules: {} {:?}", bundle_name.to_string(), bundle_modules.keys());
                 for (module_name, module) in bundle_modules {
+                    modules.push(module_name.to_string());
                     self.modules.insert(module_name.to_string(), module);
                 }
-
+                
                 debug!("[+] modules insert succ!");
             }
         }
-        Ok(())
+        Ok(modules)
     }
 
     pub fn list_module(&self, internal: Vec<String>) -> Vec<String> {

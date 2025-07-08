@@ -156,6 +156,7 @@ pub trait ModuleImpl {
     
 }
 
+#[cfg(not(feature = "disable_register"))]
 #[no_mangle]
 #[allow(improper_ctypes_definitions)]
 pub extern "C" fn register_modules() -> MaleficBundle {

@@ -25,14 +25,7 @@ pub unsafe fn bof_loader(buffer: &Vec<u8>, arguments: &Vec<String>, entrypoint_n
     }
     #[cfg(feature = "source")]
     {
-        use malefic_win_kit::bof::loader::bof_loader;
-        match bof_loader(buffer, arguments.clone(), entrypoint_name) {
-            Ok(ret) => {
-                ret
-            },
-            Err(e) => {
-                e.to_string()
-            }
-        }
+        use malefic_win_kit::bof::loader::bof_loader_with_result;
+        bof_loader_with_result(buffer, arguments.clone(), entrypoint_name)
     }
 }

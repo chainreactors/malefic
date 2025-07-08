@@ -43,7 +43,7 @@ cfg_if::cfg_if! {
     //     }
     } else if #[cfg(feature = "Crypto_XOR")] {
         pub use xor::XorEncryptor as cryptor;
-        pub fn new_cryptor(key: Vec<u8>, iv: Vec<u8>) -> cryptor {
+        pub fn new_cryptor(key: Vec<u8>, iv: Vec<u8>) -> Cryptor {
             Cryptor{cryptor: cryptor::new(key, iv)}
         }
     } else {

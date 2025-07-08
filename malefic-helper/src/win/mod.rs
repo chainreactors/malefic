@@ -13,3 +13,5 @@ pub mod types;
 pub mod whoami;
 #[cfg(feature = "wmi")]
 pub mod wmi;
+#[cfg(feature = "anti")]
+pub mod anti;

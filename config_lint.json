@@ -9,27 +9,35 @@
           "items": { "type": "string" }
         },
         "protocol" : { "type": "string" },
-        "tls": { "type": "boolean" },
+        "tls": {
+          "type": "object",
+          "properties": {
+            "enable": { "type": "boolean" },
+            "version": {
+              "type": "string",
+              "enum": ["auto", "1.2", "1.3"]
+            },
+            "cert_verification": {
+              "type": "string",
+              "enum": ["none", "system"]
+            },
+            "sni": { "type": "string" },
+            "mtls": {
+              "type": "object",
+              "properties": {
+                "enable": { "type": "boolean" },
+                "cert_path": { "type": "string" },
+                "key_path": { "type": "string" }
+              },
+              "required": ["enable"]
+            }
+          },
+          "required": ["enable"]
+        },
         "interval": { "type": "integer" },
         "jitter": { "type": "number" }
       },
       "required": ["targets", "interval", "protocol", "tls", "jitter"]
-    },
-    "metadata": {
-      "type": "object",
-      "properties": {
-        "remap_path": { "type": "string" },
-        "icon": { "type": "string" },
-        "compile_time": { "type": "string" },
-        "file_version": { "type": "string" },
-        "product_version": { "type": "string" },
-        "company_name": { "type": "string" },
-        "product_name": { "type": "string" },
-        "original_filename": { "type": "string" },
-        "file_description": { "type": "string" },
-        "internal_name": { "type": "string" }
-      },
-      "required": ["remap_path"]
     },
     "implants": {
       "type": "object",
@@ -109,5 +117,5 @@
       "required": ["mod","modules", "apis", "alloctor", "sleep_mask", "sacrifice_process", "fork_and_run", "hook_exit", "thread_stack_spoofer", "pe_signature_modify"]
     }
   },
-  "required": ["basic", "implants", "metadata"]
+  "required": ["basic", "implants"]
 }

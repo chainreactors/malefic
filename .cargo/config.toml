@@ -1,3 +1,6 @@
+[build]
+jobs=8
+
 [net]
 retry = 3
 git-fetch-with-cli = true
@@ -5,12 +8,11 @@ git-fetch-with-cli = true
 [target.x86_64-pc-windows-gnu]
 rustflags = [
     "-C", "link-arg=-s",
-    "-C", "link-arg=-fuse-ld=lld",
 ]
+
 [target.i686-pc-windows-gnu]
 rustflags = [
     "-C", "link-arg=-s",
-    "-C", "link-arg=-fuse-ld=lld",
 ]
 
 [target.x86_64-pc-windows-msvc]

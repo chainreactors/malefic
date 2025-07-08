@@ -19,10 +19,6 @@ pub enum Commands {
         #[arg(long, short = 'v', global = true, default_value = "community")]
         version: Version,
 
-        /// enable build from source code
-        #[arg(long, short = 's', global = true)]
-        source: bool,
-
         /// Config file path
         #[arg(long, short = 'c', global = true, default_value = "config.yaml")]
         config: String,
@@ -32,20 +28,25 @@ pub enum Commands {
     },
 
     /// auto build
-    Build{
+    Build {
         /// Config file path
         #[arg(long, short = 'c', global = true, default_value = "config.yaml")]
         config: String,
 
-        #[arg(long, short = 't', global = true, default_value = "x86_64-pc-windows-gnu")]
+        #[arg(
+            long,
+            short = 't',
+            global = true,
+            default_value = "x86_64-pc-windows-gnu"
+        )]
         target: String,
 
         #[command(subcommand)]
-        command: BuildCommands
+        command: BuildCommands,
     },
 
     #[command(subcommand)]
-    Tool(Tool)
+    Tool(Tool),
 }
 
 // 配置类命令
@@ -76,15 +77,18 @@ pub enum GenerateCommands {
     /// Config modules
     Modules {
         /// Choice modules
-        modules: String,
+        #[arg(long, short = 'm', default_value = "")]
+        module: String,
     },
 
     /// Generate pulse
     Pulse {
         /// Choice arch x86/x64
+        #[arg(long, short = 'a', default_value = "x64")]
         arch: GenerateArch,
 
         /// platform, win
+        #[arg(long, short = 'p', default_value = "win")]
         platform: Platform,
     },
 }
@@ -117,6 +121,8 @@ pub enum PayloadType {
     PRELUDE,
     #[strum(serialize = "malefic-modules")]
     MODULES,
+    #[strum(serialize = "malefic-3rd")]
+    THIRD,
 }
 
 #[derive(Subcommand)]
@@ -128,10 +134,22 @@ pub enum BuildCommands {
     Prelude,
 
     /// Build modules
-    Modules,
+    Modules {
+        /// custom module, e.g.: --module exec,whoami
+        #[arg(long, short = 'm', default_value = "")]
+        module: String,
+    },
+
+    /// build 3rd modules、
+    #[command(name = "3rd")]
+    Modules3rd {
+        /// custom 3rd module, e.g. --3rd-module rem,curl
+        #[arg(long, short = 'm', default_value = "")]
+        module: String,
+    },
 
     /// Build pulse
-    Pulse
+    Pulse,
 }
 
 #[derive(Subcommand)]
@@ -158,7 +176,6 @@ pub enum Tool {
     //     /// choice port
     //     port: String,
     // },
-
     /// Generate SRDI
     SRDI {
         /// Srdi type: link(not support TLS)/malefic(support TLS)

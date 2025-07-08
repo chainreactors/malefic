@@ -6,7 +6,7 @@ use std::fmt;
 use std::ptr::null_mut;
 use strum_macros::{Display, EnumString};
 use windows::core::{Error, Result, PCWSTR, PWSTR};
-use windows::Win32::Foundation::WIN32_ERROR;
+use windows::Win32::Foundation::{ERROR_SUCCESS, WIN32_ERROR};
 use windows::Win32::System::Registry::{
     RegCreateKeyExW, RegDeleteKeyExW, RegDeleteTreeW, RegDeleteValueW, RegEnumKeyExW,
     RegEnumValueW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW, HKEY, KEY_ALL_ACCESS, KEY_READ,
@@ -149,42 +149,43 @@ impl RegistryKey {
         let hkey_root = hive.to_hkey();
         let subkey_wide = to_wide_string(subkey);
         let mut hkey: HKEY = HKEY(null_mut());
+        debug!("Opening registry key: {:?} {:?}", hive, subkey);
 
         unsafe {
-            // 首先尝试使用完整权限打开
-            let mut status = RegOpenKeyExW(
-                hkey_root,
-                PCWSTR(subkey_wide.as_ptr()),
-                0,
+            // 定义权限尝试的顺序
+            let access_levels = [
                 KEY_ALL_ACCESS,
-                &mut hkey,
-            );
+                KEY_READ | KEY_WRITE,
+                KEY_READ,
+            ];
 
-            // 如果失败，则尝试使用有限权限
-            if status.0 != 0 {
-                debug!(
-                    "Failed to open registry key with KEY_ALL_ACCESS: {}",
-                    status.0
-                );
-                status = RegOpenKeyExW(
+            let mut last_status = ERROR_SUCCESS;
+
+            for &access in &access_levels {
+                let status = RegOpenKeyExW(
                     hkey_root,
                     PCWSTR(subkey_wide.as_ptr()),
                     0,
-                    KEY_READ | KEY_WRITE,
+                    access,
                     &mut hkey,
                 );
+
+                if status.0 == 0 {
+                    return Ok(RegistryKey { hkey });
+                }
+
+                last_status = status;
+                debug!("Failed to open registry key with access {:?}: {}", access, status.0);
+
+                // 如果不是权限错误，立即退出循环
+                if status.0 != 5 {
+                    break;
+                }
             }
 
-            if status.0 != 0 {
-                debug!(
-                    "Failed to open registry key with KEY_READ | KEY_WRITE: {}",
-                    status.0
-                );
-                return Err(Error::from_win32());
-            }
+            debug!("Failed to open registry key {} {}", last_status.0, Error::from_win32());
+            Err(Error::from_win32())
         }
-
-        Ok(RegistryKey { hkey })
     }
 
     pub fn create(hive: RegistryHive, subkey: &str) -> Result<Self> {

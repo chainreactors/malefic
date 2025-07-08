@@ -163,7 +163,6 @@ pub struct MaleficModule {
 #[cfg(feature = "prebuild")]
 pub struct DarkModule {
     pub module_base: *const core::ffi::c_void,
-    pub is_successed: bool,
 }
 
 #[cfg(target_os = "windows")]

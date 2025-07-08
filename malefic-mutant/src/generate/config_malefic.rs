@@ -68,6 +68,16 @@ pub fn update_beacon_toml(implant_config: &ImplantConfig) {
             updated_features.push("malefic-prelude".to_string());
         }
 
+        // Add anti features based on config
+        if let Some(anti_config) = &implant_config.anti {
+            if anti_config.sandbox {
+                updated_features.push("anti_sandbox".to_string());
+            }
+            if anti_config.vm {
+                updated_features.push("anti_vm".to_string());
+            }
+        }
+
         features["default"] = Item::Value(updated_features.into());
     } else {
         log_error!("Failed to find 'features' in Cargo.toml");

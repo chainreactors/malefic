@@ -1,7 +1,7 @@
 cargo-features = ["profile-rustflags"]
 [package]
 name = "malefic-modules"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [lib]
@@ -16,6 +16,8 @@ crate-type = ["cdylib", "rlib"]
 [features]
 
 default = ["full"]
+
+disable_register = []
 
 nano = []
 
@@ -64,8 +66,9 @@ cat = []
 pipe = []
 
 sys_full = [
-    "info", "ps", "id", "env", "whoami", "kill", "bypass", "netstat", "wmi", "service",
-    "registry", "taskschd", "getsystem", "runas", "privs", "inject"
+    "info", "ps", "id", "env", "whoami", "kill", "bypass", "netstat", "wmi", "service", "inject",
+    "registry", "taskschd",
+    "getsystem", "runas", "privs", "rev2self"
 ]
 
 info = ["malefic-helper/sysinfo"]
@@ -82,6 +85,7 @@ registry = []
 taskschd = []
 getsystem = []
 runas = []
+rev2self = []
 privs = []
 inject = []
 
@@ -119,6 +123,7 @@ net_full = ["upload", "download"]
 upload = []
 download = []
 
+
 [dependencies]
 anyhow = "1.0.81"
 thiserror = "1.0.64"
@@ -126,14 +131,12 @@ futures = "0.3.31"
 futures-timer = "3.0.3"
 obfstr = "0.4.3"
 async-trait = "0.1.83"
-async-process = "1.6"
 lazy_static = "1.5.0"
-cfg-if = "1.0"
 malefic-helper = { path= "../malefic-helper" }
 malefic-trait = { path = "../malefic-trait"}
 malefic-proto = { path = "../malefic-proto" }
 
 
 [build-dependencies]
-prost-build = "0.13.5"
+prost-build = "0.14.1"
 lazy_static = "1.5.0"

@@ -7,61 +7,12 @@ use malefic_proto::{new_empty_spite, new_spite};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-#[cfg(feature = "async-std")]
-use async_std::task::JoinHandle as AsyncStdHandle;
-#[cfg(feature = "smol")]
-use smol::Task as SmolHandle;
-#[cfg(feature = "tokio")]
-use tokio::task::JoinHandle as TokioHandle;
 
-use crate::common::error::MaleficError;
+use crate::common::{error::MaleficError, CancellableHandle, RuntimeHandle};
 use crate::scheduler::TaskOperator;
 use futures::channel::mpsc::UnboundedSender;
 
-#[async_trait::async_trait]
-trait CancellableHandle {
-    fn cancel(&self);
-}
 
-#[cfg(feature = "async-std")]
-impl CancellableHandle for Arc<Mutex<Option<AsyncStdHandle<()>>>> {
-    fn cancel(&self) {
-        if let Ok(mut handle) = self.lock() {
-            if let Some(h) = handle.take() {
-                h.cancel();
-            }
-        }
-    }
-}
-
-#[cfg(feature = "smol")]
-impl CancellableHandle for Arc<Mutex<Option<SmolHandle<()>>>> {
-    fn cancel(&self) {
-        if let Ok(mut handle) = self.lock() {
-            if let Some(h) = handle.take() {
-                h.cancel();
-            }
-        }
-    }
-}
-
-#[cfg(feature = "tokio")]
-impl CancellableHandle for Arc<Mutex<Option<TokioHandle<()>>>> {
-    fn cancel(&self) {
-        if let Ok(mut handle) = self.lock() {
-            if let Some(h) = handle.take() {
-                h.abort();
-            }
-        }
-    }
-}
-
-#[cfg(feature = "async-std")]
-type RuntimeHandle = Arc<Mutex<Option<AsyncStdHandle<()>>>>;
-#[cfg(feature = "smol")]
-type RuntimeHandle = Arc<Mutex<Option<SmolHandle<()>>>>;
-#[cfg(feature = "tokio")]
-type RuntimeHandle = Arc<Mutex<Option<TokioHandle<()>>>>;
 
 pub struct TaskHandle {
     pub(crate) task: Arc<Mutex<Task>>,

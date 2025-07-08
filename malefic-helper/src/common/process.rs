@@ -73,13 +73,7 @@ pub fn get_current_process() -> Option<Process> {
 pub fn run_command(
     path: String,
     args: Vec<String>,
-    _output: bool,
 ) -> std::result::Result<std::process::Child, std::io::Error> {
-    // let (stdout, stderr) = if output {
-    //     (Stdio::piped(), Stdio::piped())
-    // } else {
-    //     (Stdio::null(), Stdio::null())
-    // };
 
     #[cfg(target_os = "windows")]
     {
@@ -100,3 +94,28 @@ pub fn run_command(
             .spawn()
     }
 }
+
+pub fn async_command(
+    path: String,
+    args: Vec<String>,
+) -> std::result::Result<async_process::Child, std::io::Error> {
+    #[cfg(target_os = "windows")]
+    {
+        use async_process::windows::CommandExt;
+        async_process::Command::new(path)
+            .creation_flags(0x08000000)
+            .args(args)
+            .stdout(async_process::Stdio::piped())
+            .stderr(async_process::Stdio::piped())
+            .spawn()
+    }
+    #[cfg(target_family = "unix")]
+    {
+        async_process::Command::new(path)
+            .args(args)
+            .stdout(async_process::Stdio::piped())
+            .stderr(async_process::Stdio::piped())
+            .spawn()
+    }
+}
+

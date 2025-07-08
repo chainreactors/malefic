@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
-use windows::core::{BSTR, HRESULT, PCWSTR};
 use std::os::windows::ffi::OsStrExt;
+use windows::core::{BSTR, HRESULT, PCWSTR};
 
 pub fn to_wide_string(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(Some(0)).collect()
@@ -14,7 +14,6 @@ pub fn wide_to_string(ptr: PCWSTR) -> String {
         String::from_utf16_lossy(slice)
     }
 }
-
 
 pub fn bstr_to_string(bstr: &BSTR) -> String {
     if bstr.is_empty() {
@@ -31,7 +30,7 @@ pub fn get_buffer(res: windows::core::Result<()>) -> windows::core::Result<()> {
         } else {
             Ok(())
         }
-    }else{
+    } else {
         Ok(())
     }
 }

@@ -8,7 +8,7 @@ use crate::transport::proxie::{
     utils::*,
     target::ToTarget,
     proxy::{HTTPProxy, AsyncProxy, ProxyTcpStream,},
-    
+    error::HTTPNotOKError,
 };
 
 #[async_trait]
