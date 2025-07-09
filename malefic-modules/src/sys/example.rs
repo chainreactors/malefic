@@ -17,12 +17,9 @@ impl ModuleImpl for Example {
      #[allow(unused_variables)]
     async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
         let request = check_request!(receiver, Body::Request)?;
-        if request.input == "ok" {
-            let mut response = Response::default();
-            response.output = "ok".to_string();
-            Ok(TaskResult::new_with_body(id, Body::Response(response)))
-        } else {
-            Err(anyhow::anyhow!(NotImpl))
-        }
+         let example_return = "this is 1n73rn4l 0f m4l1c3";
+         let mut response = Response::default();
+         response.output = example_return.to_string();
+         Ok(TaskResult::new_with_body(id, Body::Response(response)))
     }
 }
