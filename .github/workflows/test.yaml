@@ -38,7 +38,7 @@ jobs:
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
           docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
-           bash -c "cargo build --release -p malefic-mutant && ./target/release/malefic-mutant generate beacon -s && ./target/release/malefic-mutant build malefic --target ${{matrix.target}}"
+           bash -c "cargo build --release -p malefic-mutant && ./target/release/malefic-mutant generate beacon && ./target/release/malefic-mutant build malefic --target ${{matrix.target}}"
 
       - name: Build completed
         run: |
