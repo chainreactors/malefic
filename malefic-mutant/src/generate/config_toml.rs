@@ -27,6 +27,7 @@ const MALEFIC_DIRS: &[&str] = &[
     "malefic-proto",
     "malefic-pulse",
     "malefic-3rd",
+    "malefic-win-kit",
 ];
 
 /// Recursively collect remap flags for all .rs files in the given directory and its subdirectories

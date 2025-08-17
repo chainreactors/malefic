@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::common::spawn;
 use malefic_helper::debug;
-use malefic_modules::{MaleficModule, TaskResult};
+use malefic_proto::module::{MaleficModule, TaskResult};
 use malefic_proto::new_spite;
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::implantpb::Spite;

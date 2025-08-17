@@ -23,6 +23,10 @@ pub enum Commands {
         #[arg(long, short = 'c', global = true, default_value = "config.yaml")]
         config: String,
 
+        /// Choice use source code or prebuild
+        #[arg(long, short = 's', global = true, default_value = "true")]
+        source: bool,
+
         #[command(subcommand)]
         command: GenerateCommands,
     },

@@ -5,6 +5,7 @@
 #![feature(stmt_expr_attributes)]
 
 pub mod common;
+#[cfg(feature = "async_scheduler")]
 pub mod scheduler;
 pub mod transport;
 pub mod manager;

@@ -9,4 +9,6 @@ lazy_static! {
 		obfstr::obfstr!("127.0.0.1:5001").to_string(),
       ];
     pub static ref KEY: Vec<u8> = obfstr::obfstr!("maliceofinternal").into();
+    pub static ref AGE_PRIVATE_KEY: String = obfstr::obfstr!("").to_string();
+    pub static ref AGE_PUBLIC_KEY: String = obfstr::obfstr!("").to_string();
 }

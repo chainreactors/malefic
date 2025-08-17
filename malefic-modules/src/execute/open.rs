@@ -1,10 +1,7 @@
-use async_trait::async_trait;
 use malefic_helper::common::exec;
 use malefic_helper::common::exec::is_file_in_use;
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::ExecResponse;
-use malefic_trait::module_impl;
-use crate::{check_request, Module, TaskResult};
+use crate::prelude::*;
 
 pub struct Open {}
 
@@ -13,9 +10,9 @@ pub struct Open {}
 impl Module for Open {}
 
 #[async_trait]
-impl crate::ModuleImpl for Open {
+impl malefic_proto::module::ModuleImpl for Open {
     #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> crate::Result {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> malefic_proto::module::ModuleResult {
         let request = check_request!(receiver, Body::ExecRequest)?;
         if is_file_in_use(&request.path) && request.singleton {
             Ok(TaskResult::new_with_body(id, Body::ExecResponse(ExecResponse{

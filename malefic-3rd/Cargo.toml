@@ -9,10 +9,10 @@ path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["rem", "as_cdylib"]
+default = ["curl"]
 full = ["rem", "curl"]
 
-as_cdylib = ["malefic-modules/disable_register"]
+as_cdylib = []
 
 curl = ["surf"]
 memory_dial = []
@@ -23,7 +23,6 @@ rem = ["malefic-helper/rem_static", "rem_dial", "memory_dial"]
 
 
 [dependencies]
-malefic-modules = { path = "../malefic-modules", features = ["nano"]}
 malefic-trait = { path = "../malefic-trait" }
 malefic-proto = { path = "../malefic-proto" }
 malefic-helper = { path = "../malefic-helper"}

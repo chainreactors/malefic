@@ -13,10 +13,14 @@ default = ["beacon", "runtime_tokio"]
 bind = ["malefic-core/bind"]
 beacon = []
 
+secure = ["malefic-proto/secure"]
+
 # runtime
-runtime_asyncstd = ["malefic-core/async-std"]
-runtime_tokio = ["malefic-core/tokio", "tokio"]
-runtime_smol = ["malefic-core/smol"]
+
+runtime = ["malefic-core/async_scheduler"]
+runtime_asyncstd = ["runtime", "malefic-core/async-std"]
+runtime_tokio = ["runtime", "malefic-core/tokio", "tokio"]
+runtime_smol = ["runtime", "malefic-core/smol"]
 
 anti_sandbox = ["malefic-helper/anti_sandbox"]
 anti_vm = ["malefic-helper/anti_vm"]

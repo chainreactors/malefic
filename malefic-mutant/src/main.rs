@@ -16,7 +16,6 @@ use serde_yaml::Value as YamlValue;
 
 use crate::build::payload::build_payload;
 use crate::cmd::{BuildCommands, Cli, Commands, GenerateCommands, PayloadType, Tool};
-use crate::generate::{detect_source_mode, update_workspace_members};
 use std::collections::HashMap;
 use std::{fs, process};
 use strum_macros::{Display, EnumString};
@@ -48,6 +47,17 @@ struct BasicConfig {
     key: String,
     rem: REMConfig,
     http: HttpConfig,
+    secure: SecureConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SecureConfig {
+    #[serde(default)]
+    enable: bool,
+    #[serde(default)]
+    private_key: String,
+    #[serde(default)]
+    public_key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,13 +93,17 @@ struct MTLSConfig {
 fn default_tls_version() -> String {
     "auto".to_string()
 }
+fn default_toolchain() -> String { 
+    "nightly-2023-09-18".to_string() 
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BuildConfig {
     zigbuild: bool,
     ollvm: Ollvm,
     metadata: Option<MetaData>,
-    
+    #[serde(default = "default_toolchain")]
+    toolchain: String,
     #[serde(rename = "remap")]
     refresh_remap_path_prefix: bool,
 }
@@ -164,12 +178,7 @@ struct ImplantConfig {
     flags: Flags,
     apis: Apis,
     alloctor: Alloctor,
-    sleep_mask: bool,
-    sacrifice_process: bool,
-    fork_and_run: bool,
-    hook_exit: bool,
     thread_stack_spoofer: bool,
-    pe_signature_modify: PESignatureModify,
     #[serde(default)]
     pack: Option<Vec<PackResource>>,
     autorun: String,
@@ -414,7 +423,7 @@ fn parse_build(config: &mut Implant, build: &BuildCommands, target: &String) -> 
         .ok_or_else(|| anyhow::anyhow!("build configuration is required but not found"))?;
 
     let result = match build {
-        BuildCommands::Malefic => build_payload(build_config, &PayloadType::MALEFIC, target, None),
+        BuildCommands::Malefic => build_payload(build_config, &PayloadType::MALEFIC, target),
         BuildCommands::Modules { module } => {
             use crate::generate::update_module_toml;
             // 1. 判断命令行参数是否为空，决定用 config 还是命令行
@@ -428,7 +437,7 @@ fn parse_build(config: &mut Implant, build: &BuildCommands, target: &String) -> 
             // 2. 更新 features 到 toml
             update_module_toml(&modules);
             // 3. 编译 malefic-modules
-            build_payload(build_config, &PayloadType::MODULES, target, Some(&modules))
+            build_payload(build_config, &PayloadType::MODULES, target)
         }
         BuildCommands::Modules3rd { module } => {
             use crate::generate::update_3rd_toml;
@@ -445,12 +454,11 @@ fn parse_build(config: &mut Implant, build: &BuildCommands, target: &String) -> 
             build_payload(
                 build_config,
                 &PayloadType::THIRD,
-                target,
-                Some(&third_modules),
+                target
             )
         }
-        BuildCommands::Pulse => build_payload(build_config, &PayloadType::PULSE, target, None),
-        BuildCommands::Prelude => build_payload(build_config, &PayloadType::PRELUDE, target, None),
+        BuildCommands::Pulse => build_payload(build_config, &PayloadType::PULSE, target),
+        BuildCommands::Prelude => build_payload(build_config, &PayloadType::PRELUDE, target),
     };
     result
 }
@@ -522,12 +530,11 @@ fn main() -> anyhow::Result<()> {
             version,
             config,
             command,
+            source,
         } => {
             let mut implant_config = load_yaml_config(config)?;
             validate_yaml_config(config)?;
-            let source = detect_source_mode();
-            update_workspace_members(source)?;
-            parse_generate(&mut implant_config, command, *version, source)
+            parse_generate(&mut implant_config, command, *version, *source)
         }
         Commands::Build {
             config,

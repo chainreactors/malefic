@@ -1,4 +1,3 @@
-
 const PROTO_GENE_PATH: &str = "src/proto/";
 const PROTO_IMPLANT_FILE: &str = "../proto/implant/implantpb/implant.proto";
 const PROTO_MODULE_FILE: &str = "../proto/implant/implantpb/module.proto";

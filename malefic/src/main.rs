@@ -1,4 +1,6 @@
+#![feature(stdsimd)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod malefic;
 mod meta;
 mod stub;

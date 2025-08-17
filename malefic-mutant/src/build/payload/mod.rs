@@ -1,5 +1,5 @@
 #![allow(non_camel_case_types)]
-use crate::{cmd::PayloadType, log_error, log_step, BuildConfig};
+use crate::{cmd::PayloadType, log_error, log_step, log_success, BuildConfig};
 use duct::cmd;
 use std::str::FromStr;
 use strum_macros::Display;
@@ -35,8 +35,7 @@ impl FromStr for OllvmAllow {
 pub fn build_payload(
     config: &BuildConfig,
     payload_type: &PayloadType,
-    target: &String,
-    features: Option<&Vec<String>>,
+    target: &String
 ) -> anyhow::Result<()> {
     let mut args = Vec::new();
     let package = match payload_type {
@@ -85,35 +84,18 @@ pub fn build_payload(
         args.push("-Cstrip=symbols");
         args.push("-Cpanic=abort");
         args.push("-Copt-level=3");
-
-        if let Some(feats) = features {
-            if !feats.is_empty() {
-                args.push("--features");
-                let feature_string = feats.join(",");
-                let leaked: &'static str = Box::leak(feature_string.into_boxed_str());
-                args.push(leaked);
-            }
-        }
     } else {
         if ollvm_flag.is_ok() {
             std::fs::remove_file(OLLVM_FLGAS)?;
         }
-        let _ = cmd("rustup", ["default", "nightly-2023-09-18"]).run()?;
+        let toolchain = config.toolchain.clone();
+        let _ = cmd("rustup", ["default", &*toolchain]).run()?;
         if config.zigbuild {
             args.push("zigbuild");
         } else {
             args.push("build")
         }
         args.extend_from_slice(&["--release", "--target", &target, "-p", &package]);
-
-        if let Some(feats) = features {
-            if !feats.is_empty() {
-                args.push("--features");
-                let feature_string = feats.join(",");
-                let leaked: &'static str = Box::leak(feature_string.into_boxed_str());
-                args.push(leaked);
-            }
-        }
     };
 
     let result = cmd("cargo", args)
@@ -144,6 +126,32 @@ pub fn build_payload(
             "Build failed - compilation errors detected"
         ));
     }
+    // 根据package的不同输出
+    let binary_path = match payload_type {
+        PayloadType::THIRD => {
+            if target.contains("windows") {
+                format!("target/{}/release/malefic_3rd.dll", target)
+            } else {
+                format!("target/{}/release/libmalefic_3rd.rlib", target)
+            }
+        },
+        PayloadType::MODULES => {
+            if target.contains("windows") {
+                format!("target/{}/release/malefic_modules.dll", target)
+            } else {
+                format!("target/{}/release/libmalefic_modules.rlib", target)
+            }
+        },
+        _ => {
+            if target.contains("windows") {
+                format!("target/{}/release/{}.exe", target, package)
+            } else {
+                format!("target/{}/release/{}", target, package)
+            }
+        }
+    };
+
+    log_success!("Build completed: {}", binary_path);
 
     Ok(())
 }

@@ -259,7 +259,7 @@ impl Stream {
 
 
 impl Client {
-
+    
     pub async fn handler(
         &mut self,
         transport: InnterTransport,
@@ -274,8 +274,8 @@ impl Client {
         
         futures::select! {
             result = async {
-                let send_task = sender.send(&mut writer, data).fuse();
-                let recv_task = receiver.recv(&mut reader).fuse();
+                let send_task = sender.write(&mut writer, data).fuse();
+                let recv_task = receiver.read(&mut reader).fuse();
                 let (recv_result, send_result) = join!(recv_task, send_task);
 
                 // 关闭连接
@@ -302,8 +302,20 @@ impl Client {
             }
         }
     }
-
-    pub async fn send(&mut self, writer: &mut TransportWriteHalf, data: SpiteData) -> Result<()> {
+    
+    pub async fn send(&mut self, transport: InnterTransport, data: SpiteData) -> Result<()> {
+        let (_, mut writer) = Transport::new(transport).split();
+        futures::select! {
+            result = async {
+                self.write(&mut writer, data).await
+            }.fuse() => result,
+            _ = Delay::new(Duration::from_secs(2)).fuse() => {
+                Err(TransportError::SendTimeout.into())
+            }
+        }
+    }
+    
+    pub async fn write(&mut self, writer: &mut TransportWriteHalf, data: SpiteData) -> Result<()> {
         futures::select! {
             result = async {
                 let header = data.header();
@@ -331,7 +343,7 @@ impl Client {
         }
     }
 
-    pub async fn recv(&mut self, reader: &mut TransportReadHalf) -> Result<SpiteData> {
+    pub async fn read(&mut self, reader: &mut TransportReadHalf) -> Result<SpiteData> {
         futures::select! {
             res = async {
                 // 接收header
@@ -347,7 +359,6 @@ impl Client {
                 let data = self.stream.read(reader, spitedata.length as usize + 1).await?;
                 spitedata.set_data(data)?;
                 reader.read_over().await;
-                debug!("[client] recv over");
                 Ok(spitedata)
             }.fuse() => {
                 match res {

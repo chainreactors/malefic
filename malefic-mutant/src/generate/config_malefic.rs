@@ -1,5 +1,5 @@
 use crate::generate::config_prelude::{parse_yaml, update_prelude_spites};
-use crate::{log_error, log_info, log_step, log_success};
+use crate::{log_error, log_info, log_step, log_success, BasicConfig};
 use crate::{ImplantConfig, FEATURES};
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::implantpb::Spite;
@@ -9,7 +9,7 @@ use toml_edit::{Array, DocumentMut, Item};
 
 const CONFIG_BEACON_TOML_PATH: &str = "malefic/Cargo.toml";
 
-pub fn update_beacon_toml(implant_config: &ImplantConfig) {
+pub fn update_beacon_toml(server: &BasicConfig, implant_config: &ImplantConfig) {
     log_step!("Updating beacon Cargo.toml...");
     let cargo_toml_content = match fs::read_to_string(CONFIG_BEACON_TOML_PATH) {
         Ok(content) => content,
@@ -35,6 +35,10 @@ pub fn update_beacon_toml(implant_config: &ImplantConfig) {
         let default_array = Array::new();
         let mut updated_features = default_array;
 
+        if server.secure.enable{
+            updated_features.push("secure".to_string());
+        }
+
         match implant_config.r#mod.as_str() {
             "beacon" => {
                 updated_features.push("beacon".to_string());
@@ -53,7 +57,7 @@ pub fn update_beacon_toml(implant_config: &ImplantConfig) {
                 updated_features.push("runtime_tokio".to_string());
             }
             "async-std" => {
-                updated_features.push("runtime-asyncstd".to_string());
+                updated_features.push("runtime_asyncstd".to_string());
             }
             _ => {
                 updated_features.push("runtime_tokio".to_string());

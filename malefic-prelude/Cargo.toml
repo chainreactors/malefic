@@ -8,7 +8,7 @@ anyhow = "1.0.89"
 futures = "0.3.31"
 lazy_static = "1.5.0"
 
-malefic-core = { path = "../malefic-core"}
+malefic-core = { path = "../malefic-core", features = [ ] }
 malefic-modules = { path = "../malefic-modules"}
 malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
 malefic-proto = { path= "../malefic-proto", features = [ "Crypto_AES" ] }

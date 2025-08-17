@@ -29,8 +29,8 @@ log = "0.4"
 chrono = "0.4"
 colored = "2.2.0"
 duct = "0.13"
-
-malefic-proto = { path = "../malefic-proto", features = ["Crypto_AES", "enable_serde"] }
 rand = "0.8.5"
 walkdir = "2.3.2"
 url = "2.5.4"
+
+malefic-proto = { path = "../malefic-proto", features = ["Crypto_AES", "enable_serde"] }

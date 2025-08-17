@@ -4,11 +4,11 @@ version = "0.1.1"
 edition = "2021"
 
 [features]
-default = ["hot_load", "register_info", "transport_tcp", "tls"]
+default = ["hot_load", "register_info", "transport_tcp"]
 bind = []
 hot_load = []
 register_info = []
-
+async_scheduler = []
 # internal feature
 tcp = []
 tls = ["async-tls", "rustls", "rustls-pemfile", "webpki-roots"]

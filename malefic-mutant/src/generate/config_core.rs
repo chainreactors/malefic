@@ -44,6 +44,7 @@ lazy_static! {{
         proxy = server.proxy,
         urls = urls_str,
         key = server.key,
+
     );
     if server.protocol == "http" {
         base_config.push_str(&format!(
@@ -81,6 +82,16 @@ lazy_static! {{
         base_config.push_str(&format!(
             r#"    pub static ref REM: String = obfstr::obfstr!("-m proxy -l memory+socks://:@memory -c {rem}").to_string();
             "# , rem = server.rem.link
+        ));
+    }
+
+    if server.secure.enable {
+        base_config.push_str(&format!(
+            r#"    pub static ref AGE_PRIVATE_KEY: String = obfstr::obfstr!("{age_private_key}").to_string();
+    pub static ref AGE_PUBLIC_KEY: String = obfstr::obfstr!("{age_public_key}").to_string();
+"#,
+            age_private_key = server.secure.private_key,
+            age_public_key = server.secure.public_key
         ));
     }
 

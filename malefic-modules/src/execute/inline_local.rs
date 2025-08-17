@@ -1,14 +1,11 @@
 #![allow(unused_assignments)]
-use crate::{check_request, Module, Result, TaskResult};
-use async_trait::async_trait;
-use malefic_helper::common::utils::format_cmdline;
-use malefic_helper::to_error;
-use malefic_helper::win::kit::pe::inlinepe::inline_pe;
-use malefic_proto::proto::implantpb::spite::Body;
-use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_trait::module_impl;
 use std::ptr::null;
+
+use malefic_helper::common::utils::format_cmdline;
+use malefic_helper::win::kit::pe::inlinepe::inline_pe;
+use malefic_proto::proto::modulepb::BinaryResponse;
 use malefic_helper::common::filesys::get_binary;
+use crate::prelude::*;
 
 pub struct InlineLocal;
 
@@ -17,9 +14,9 @@ pub struct InlineLocal;
 impl Module for InlineLocal {}
 
 #[async_trait]
-impl crate::ModuleImpl for InlineLocal {
+impl malefic_proto::module::ModuleImpl for InlineLocal {
     #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let (bin_content, bin_name) = to_error!(get_binary(&request.path))?;
 

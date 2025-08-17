@@ -156,6 +156,7 @@ pub struct MaleficPipe {
 pub struct MaleficModule {
     pub new_module: *mut core::ffi::c_void,
     pub entry_point: *const core::ffi::c_void, 
+    pub export_func: Vec<(String, usize)>,
 }
 
 

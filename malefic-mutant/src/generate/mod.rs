@@ -56,10 +56,10 @@ fn update_config(r#mod: &str, implant: &mut Implant) -> anyhow::Result<()> {
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("metadata configuration is required but not found"))?;
     update_resources(metadata);
-
+    
     update_proto_toml(&implant.basic);
     update_core_toml(&implant.basic, &implant.implants);
-    update_beacon_toml(&implant.implants);
+    update_beacon_toml(&implant.basic, &implant.implants);
     update_module_toml(&implant.implants.modules);
     #[cfg(not(debug_assertions))]
     update_cargo_config_toml(implant)?;
@@ -94,6 +94,7 @@ pub fn update_prelude_config(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn update_cargo_config_toml(
     implant: &mut Implant
 ) -> anyhow::Result<()> {

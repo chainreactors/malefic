@@ -1,17 +1,19 @@
 pub mod proto;
 pub mod crypto;
 pub mod compress;
+pub mod module;
+pub mod prelude;
 
 use nanorand::{Rng, WyRand};
 use prost::Message;
 use anyhow::anyhow;
-use proto::implantpb;
-use proto::implantpb::spite::Body;
 use std::mem::size_of;
 use thiserror::Error;
-use crate::compress::decompress;
-use crate::proto::implantpb::{Spite, Spites};
 
+use crate::compress::decompress;
+use crate::proto::implantpb;
+use crate::proto::implantpb::{Spite, Spites};
+pub use prelude::*;
 pub fn get_message_len<M: Message>(message: &M) -> usize {
     message.encoded_len()
 }
@@ -149,14 +151,37 @@ impl SpiteData {
         }
     }
 
-    pub fn new(session_id: [u8; 4], data: &[u8]) -> Self {
-        let compressed = compress::compress(data).unwrap();
-        let length = compressed.len() as u32;
+    pub fn new(session_id: [u8; 4], data: &[u8], recipient_public_key: Option<&str>) -> Self {
+        // First compress the data
+        let compressed = compress::compress(data).unwrap_or_else(|_| data.to_vec());
+        
+        // Then encrypt if we have secure feature and non-empty key
+        let final_data = {
+            #[cfg(feature = "secure")]
+            {   
+                if let Some(public_key) = recipient_public_key {
+                    if !public_key.is_empty() {
+                        // Inline age encryption
+                        use crate::crypto::age::age_encrypt;
+                        age_encrypt(&compressed, public_key).unwrap_or(compressed)
+                    } else {
+                        compressed
+                    }
+                } else {
+                    compressed
+                }
+            }
+            #[cfg(not(feature = "secure"))]
+            {
+                compressed
+            }
+        };
+        let length = final_data.len() as u32;
         SpiteData {
             start: TRANSPORT_START,
             session_id,
             length,
-            data:compressed,
+            data: final_data,
             end: TRANSPORT_END,
         }
     }
@@ -224,15 +249,38 @@ impl SpiteData {
         }
     }
 
-    pub fn parse(&self) -> Result<Spites, ParserError> {
+    pub fn parse(&self, private_key: Option<&str>) -> Result<Spites, ParserError> {
         let spite_data = self.get_data();
         if spite_data.is_empty() {
             return Err(ParserError::MissBody);
         }
+        // First decrypt if we have secure feature and non-empty key
+        let decrypted_data = {
+            #[cfg(feature = "secure")]
+            {
+                if let Some(private_key) = private_key {
+                    if !private_key.is_empty() {
+                        // Inline age decryption
+                        use crate::crypto::age::age_decrypt;
+                        age_decrypt(spite_data, private_key).unwrap_or_else(|_| spite_data.to_vec())
+                    } else {
+                        spite_data.to_vec()
+                    }
+                } else {
+                    spite_data.to_vec()
+                }
+            }
+            #[cfg(not(feature = "secure"))]
+            {
+                spite_data.to_vec()
+            }
+        };
 
-        let spite_data = decompress(spite_data)?;
+        // Then decompress
+        let decompressed = decompress(&decrypted_data)?;
 
-        match Spites::decode(&spite_data[..]) {
+        // Finally decode protobuf
+        match Spites::decode(&decompressed[..]) {
             Ok(spites) => Ok(spites),
             Err(err) => {
                 Err(anyhow!("Failed to decode: {:?}", err).into())
@@ -254,14 +302,14 @@ pub fn decode(data: Vec<u8>) -> Result<Spites, ParserError> {
     Ok(spites)
 }
 
-pub fn marshal(id: [u8;4], spites: Spites) -> Result<SpiteData, ParserError> {
+pub fn marshal(id: [u8;4], spites: Spites, recipient_public_key: Option<&str>) -> Result<SpiteData, ParserError> {
     let mut buf = Vec::new();
     spites.encode(&mut buf).map_err(|e| anyhow!(e))?;
-    Ok(SpiteData::new(id, &buf))
+    Ok(SpiteData::new(id, &buf, recipient_public_key))
 }
 
-pub fn marshal_one(id: [u8;4], spites: Spite) -> Result<SpiteData, ParserError> {
-   marshal(id, Spites{spites: vec![spites]})
+pub fn marshal_one(id: [u8;4], spite: Spite, recipient_public_key: Option<&str>) -> Result<SpiteData, ParserError> {
+   marshal(id, Spites{spites: vec![spite]}, recipient_public_key)
 }
 
 pub fn parser_header(buf: &[u8]) -> Result<SpiteData, ParserError> {
@@ -290,4 +338,10 @@ pub fn parser_header(buf: &[u8]) -> Result<SpiteData, ParserError> {
         data: Vec::new(), // header 解析不处理 data
         end: TRANSPORT_END, // 默认值，不从 header 中解析
     })
+}
+
+/// Generate new Age keypair
+#[cfg(feature = "secure")]
+pub fn generate_age_keypair() -> (String, String) {
+    crate::crypto::age::generate_age_keypair()
 }

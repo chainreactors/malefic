@@ -5,7 +5,7 @@ edition = "2021"
 
 
 [features]
-default = ["Win_Inject_APC", "prebuild", "community", "anti_sandbox"]
+default = ["Win_Inject_APC", "community", "source"]
 community = []
 professional = []
 source = []
@@ -49,6 +49,7 @@ async-process = "1.8"
 [target.'cfg(target_os = "windows")'.dependencies]
 detour = { git = "https://github.com/chainreactors/retour-rs", branch = "fix-nightly1.67.0-changes" }
 wmi = { git = "https://github.com/chainreactors/wmi-rs" , optional = true}
+malefic-win-kit = { path = "../malefic-win-kit" }
 
 [dependencies.windows]
 version = "0.58.0"

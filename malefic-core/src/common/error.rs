@@ -1,5 +1,5 @@
 use thiserror::Error;
-use malefic_modules::TaskError;
+use malefic_proto::module::TaskError;
 
 #[derive(Error, Debug)]
 pub enum MaleficError {

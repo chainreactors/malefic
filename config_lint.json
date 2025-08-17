@@ -17,34 +17,183 @@
               "type": "string",
               "enum": ["auto", "1.2", "1.3"]
             },
-            "cert_verification": {
-              "type": "string",
-              "enum": ["none", "system"]
-            },
+            "skip_verification": { "type": "boolean" },
             "sni": { "type": "string" },
             "mtls": {
               "type": "object",
               "properties": {
                 "enable": { "type": "boolean" },
-                "cert_path": { "type": "string" },
-                "key_path": { "type": "string" }
-              },
-              "required": ["enable"]
+                "client_cert": { "type": "string" },
+                "client_key": { "type": "string" },
+                "server_ca": { "type": "string" }
+              }
             }
           },
           "required": ["enable"]
         },
-        "interval": { "type": "integer" },
-        "jitter": { "type": "number" }
+        "proxy": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "jitter": {
+          "type": "number",
+          "minimum": 0
+        },
+        "encryption": {
+          "type": "string",
+          "enum": ["xor", "aes", "chacha20"]
+        },
+        "key": { "type": "string" }
       },
-      "required": ["targets", "interval", "protocol", "tls", "jitter"]
+      "required": ["targets", "interval", "protocol", "tls", "jitter","encryption", "key"]
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "toolchain": {
+          "type": "string"
+        },
+        "zigbuild": {
+          "type": "boolean"
+        },
+        "remap": {
+          "type": "boolean"
+        },
+        "ollvm": {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "boolean"
+            },
+            "bcfobf": {
+              "type": "boolean"
+            },
+            "splitobf": {
+              "type": "boolean"
+            },
+            "subobf": {
+              "type": "boolean"
+            },
+            "fco": {
+              "type": "boolean"
+            },
+            "constenc": {
+              "type": "boolean"
+            }
+          },
+          "required": ["enable"]
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "remap_path": {
+              "type": "string"
+            },
+            "icon": {
+              "type": "string"
+            },
+            "compile_time": {
+              "type": "string"
+            },
+            "file_version": {
+              "type": "string"
+            },
+            "product_version": {
+              "type": "string"
+            },
+            "company_name": {
+              "type": "string"
+            },
+            "product_name": {
+              "type": "string"
+            },
+            "original_filename": {
+              "type": "string"
+            },
+            "file_description": {
+              "type": "string"
+            },
+            "internal_name": {
+              "type": "string"
+            },
+            "require_admin": {
+              "type": "boolean"
+            },
+            "require_uac": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "pulse": {
+      "type": "object",
+      "properties": {
+        "flags": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "integer"
+            },
+            "end": {
+              "type": "integer"
+            },
+            "magic": {
+              "type": "string"
+            },
+            "artifact_id": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": ["start", "end", "magic", "artifact_id"]
+        },
+        "encryption": {
+          "type": "string",
+          "enum": ["xor"]
+        },
+        "key": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["http", "tcp"]
+        }
+      },
+      "required": ["flags", "encryption", "key", "target", "protocol"]
     },
     "implants": {
       "type": "object",
       "properties": {
-        "mod": { "type": "string" },
-        "register_info": { "type": "boolean"},
+        "runtime": {
+          "type": "string",
+          "enum": ["smol", "tokio", "async-std"]
+        },
+        "mod": {
+          "type": "string",
+          "enum": ["beacon", "bind"]
+        },
+        "register_info": {
+          "type": "boolean"
+        },
+        "hot_load": {
+          "type": "boolean"
+        },
         "modules": {
+          "type": "array",
+          "items": { "type": "string"
+          }
+        },
+        "enable_3rd": {
+          "type": "boolean"
+        },
+        "3rd_modules": {
           "type": "array",
           "items": { "type": "string" }
         },
@@ -86,36 +235,17 @@
           "required": ["level", "priority"]
         },
         "alloctor": {
-          "type":"object",
+          "type": "object",
           "properties": {
             "inprocess": {"type": "string"},
             "crossprocess": {"type": "string"}
           },
           "required": ["inprocess", "crossprocess"]
         },
-        "sleep_mask": { "type": "boolean" },
-        "sacrifice_process": { "type": "boolean" },
-        "fork_and_run": { "type": "boolean" },
-        "hook_exit": { "type": "boolean" },
-        "thread_stack_spoofer": { "type": "boolean" },
-        "pe_signature_modify": {
-          "type": "object",
-          "properties": {
-            "feature": { "type": "boolean" },
-            "modify": {
-              "type": "object",
-              "properties": {
-                "magic": { "type": "string" },
-                "signature": { "type": "string" }
-              },
-              "required": ["magic", "signature"]
-            }
-          },
-          "required": ["feature", "modify"]
-        }
+        "thread_stack_spoofer": { "type": "boolean" }
       },
-      "required": ["mod","modules", "apis", "alloctor", "sleep_mask", "sacrifice_process", "fork_and_run", "hook_exit", "thread_stack_spoofer", "pe_signature_modify"]
+      "required": ["mod","modules", "apis", "alloctor", "thread_stack_spoofer"]
     }
   },
-  "required": ["basic", "implants"]
+  "required": ["basic", "build", "pulse", "implants"]
 }
