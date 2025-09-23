@@ -10,7 +10,8 @@ pub unsafe fn inline_pe(
     entrypoint_len: usize,
     is_dll: bool,
     is_need_output: bool,
-    timeout: u32
+    timeout: u32,
+    delay: u32
 ) -> Vec<u8> {
     #[cfg(feature = "prebuild")]
     {
@@ -25,7 +26,8 @@ pub unsafe fn inline_pe(
             entrypoint_len,
             is_dll,
             is_need_output,
-            timeout
+            timeout,
+            delay
         );
         let str = String::from_raw_parts(ret.data, ret.len, ret.capacity);
         str.as_bytes().to_vec()
@@ -44,7 +46,8 @@ pub unsafe fn inline_pe(
             entrypoint_len,
             is_dll,
             is_need_output,
-            timeout
+            timeout,
+            delay
         )
     }
 }

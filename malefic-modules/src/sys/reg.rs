@@ -1,9 +1,5 @@
-use crate::{check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult};
-use async_trait::async_trait;
-use malefic_helper::to_error;
 use malefic_helper::win::reg::{RegistryKey, RegistryValue};
-use malefic_proto::proto::implantpb::spite::Body;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct RegListKey {}
 
@@ -13,7 +9,7 @@ impl Module for RegListKey {}
 
 #[async_trait]
 impl ModuleImpl for RegListKey {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;
         let path = check_field!(req.path)?;
@@ -33,7 +29,7 @@ impl Module for RegListValue {}
 
 #[async_trait]
 impl ModuleImpl for RegListValue {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;
         let path = check_field!(req.path)?;
@@ -56,7 +52,7 @@ pub struct RegQuery {}
 impl Module for RegQuery {}
 #[async_trait]
 impl ModuleImpl for RegQuery {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;
         let subkey = check_field!(req.key)?;
@@ -77,7 +73,7 @@ pub struct RegAdd {}
 impl Module for RegAdd {}
 #[async_trait]
 impl ModuleImpl for RegAdd {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::RegistryWriteRequest)?;
         let hive = check_field!(req.hive)?;
         let path = check_field!(req.path)?;
@@ -124,7 +120,7 @@ pub struct RegDelete {}
 impl Module for RegDelete {}
 #[async_trait]
 impl ModuleImpl for RegDelete {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::RegistryRequest)?;
         let hive = check_field!(req.hive)?;
         let subkey = check_field!(req.key)?;

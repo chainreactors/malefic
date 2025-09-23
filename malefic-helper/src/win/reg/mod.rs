@@ -159,6 +159,7 @@ impl RegistryKey {
                 KEY_READ,
             ];
 
+            #[allow(unused_variables)]
             let mut last_status = ERROR_SUCCESS;
 
             for &access in &access_levels {
@@ -173,7 +174,7 @@ impl RegistryKey {
                 if status.0 == 0 {
                     return Ok(RegistryKey { hkey });
                 }
-
+                #[allow(unused_assignments)]
                 last_status = status;
                 debug!("Failed to open registry key with access {:?}: {}", access, status.0);
 

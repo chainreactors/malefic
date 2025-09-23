@@ -1,12 +1,8 @@
 use async_trait::async_trait;
-use malefic_helper::{debug, to_error};
-use malefic_modules::{
-    check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult,
-};
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_trait::module_impl;
 use std::str::FromStr;
 use surf::http::headers::{HeaderName, HeaderValue};
+use crate::prelude::*;
 
 pub struct Curl {}
 
@@ -16,7 +12,7 @@ impl Module for Curl {}
 
 #[async_trait]
 impl ModuleImpl for Curl {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let request = check_request!(receiver, Body::CurlRequest)?;
 
         let client = surf::Client::new();

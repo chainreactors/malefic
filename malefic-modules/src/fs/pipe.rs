@@ -1,11 +1,6 @@
-use crate::{check_field, check_request, Module, Result, TaskResult};
-use malefic_proto::proto::implantpb::spite::Body;
-use async_trait::async_trait;
-use futures::{SinkExt};
-use malefic_helper::{debug, to_error};
-use malefic_helper::win::pipe::{PipeClient};
-use malefic_proto::proto::modulepb::Response;
-use malefic_trait::module_impl;
+use futures::SinkExt;
+use malefic_helper::win::pipe::PipeClient;
+use crate::prelude::*;
 
 pub struct PipeUpload {}
 
@@ -14,13 +9,13 @@ pub struct PipeUpload {}
 impl Module for PipeUpload {}
 
 #[async_trait]
-impl crate::ModuleImpl for PipeUpload {
+impl malefic_proto::module::ModuleImpl for PipeUpload {
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        sender: &mut crate::Output,
-    ) -> Result {
+        receiver: &mut malefic_proto::module::Input,
+        sender: &mut malefic_proto::module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::PipeRequest)?;
         let pipe_name = check_field!(request.name)?;
 
@@ -69,13 +64,13 @@ pub struct PipeRead {}
 impl Module for PipeRead {}
 
 #[async_trait]
-impl crate::ModuleImpl for PipeRead {
+impl malefic_proto::module::ModuleImpl for PipeRead {
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        _sender: &mut crate::Output,
-    ) -> Result {
+        receiver: &mut malefic_proto::module::Input,
+        _sender: &mut malefic_proto::module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::PipeRequest)?;
         let pipe_name: String = check_field!(request.name)?;
 

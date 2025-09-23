@@ -1,8 +1,11 @@
+#![feature(stdsimd)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod malefic;
 mod meta;
 mod stub;
-
+#[cfg(feature = "guardrail")]
+mod guardrail;
 #[cfg(feature = "beacon")]
 mod beacon;
 #[cfg(feature = "bind")]

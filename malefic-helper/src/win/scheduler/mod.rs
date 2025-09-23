@@ -321,12 +321,12 @@ impl TaskSchedulerManager {
                     // debug!("Listed tasks in folder {:#?}", folder_tasks);
                     all_schedules.append(&mut folder_tasks)
                 }
-                Err(e) => unsafe {
+                Err(_e) => unsafe {
                     debug!(
                         "Failed to list tasks in folder {:?}{:?}: {:?}",
                         folder.Path(),
                         folder.Name(),
-                        e
+                        _e
                     )
                 },
             }

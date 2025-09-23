@@ -12,3 +12,5 @@ pub mod chmod;
 pub mod chown;
 #[cfg(target_family = "windows")]
 pub mod pipe;
+#[cfg(target_family = "windows")]
+pub mod driver;

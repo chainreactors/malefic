@@ -1,4 +1,5 @@
-use crate::{tool, GenerateArch, Platform, PulseConfig, Version};
+use crate::{tool, Platform};
+use crate::config::{GenerateArch, PulseConfig, Version};
 
 pub mod payload;
 pub mod pulse;

@@ -53,7 +53,7 @@ impl AddonMap {
             .addons
             .get(key)
             .ok_or_else(||"not found key").unwrap();
-        
+
         let decrypted_content = self.cryptor.decrypt(encrypted_addon.content.clone())?;
         
         let decompressed_content = decompress(&decrypted_content)?;
@@ -64,7 +64,7 @@ impl AddonMap {
             depend: encrypted_addon.depend.clone(),
             content: decompressed_content,
         };
-
+        self.cryptor.reset();
         Ok(Box::from(decrypted_addon))
     }
 }

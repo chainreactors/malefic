@@ -1,6 +1,7 @@
-use crate::{log_success, BasicConfig, FEATURES};
+use crate::{log_success, FEATURES};
 use std::fs;
 use toml_edit::{Array, DocumentMut};
+use crate::config::BasicConfig;
 
 static CONFIG_PROTO_TOML_PATH: &str = "malefic-proto/Cargo.toml";
 

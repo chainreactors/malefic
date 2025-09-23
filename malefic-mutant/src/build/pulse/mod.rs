@@ -1,4 +1,4 @@
-use crate::{GenerateArch, PulseConfig, TransportProtocolType, Version};
+use crate::config::{GenerateArch, PulseConfig, TransportProtocolType, Version};
 
 mod tcp;
 mod http;

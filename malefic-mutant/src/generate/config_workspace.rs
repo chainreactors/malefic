@@ -5,6 +5,7 @@ use crate::{log_step, log_info, log_warning, log_error, log_success};
 
 static MALEFIC_WIN_KIT: &str = "malefic-win-kit";
 
+#[allow(dead_code)]
 pub fn detect_source_mode() -> bool {
     log_step!("Auto-detecting build mode...");
     
@@ -37,7 +38,7 @@ pub fn detect_source_mode() -> bool {
     
     source_mode
 }
-
+#[allow(dead_code)]
 pub fn update_workspace_members(source_mode: bool) -> anyhow::Result<()> {
     log_step!("Updating workspace members...");
     

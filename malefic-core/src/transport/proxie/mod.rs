@@ -1,9 +1,9 @@
 pub mod proxy;
 
-#[cfg(feature = "socks5_proxy")]
+#[cfg(feature = "proxy")]
 pub mod socks5;
 
-#[cfg(feature = "http_proxy")]
+#[cfg(feature = "proxy")]
 pub mod http;
 
 mod error;

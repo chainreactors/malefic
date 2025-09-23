@@ -9,21 +9,20 @@ path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["rem", "as_cdylib"]
-full = ["rem", "curl"]
+default = []
+full = ["rem", "curl", "pty"]
 
-as_cdylib = ["malefic-modules/disable_register"]
-
+as_cdylib = []
 curl = ["surf"]
 memory_dial = []
 rem_dial = []
 load_rem = []
 rem = ["malefic-helper/rem_static", "rem_dial", "memory_dial"]
 #rem_reflection = ["malefic-helper/rem_reflection", "rem_dial", "load_rem", "memory_dial"]
-
+ffmpeg = ["ez-ffmpeg"]
+pty = ["portable-pty", "futures-timer"]
 
 [dependencies]
-malefic-modules = { path = "../malefic-modules", features = ["nano"]}
 malefic-trait = { path = "../malefic-trait" }
 malefic-proto = { path = "../malefic-proto" }
 malefic-helper = { path = "../malefic-helper"}
@@ -32,6 +31,10 @@ anyhow = "1.0"
 futures = "0.3.31"
 obfstr = "0.4.3"
 surf = { version = "2.3", default-features = false, features = ["h1-client-rustls"] , optional = true}
+lazy_static = "1.5.0"
+ez-ffmpeg = { version = "0.5.3", features = ["static"],optional = true }
+portable-pty = { version = "0.8", optional = true }
+futures-timer = { version = "3.0", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

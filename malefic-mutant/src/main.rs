@@ -1,7 +1,7 @@
 #[allow(deprecated)]
 #[macro_use]
 extern crate lazy_static;
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use cmd::SrdiType;
 use generate::{
     update_beacon_config, update_bind_config, update_common_config, update_prelude_config,
@@ -10,283 +10,21 @@ use generate::{
 
 use build::*;
 use jsonschema::Validator;
-use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 
 use crate::build::payload::build_payload;
 use crate::cmd::{BuildCommands, Cli, Commands, GenerateCommands, PayloadType, Tool};
-use crate::generate::{detect_source_mode, update_workspace_members};
-use std::collections::HashMap;
 use std::{fs, process};
 use strum_macros::{Display, EnumString};
+use config::{Implant, Version};
 
 mod build;
 mod cmd;
 mod generate;
 mod logger;
 mod tool;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Implant {
-    basic: BasicConfig,
-    implants: ImplantConfig,
-    pulse: Option<PulseConfig>,
-    build: Option<BuildConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BasicConfig {
-    name: String,
-    targets: Vec<String>,
-    protocol: String,
-    tls: TLSConfig,
-    proxy: String,
-    interval: u64,
-    jitter: f64,
-    encryption: String,
-    key: String,
-    rem: REMConfig,
-    http: HttpConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct TLSConfig {
-    enable: bool,
-    /// TLS版本: "auto", "1.2", "1.3"
-    #[serde(default = "default_tls_version")]
-    version: String,
-    /// 服务器名称指示（SNI）
-    #[serde(default)]
-    sni: String,
-    #[serde(default)]
-    skip_verification: bool,
-    /// mTLS客户端证书配置
-    #[serde(default)]
-    mtls: Option<MTLSConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MTLSConfig {
-    /// 启用mTLS
-    enable: bool,
-    /// 客户端证书文件路径
-    client_cert: String,
-    /// 客户端私钥文件路径
-    client_key: String,
-    /// 用于验证服务端的CA证书路径（可选）
-    #[serde(default)]
-    server_ca: String,
-}
-
-// 默认值函数
-fn default_tls_version() -> String {
-    "auto".to_string()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BuildConfig {
-    zigbuild: bool,
-    ollvm: Ollvm,
-    metadata: Option<MetaData>,
-    
-    #[serde(rename = "remap")]
-    refresh_remap_path_prefix: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Ollvm {
-    enable: bool,
-    bcfobf: bool,
-    splitobf: bool,
-    subobf: bool,
-    fco: bool,
-    constenc: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PulseConfig {
-    flags: Flags,
-    target: String,
-    protocol: String,
-    encryption: String,
-    key: String,
-    http: HttpConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct REMConfig {
-    link: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct HttpConfig {
-    method: String,
-    path: String,
-    host: String,
-    version: String,
-    headers: HashMap<String, String>,
-}
-
-impl HttpConfig {
-    pub fn build(self, length: u32) -> String {
-        let mut http_request = format!("{} {} HTTP/{}\r\n", self.method, self.path, self.version);
-
-        http_request.push_str(&format!("Host: {}\r\n", self.host));
-        if length > 0 {
-            http_request.push_str(&format!("Content-Length: {length}\r\n"));
-        }
-        http_request.push_str("Connection: close\r\n");
-        for (key, value) in self.headers.clone() {
-            http_request.push_str(&format!("{}: {}\r\n", key, value));
-        }
-
-        http_request.to_string()
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PackResource {
-    src: String,
-    dst: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ImplantConfig {
-    runtime: String,
-    r#mod: String,
-    register_info: bool,
-    hot_load: bool,
-    modules: Vec<String>,
-    enable_3rd: bool,
-    #[serde(rename = "3rd_modules")]
-    third_modules: Vec<String>,
-    flags: Flags,
-    apis: Apis,
-    alloctor: Alloctor,
-    sleep_mask: bool,
-    sacrifice_process: bool,
-    fork_and_run: bool,
-    hook_exit: bool,
-    thread_stack_spoofer: bool,
-    pe_signature_modify: PESignatureModify,
-    #[serde(default)]
-    pack: Option<Vec<PackResource>>,
-    autorun: String,
-    #[serde(default)]
-    anti: Option<AntiConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Flags {
-    start: u32, // Acutally it's a u8
-    end: u32,   // Actually it's a u8
-    magic: String,
-    artifact_id: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Apis {
-    level: String,
-    priority: ApisPriority,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ApisPriority {
-    normal: NormalPriority,
-    dynamic: DynamicPriority,
-    syscalls: SyscallPriority,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct NormalPriority {
-    enable: bool,
-    r#type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DynamicPriority {
-    enable: bool,
-    r#type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct SyscallPriority {
-    enable: bool,
-    r#type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Alloctor {
-    inprocess: String,
-    crossprocess: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MetaData {
-    remap_path: String,
-    icon: String,
-    compile_time: String,
-    file_version: String,
-    product_version: String,
-    company_name: String,
-    product_name: String,
-    original_filename: String,
-    file_description: String,
-    internal_name: String,
-    #[serde(default)]
-    require_admin: bool,
-    #[serde(default)]
-    require_uac: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PESignatureModify {
-    feature: bool,
-    modify: PESModify,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PESModify {
-    magic: String,
-    signature: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct AntiConfig {
-    #[serde(default)]
-    sandbox: bool,
-    #[serde(default)]
-    vm: bool,
-}
-
-#[derive(Debug, Clone, Copy, EnumString, Display, ValueEnum)]
-pub enum Version {
-    #[strum(serialize = "community")]
-    Community,
-    #[strum(serialize = "professional")]
-    Professional,
-    #[strum(serialize = "inner")]
-    Inner,
-}
-
-#[derive(Debug, Clone, Copy, EnumString, Display)]
-pub enum GenerateArch {
-    #[strum(serialize = "x64")]
-    X64,
-    #[strum(serialize = "x86")]
-    X86,
-}
-
-#[derive(Debug, Clone, Copy, EnumString, Display)]
-pub enum TransportProtocolType {
-    #[strum(serialize = "tcp")]
-    Tcp,
-    #[strum(serialize = "http")]
-    Http,
-    // #[strum(serialize = "https")]
-    // Https,
-}
+mod config;
 
 #[derive(Debug, Clone, Copy, EnumString, Display)]
 pub enum Platform {
@@ -346,7 +84,7 @@ fn validate_yaml_config(yaml_path: &str) -> anyhow::Result<()> {
     let compiled_schema = Validator::new(&schema).expect("Invalid JSON Schema");
 
     if let Err(error) = compiled_schema.validate(&json_value) {
-        log_error!("Schema validation failed: {}", error);
+        log_error!("Schema validation '{}' failed: {}",error.instance_path, error);
         process::exit(1);
     }
 
@@ -375,13 +113,13 @@ fn parse_generate(
             update_bind_config(yaml_config)
         }
         GenerateCommands::Prelude {
-            yaml_path,
+            yaml_path: autorun_yaml_path,
             resources,
             key,
             spite,
         } => {
             log_info!("Generating prelude configuration");
-            update_prelude_config(yaml_path, resources, key, spite)
+            update_prelude_config(yaml_config,autorun_yaml_path, resources, key, spite)
         }
         GenerateCommands::Modules { module } => {
             if !module.is_empty() {
@@ -398,6 +136,22 @@ fn parse_generate(
                 .clone()
                 .ok_or_else(|| anyhow::anyhow!("pulse configuration is required but not found"))?;
             pulse_generate(pulse_config, *platform, *arch, version, source)
+        }
+        GenerateCommands::ProxyDLL { input, hijacked_exports, native_thread } => {
+            log_info!("Generating ProxyDLL for {}", input);
+            let exports: Vec<&str> = if hijacked_exports.is_empty() {
+                Vec::new()
+            } else {
+                hijacked_exports.split(',').map(|s| s.trim()).collect()
+            };
+            
+            tool::proxydll::generator::update_proxydll(
+                input,
+                &exports,
+                *native_thread,
+                false, // hijack_current_thread
+                false, // link_runtime
+            )
         }
     };
 
@@ -511,6 +265,57 @@ fn parse_tool(tool: &Tool) -> anyhow::Result<()> {
             }
             result
         }
+        Tool::STRIP {
+            input,
+            output,
+            custom_paths,
+        } => {
+            use crate::tool::strip::strip_paths_from_binary;
+            
+            log_step!("Stripping paths from binary...");
+            log_info!("Input: {}, Output: {}", input, output);
+
+            let custom_path_list: Vec<String> = if custom_paths.is_empty() {
+                Vec::new()
+            } else {
+                custom_paths.split(',').map(|s| s.trim().to_string()).collect()
+            };
+
+            if !custom_path_list.is_empty() {
+                log_info!("Custom paths: {:?}", custom_path_list);
+            }
+
+            let result = strip_paths_from_binary(input, output, &custom_path_list);
+
+            if result.is_ok() {
+                log_success!("Path stripping completed successfully");
+            }
+            result
+        }
+        Tool::OBJCOPY {
+            output_format,
+            input,
+            output,
+        } => {
+            use crate::tool::pe::PEObjCopy;
+            
+            log_step!("Converting binary file...");
+            log_info!("Input: {}, Output: {}, Format: {}", input, output, output_format);
+
+            let result = match output_format.as_str() {
+                "binary" => PEObjCopy::extract_binary(input, output),
+                _ => {
+                    log_error!("Unsupported output format: {}", output_format);
+                    log_info!("Supported formats: binary");
+                    Err(anyhow::anyhow!("Unsupported output format: {}", output_format))
+                }
+            };
+
+            if result.is_ok() {
+                log_success!("Binary conversion completed successfully");
+            }
+            result
+        }
     }
 }
 
@@ -522,12 +327,11 @@ fn main() -> anyhow::Result<()> {
             version,
             config,
             command,
+            source,
         } => {
             let mut implant_config = load_yaml_config(config)?;
             validate_yaml_config(config)?;
-            let source = detect_source_mode();
-            update_workspace_members(source)?;
-            parse_generate(&mut implant_config, command, *version, source)
+            parse_generate(&mut implant_config, command, *version, *source)
         }
         Commands::Build {
             config,

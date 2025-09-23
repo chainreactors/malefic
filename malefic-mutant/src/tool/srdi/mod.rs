@@ -1,7 +1,6 @@
 use link_srdi::link_shellcode_rdi_from_bytes;
 use malefic_srdi::malefic_shellcode_rdi_from_bytes;
-
-use crate::GenerateArch;
+use crate::config::GenerateArch;
 
 pub mod shellcode;
 pub mod link_srdi;

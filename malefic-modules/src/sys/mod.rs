@@ -1,4 +1,3 @@
-#[cfg(debug_assertions)]
 pub mod example;
 pub mod ps;
 pub mod netstat;

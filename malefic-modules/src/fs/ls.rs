@@ -1,9 +1,6 @@
-use crate::{Module, TaskResult, check_field, check_request, Result};
-use malefic_proto::proto::modulepb::{LsResponse, FileInfo};
-use malefic_proto::proto::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::{FileInfo, LsResponse};
+use crate::prelude::*;
 
-use async_trait::async_trait;
-use malefic_trait::module_impl;
 pub struct Ls {}
 
 #[async_trait]
@@ -11,9 +8,9 @@ pub struct Ls {}
 impl Module for Ls {}
 
 #[async_trait]
-impl crate::ModuleImpl for Ls {
+impl malefic_proto::module::ModuleImpl for Ls {
 #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, sender: &mut crate::Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
         let path = check_field!(request.input)?;
         let mut entries = vec![];

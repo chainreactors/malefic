@@ -2,7 +2,7 @@
     Reference: https://github.com/postrequest/link/blob/main/src/util/shellcode.rs
 
 */
-use crate::GenerateArch;
+use crate::config::GenerateArch;
 
 use super::{shellcode::{LINK_RDI_SHELLCODE_32, LINK_RDI_SHELLCODE_64}, utils::{hash_function_name, pack}};
 

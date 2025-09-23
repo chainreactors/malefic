@@ -1,10 +1,8 @@
 use std::collections::HashMap;
-use crate::{check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult};
-use malefic_proto::proto::implantpb::{spite::Body};
-use async_trait::async_trait;
-use malefic_helper::win::wmi::{variant_to_string_map, string_to_variant_map, WmiManager};
+
+use malefic_helper::win::wmi::{string_to_variant_map, variant_to_string_map, WmiManager};
 use malefic_proto::proto::modulepb::Response;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 
 pub struct WmiQuery {}
@@ -15,7 +13,7 @@ impl Module for WmiQuery {}
 
 #[async_trait]
 impl ModuleImpl for WmiQuery {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::WmiRequest)?;
         let cmdline = check_field!(req.args)?.join(" ");
         let manager = WmiManager::open(Some(req.namespace.as_str()))?;
@@ -44,7 +42,7 @@ impl Module for WmiExecuteMethod {}
 
 #[async_trait]
 impl ModuleImpl for WmiExecuteMethod {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         // 获取请求中的 WMI 方法调用信息
         let req = check_request!(receiver, Body::WmiMethodRequest)?;
         let class_name = check_field!(req.class_name)?;

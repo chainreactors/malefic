@@ -22,15 +22,15 @@ clap = { version = "4.5.20", features = ["derive"] }
 base64 = "0.22"
 hex = "0.4.3"
 anyhow = "1.0.89"
-embed-resource = "3.0.2"
+embed-resource = "3.0.5"
 byteorder = "1"
 goblin = "0.8"
 log = "0.4"
 chrono = "0.4"
 colored = "2.2.0"
 duct = "0.13"
-
-malefic-proto = { path = "../malefic-proto", features = ["Crypto_AES", "enable_serde"] }
 rand = "0.8.5"
 walkdir = "2.3.2"
 url = "2.5.4"
+regex = "1.11.2"
+malefic-proto = { path = "../malefic-proto", features = ["Crypto_AES", "enable_serde"] }

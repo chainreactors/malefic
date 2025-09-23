@@ -49,10 +49,11 @@ extend = [
 ]
 
 fs_full = [
-    "ls", "cd", "rm", "cp", "mv", "pwd", "mem", "mkdir", "chown", "chmod", "cat", "pipe"
+    "ls", "cd", "rm", "cp", "mv", "pwd", "mem", "mkdir", "chown", "chmod", "cat", "pipe","enum_drivers"
 ]
 
 ls = []
+enum_drivers = []
 cd = []
 rm = []
 cp = []
@@ -135,6 +136,8 @@ lazy_static = "1.5.0"
 malefic-helper = { path= "../malefic-helper" }
 malefic-trait = { path = "../malefic-trait"}
 malefic-proto = { path = "../malefic-proto" }
+tar = "0.4"
+flate2 = "1.1.2"
 
 
 [build-dependencies]

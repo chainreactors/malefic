@@ -1,7 +1,4 @@
-use crate::{check_request, Module, ModuleImpl, Result, TaskResult};
-use malefic_proto::proto::implantpb::spite::Body;
-use async_trait::async_trait;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct Bypass {}
 
@@ -11,7 +8,7 @@ impl Module for Bypass {}
 
 #[async_trait]
 impl ModuleImpl for Bypass {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _: &mut crate::Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::BypassRequest)?;
         unsafe {
             if req.amsi {

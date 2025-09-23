@@ -1,7 +1,4 @@
-use crate::{check_field, check_request, Module, ModuleImpl, Result, TaskResult};
-use malefic_proto::proto::implantpb::spite::Body;
-use async_trait::async_trait;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct Kill {}
 
@@ -11,7 +8,7 @@ impl Module for Kill {}
 
 #[async_trait]
 impl ModuleImpl for Kill {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _sender: &mut malefic_proto::module::Output) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
 
         let pid = check_field!(request.input)?;

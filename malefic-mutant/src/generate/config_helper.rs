@@ -1,10 +1,11 @@
 use crate::log_success;
 use crate::{
-    Version, CFG_TARGET_OS_WINDOWS, COMMUNITY, CONFIG_MALEFIC_WIN_KIT_PATH, DEFAULT, DEPENDENCICES,
+    CFG_TARGET_OS_WINDOWS, COMMUNITY, CONFIG_MALEFIC_WIN_KIT_PATH, DEFAULT, DEPENDENCICES,
     FEATURES, MALEFIC_WIN_KIT, PATH, PREBUILD, PROFESSIONAL, SOURCE, TARGET,
 };
 use std::fs;
 use toml_edit::{DocumentMut, InlineTable, Item, Value};
+use crate::config::Version;
 
 pub fn update_helper_toml(version: &Version, source: bool) {
     let config_helper_toml_path = "malefic-helper/Cargo.toml";

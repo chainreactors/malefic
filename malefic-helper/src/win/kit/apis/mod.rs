@@ -36,3 +36,111 @@ pub fn m_get_proc_address(
         }
     }
 }
+
+pub fn m_create_thread(
+    thread_attributes: *mut core::ffi::c_void,
+    stack_size: u32,
+    start_address: *mut core::ffi::c_void,
+    parameter: *mut core::ffi::c_void,
+    creation_flags: u32,
+    thread_id: *mut u32,
+) -> *mut core::ffi::c_void {
+    #[cfg(feature = "prebuild")]
+    {
+        use crate::win::kit::MCreateThread;
+        unsafe {
+            MCreateThread(
+                thread_attributes,
+                stack_size,
+                start_address,
+                parameter,
+                creation_flags,
+                thread_id,
+            )
+        }
+    }
+    #[cfg(feature = "source")]
+    {
+        unsafe {
+            use malefic_win_kit::apis::Core::Process::MCreateThread;
+            MCreateThread(
+                thread_attributes,
+                stack_size,
+                start_address,
+                parameter,
+                creation_flags,
+                thread_id,
+            )
+        }
+    }
+}
+
+pub fn m_nt_create_thread_ex(
+    thread_handle: *mut core::ffi::c_void,
+    desired_access: u32,
+    object_attributes: *mut core::ffi::c_void,
+    process_handle: *mut core::ffi::c_void,
+    start_address: *mut core::ffi::c_void,
+    start_parameter: *mut core::ffi::c_void,
+    create_suspended: i32,
+    stack_zero_bits: u32,
+    size_of_stack_commit: u32,
+    size_of_stack_reserve: u32,
+    attribute_list: *mut core::ffi::c_void,
+) -> i32 {
+    #[cfg(feature = "prebuild")]
+    {
+        use crate::win::kit::MNtCreateThreadEx;
+        unsafe {
+            MNtCreateThreadEx(
+                thread_handle,
+                desired_access,
+                object_attributes,
+                process_handle,
+                start_address,
+                start_parameter,
+                create_suspended,
+                stack_zero_bits,
+                size_of_stack_commit,
+                size_of_stack_reserve,
+                attribute_list,
+            )
+        }
+    }
+    #[cfg(feature = "source")]
+    {
+        unsafe {
+            use malefic_win_kit::apis::Core::Process::MNtCreateThreadEx;
+            MNtCreateThreadEx(
+                thread_handle,
+                desired_access,
+                object_attributes,
+                process_handle,
+                start_address,
+                start_parameter,
+                create_suspended,
+                stack_zero_bits,
+                size_of_stack_commit,
+                size_of_stack_reserve,
+                attribute_list,
+            )
+        }
+    }
+}
+
+pub fn m_get_current_process() -> *mut core::ffi::c_void {
+    #[cfg(feature = "prebuild")]
+    {
+        use crate::win::kit::MGetCurrentProcess;
+        unsafe {
+            MGetCurrentProcess()
+        }
+    }
+    #[cfg(feature = "source")]
+    {
+        unsafe {
+            use malefic_win_kit::apis::Core::Process::MGetCurrentProcess;
+            MGetCurrentProcess()
+        }
+    }
+}

@@ -1,5 +1,5 @@
 use thiserror::Error;
-use malefic_modules::TaskError;
+use malefic_proto::module::TaskError;
 
 #[derive(Error, Debug)]
 pub enum MaleficError {
@@ -26,7 +26,8 @@ pub enum MaleficError {
 
     #[error("Task error: {0}")]
     TaskError(#[from] TaskError),
-    
+
+    #[cfg(any(feature = "transport_http",feature = "transport_tcp",feature = "transport_rem",))]
     #[error("Transport: {0}")]
     TransportError(#[from] crate::transport::TransportError),
     
@@ -50,6 +51,7 @@ impl MaleficError {
             MaleficError::TaskOperatorNotFound => 8,
             MaleficError::AddonNotFound => 9,
             MaleficError::UnExceptBody => 10,
+            #[cfg(any(feature = "transport_http",feature = "transport_tcp",feature = "transport_rem",))]
             MaleficError::TransportError{ .. } => 11,
         }
     }

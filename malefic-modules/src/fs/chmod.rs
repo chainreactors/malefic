@@ -1,8 +1,4 @@
-use crate::{Module, TaskResult, check_request, Result, check_field};
-use malefic_proto::proto::implantpb::spite::Body;
-
-use async_trait::async_trait;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct Chmod {}
 
@@ -11,8 +7,8 @@ pub struct Chmod {}
 impl Module for Chmod {}
 
 #[async_trait]
-impl crate::ModuleImpl for Chmod {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
+impl malefic_proto::module::ModuleImpl for Chmod {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _sender: &mut malefic_proto::module::Output) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
 
         let args = check_field!(request.args, 2)?;

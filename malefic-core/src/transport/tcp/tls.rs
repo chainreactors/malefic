@@ -8,7 +8,7 @@ use rustls::{
     cipher_suite,
 };
 use malefic_helper::debug;
-
+use crate::config::ServerConfig;
 
 #[derive(Debug, Clone)]
 pub struct TlsConfig {
@@ -128,7 +128,7 @@ impl TlsConnectorBuilder {
 
     /// Build TLS connector
     pub fn build(self) -> Result<TlsConnector> {
-        debug!("[tls] Building TLS connector with config: {:?}", self.config);
+        debug!("[tls] Building TLS connector with config: {:#?}", self.config);
 
         // Create root certificate store - always use system CA, optionally add custom CA
         let mut root_store = RootCertStore::empty();
@@ -141,13 +141,13 @@ impl TlsConnectorBuilder {
                 )
             })
         );
-        
+
         // Add custom CA if provided
         if let Some(ca_cert_data) = &self.config.custom_ca {
             let ca_cert = Certificate(ca_cert_data.clone());
 
-            if let Err(e) = root_store.add(&ca_cert) {
-                debug!("[tls] Failed to add custom CA: {:?}, but continuing", e);
+            if let Err(_e) = root_store.add(&ca_cert) {
+                debug!("[tls] Failed to add custom CA: {:?}, but continuing", _e);
                 // Continue even if adding CA fails, since we will skip verification
             } else {
                 debug!("[tls] Custom CA added successfully");
@@ -193,7 +193,7 @@ impl TlsConnectorBuilder {
         let client_config = match &self.config.client_cert_data {
             Some((cert_chain_data, private_key_data)) => {
                 debug!("[tls] Setting up client certificate for mTLS");
-                
+
                 // Parse client certificate chain
                 let cert_chain = rustls_pemfile::certs(&mut cert_chain_data.as_slice())?
                     .into_iter()
@@ -245,44 +245,49 @@ impl ServerCertVerifier for NoCertificateVerification {
 }
 
 /// Build TLS configuration from compile-time constants
-/// 
+///
 /// This function reads TLS configuration from the config module and creates
 /// a properly configured TlsConfig instance.
-pub fn build_tls_config() -> TlsConfig {
-    use crate::config::{TLS_VERSION, TLS_SNI};
-    
-    #[cfg(feature = "mtls")]
-    use crate::config::{TLS_MTLS_CLIENT_CERT, TLS_MTLS_CLIENT_KEY, TLS_MTLS_SERVER_CA};
+pub fn build_tls_config(config: ServerConfig) -> TlsConfig {
+
+    // #[cfg(feature = "mtls")]
+    // use crate::config::{TLS_MTLS_CLIENT_CERT, TLS_MTLS_CLIENT_KEY, TLS_MTLS_SERVER_CA};
+    debug!("address: {}",config.address);
+    let tls_config = config.tls_config.as_ref().unwrap();
 
     // Parse TLS version from configuration
-    let mut config = match TLS_VERSION.as_str() {
+    let mut config = match tls_config.version.as_str() {
         "1.2" => TlsConfig::new().tls12_only(),
         "1.3" => TlsConfig::new().tls13_only(),
         "auto" => TlsConfig::new(), // Default supports Auto (TLS 1.3 + 1.2)
         _ => TlsConfig::new(), // Default to auto
     };
-    
+
     // Set server name and skip verification
-    config = config.with_server_name(TLS_SNI.clone());
+    // config = config.with_server_name(TLS_SNI.clone());
+    config = config.with_server_name(tls_config.sni.clone());
 
     // 默认跳过证书验证以避免各种证书格式问题
     config.skip_verification = true;
-    
-    // config.skip_verification = *SKIP_VERIFICATION;
-    // Add client certificate if mTLS feature is enabled and data is available
-    #[cfg(feature = "mtls")]
-    {
-        if !TLS_MTLS_CLIENT_CERT.is_empty() && !TLS_MTLS_CLIENT_KEY.is_empty() {
-            // Use certificate data directly
-            config = config.with_client_cert_data(
-                TLS_MTLS_CLIENT_CERT.clone(),
-                TLS_MTLS_CLIENT_KEY.clone()
-            );
-        }
-        
-        // If custom server CA is provided, add it to the configuration
-        if !TLS_MTLS_SERVER_CA.is_empty() {
-            config = config.with_custom_ca(TLS_MTLS_SERVER_CA.clone());
+
+    // 处理mTLS配置（如果存在）
+    if let Some(mtls_config) = &tls_config.mtls_config {
+        if mtls_config.enable {
+            debug!("[tls] Setting up mTLS configuration");
+            // 添加客户端证书和密钥
+            if !mtls_config.client_cert.is_empty() && !mtls_config.client_key.is_empty() {
+                debug!("[tls] Loading client certificate and key");
+                config = config.with_client_cert_data(
+                    mtls_config.client_cert.clone(),
+                    mtls_config.client_key.clone()
+                );
+            }
+
+            // 添加服务器CA证书（如果提供）
+            if !mtls_config.server_ca.is_empty() {
+                debug!("[tls] Loading custom server CA");
+                config = config.with_custom_ca(mtls_config.server_ca.clone());
+            }
         }
     }
 

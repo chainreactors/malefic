@@ -476,7 +476,7 @@ pub fn run_as(
     let domain_wide = to_wide_string(domain);
     let password_wide = to_wide_string(password);
 
-    let mut output = String::new();
+    let output;
 
     unsafe {
         // 首先尝试使用CreateProcessAsUser

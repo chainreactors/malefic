@@ -1,5 +1,4 @@
 use malefic_helper::debug;
-use malefic_modules::{Input, MaleficModule, Output, TaskResult};
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::implantpb::Spite;
 use malefic_proto::proto::modulepb;
@@ -11,8 +10,7 @@ use std::sync::{Arc, Mutex};
 use crate::common::{error::MaleficError, CancellableHandle, RuntimeHandle};
 use crate::scheduler::TaskOperator;
 use futures::channel::mpsc::UnboundedSender;
-
-
+use malefic_proto::module::{Input, MaleficModule, Output, TaskResult};
 
 pub struct TaskHandle {
     pub(crate) task: Arc<Mutex<Task>>,

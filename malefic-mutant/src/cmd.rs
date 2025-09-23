@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
-use crate::{GenerateArch, Platform, Version};
+use crate::Platform;
 use clap::{Parser, Subcommand};
 use strum_macros::Display;
+use crate::config::{GenerateArch, Version};
 
 #[derive(Parser)]
 #[command(name = "malefic-config", about = "Config malefic beacon and prelude.")]
@@ -22,6 +23,10 @@ pub enum Commands {
         /// Config file path
         #[arg(long, short = 'c', global = true, default_value = "config.yaml")]
         config: String,
+
+        /// Choice use source code or prebuild
+        #[arg(long, short = 's', global = true, default_value = "false")]
+        source: bool,
 
         #[command(subcommand)]
         command: GenerateCommands,
@@ -79,6 +84,21 @@ pub enum GenerateCommands {
         /// Choice modules
         #[arg(long, short = 'm', default_value = "")]
         module: String,
+    },
+
+    /// Generate ProxyDLL for DLL hijacking
+    ProxyDLL {
+        /// Path to original DLL to proxy
+        #[arg(long, short = 'i')]
+        input: String,
+
+        /// Comma-separated exports to hijack for payload execution
+        #[arg(long, short = 'e', default_value = "")]
+        hijacked_exports: String,
+
+        /// Use NtCreateThreadEx instead of std::thread
+        #[arg(long)]
+        native_thread: bool,
     },
 
     /// Generate pulse
@@ -205,5 +225,34 @@ pub enum Tool {
         /// User data path
         #[arg(long, default_value = "")]
         userdata_path: String,
+    },
+
+    /// Strip paths from binary files
+    STRIP {
+        /// Source binary file path
+        #[arg(long, short = 'i')]
+        input: String,
+
+        /// Output binary file path
+        #[arg(long, short = 'o')]
+        output: String,
+
+        /// Additional custom paths to replace (comma separated)
+        #[arg(long, default_value = "")]
+        custom_paths: String,
+    },
+
+    /// Object copy utility (similar to objcopy)
+    #[command(name = "objcopy")]
+    OBJCOPY {
+        /// Output format (binary for -O binary)
+        #[arg(short = 'O')]
+        output_format: String,
+
+        /// Input file path
+        input: String,
+
+        /// Output file path
+        output: String,
     },
 }
