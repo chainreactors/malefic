@@ -12,6 +12,7 @@ pub fn get_os() -> Option<Os> {
         username: info.username,
         hostname: info.hostname,
         locale: info.locale,
+        clr_version: info.clr_version,
     })
 }
 
@@ -31,6 +32,7 @@ pub fn get_sysinfo() -> Option<SysInfo> {
             username: os.username,
             hostname: os.hostname,
             locale: os.locale,
+            clr_version: os.clr_version,
         }),
         process: Some(Process {
             name: process.name,
@@ -45,10 +47,43 @@ pub fn get_sysinfo() -> Option<SysInfo> {
     })
 }
 
-#[cfg(feature = "register_info")]
-pub fn get_register_info() -> Option<SysInfo> {
-    get_sysinfo()
+pub fn none_sysinfo() -> Option<SysInfo> {
+
+    Some(SysInfo {
+        filepath: "unknown".to_string(),
+        workdir: "".to_string(),
+        is_privilege: false,
+        os: Some(Os {
+            name: "unknown".to_string(),
+            version: "unknown".to_string(),
+            release: "unknown".to_string(),
+            arch: "unknown".to_string(),
+            username: "unknown".to_string(),
+            hostname: "unknown".to_string(),
+            locale: "unknown".to_string(),
+            clr_version: vec![],
+        }),
+        process: Some(Process {
+            name: "unknown".to_string(),
+            pid: 9999,
+            ppid: 9999,
+            arch: "unknown".to_string(),
+            owner: "unknown".to_string(),
+            path: "unknown".to_string(),
+            args: "unknown".to_string(),
+            uid: "".to_string(),
+        })
+    })
 }
+
+pub fn get_register_info() -> Option<SysInfo> {
+    if cfg!(feature = "register_info") {
+        get_sysinfo()
+    } else {
+        none_sysinfo()
+    }
+}
+
 
 #[cfg(not(feature = "register_info"))]
 pub fn get_register_info() -> Option<SysInfo> {

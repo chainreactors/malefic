@@ -17,9 +17,14 @@ pub fn update_3rd_toml(modules: &[String]) {
         for module in modules {
             default_feature.push(module.to_string());
         }
-        
-        if default_feature.iter().any(|m| m.to_string() == "rem_static")
-            && default_feature.iter().any(|m| m.to_string() == "rem_reflection") {
+
+        if default_feature
+            .iter()
+            .any(|m| m.to_string() == "rem_static")
+            && default_feature
+                .iter()
+                .any(|m| m.to_string() == "rem_reflection")
+        {
             log_error!("Cannot have both 'rem_static' and 'rem_reflection' features enabled at the same time");
             panic!("Cannot have both 'rem_static' and 'rem_reflection' features enabled at the same time");
         }

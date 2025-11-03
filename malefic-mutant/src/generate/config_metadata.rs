@@ -1,5 +1,6 @@
+use crate::config::MetaData;
+use crate::RESOURCES_DIR;
 use crate::{log_info, log_step, log_success};
-use crate::{MetaData, RESOURCES_DIR};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
@@ -49,7 +50,7 @@ pub fn update_resources(metadata: &MetaData) {
             "Manifest file has been created at: {}",
             manifest_path.display()
         );
-        
+
         rc_content.push_str("1 24 \"app.manifest\"\n\n");
     }
 

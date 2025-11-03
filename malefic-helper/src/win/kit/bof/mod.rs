@@ -1,7 +1,7 @@
 pub unsafe fn bof_loader(buffer: &Vec<u8>, arguments: &Vec<String>, entrypoint_name: Option<String>) -> String {
     #[cfg(feature = "prebuild")]
     {
-        use super::MaleficBofLoader;
+        use super::bindings::MaleficBofLoader;
         let c_strings: Vec<_> = arguments.iter()
                 .map(|s| {
                     let c_str = std::ffi::CString::new(s.as_str()).unwrap();

@@ -3,7 +3,7 @@ use anyhow::Result;
 use malefic_core::common::error::MaleficError;
 use malefic_proto::proto::implantpb::Spite;
 use std::sync::mpsc::{channel, Receiver, Sender};
-
+use tokio;
 pub struct Autorun {
     scheduler: Option<PreludeScheduler>,
     task_sender: Sender<Spite>,
@@ -27,7 +27,7 @@ impl Autorun {
     pub fn execute(&mut self, tasks: Vec<Spite>) -> Result<Vec<Spite>, MaleficError> {
         let mut scheduler = self.scheduler.take().unwrap();
 
-        std::thread::spawn(move || {
+        tokio::task::spawn_blocking(move || {
             scheduler.handler().unwrap();
         });
 

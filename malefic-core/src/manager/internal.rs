@@ -35,6 +35,8 @@ pub enum InternalModule {
     Suicide,
     #[strum(serialize = "switch")]
     Switch,
+    #[strum(serialize = "key_exchange")]
+    KeyExchange,
 }
 
 impl InternalModule {
@@ -44,7 +46,7 @@ impl InternalModule {
             InternalModule::Init,
             InternalModule::RefreshModule,
             InternalModule::ListModule,
-            #[cfg(target_family = "windows")]
+            #[cfg(feature = "hot_load")]
             InternalModule::LoadModule,
             InternalModule::LoadAddon,
             InternalModule::ListAddon,
@@ -57,6 +59,7 @@ impl InternalModule {
             InternalModule::Sleep,
             InternalModule::Suicide,
             InternalModule::Switch,
+            InternalModule::KeyExchange,
         ]
             .iter()
             .map(|m| m.to_string()) // Display 自动提供 to_string() 方法

@@ -55,7 +55,14 @@ pub fn format_cmdline(processname: String, params: Vec<String>) -> String {
         return format_osstring(processname);
     }
 
-    let param_str = params.join(" ");
+    let param_str = params.iter().map(|param| {
+        if param.contains(' ') && !param.starts_with('"') && !param.ends_with('"') {
+            format!("\"{}\"", param)
+        } else {
+            param.clone()
+        }
+    }).collect::<Vec<String>>().join(" ");
+
     format_osstring(processname + " " + &param_str)
 }
 

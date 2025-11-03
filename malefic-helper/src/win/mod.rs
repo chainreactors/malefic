@@ -15,3 +15,7 @@ pub mod whoami;
 pub mod wmi;
 #[cfg(feature = "anti")]
 pub mod anti;
+pub mod domain;
+pub mod ipconfig;
+pub mod driver;
+pub mod clr;

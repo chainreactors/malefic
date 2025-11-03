@@ -8,6 +8,8 @@ pub mod rem;
 #[cfg(feature = "proxy")]
 pub mod proxie;
 
+pub mod server_manager;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::lock::Mutex;
@@ -51,7 +53,7 @@ pub trait ListenerExt: Sized {
 
 #[async_trait]
 pub trait DialerExt {
-    async fn connect(&mut self, addr: &str) -> anyhow::Result<impl TransportImpl>;
+    async fn connect(&mut self, config: &ServerConfig) -> anyhow::Result<impl TransportImpl>;
 }
 
 
@@ -73,6 +75,9 @@ pub enum TransportError {
     #[error("Failed to connect to the server")]
     ConnectionError,
 
+    #[error("Configuration error")]
+    ConfigurationError,
+
     #[error("Failed to encrypt/decrypt data")]
     CryptorError(#[from] CryptorError),
 
@@ -84,6 +89,21 @@ pub enum TransportError {
 
     #[error("Deadline")]
     Deadline,
+
+    #[error("Connection refused")]
+    ConnectionRefused,
+
+    #[error("Connection reset")]
+    ConnectionReset,
+
+    #[error("Connection aborted")]
+    ConnectionAborted,
+
+    #[error("Network unreachable")]
+    NetworkUnreachable,
+
+    #[error("Other network error: {0}")]
+    NetworkError(String),
 
     #[error("Failed to receive data")]
     RecvError,
@@ -99,6 +119,72 @@ pub enum TransportError {
 
     #[error("Unknown error occurred")]
     UnknownError,
+}
+
+impl TransportError {
+    // 辅助方法：从 anyhow::Error 分类错误
+    pub fn from_network_error(error: anyhow::Error) -> Self {
+        let error_msg = format!("{:?}", error);
+
+        if error_msg.contains(obfstr::obfstr!("os error 10061")) ||
+            error_msg.contains(obfstr::obfstr!("ConnectionRefused")) {
+            TransportError::ConnectionRefused
+        } else if error_msg.contains("os error 10054") ||
+            error_msg.contains("Connection reset") {
+            TransportError::ConnectionReset
+        } else if error_msg.contains("os error 10053") ||
+            error_msg.contains("Connection aborted") {
+            TransportError::ConnectionAborted
+        } else if error_msg.contains("Network unreachable") {
+            TransportError::NetworkUnreachable
+        } else {
+            TransportError::NetworkError(error_msg)
+        }
+    }
+
+    pub fn from_io_error(error: &std::io::Error) -> Self {
+        match error.kind() {
+            std::io::ErrorKind::ConnectionRefused => TransportError::ConnectionRefused,
+            std::io::ErrorKind::ConnectionReset => TransportError::ConnectionReset,
+            std::io::ErrorKind::ConnectionAborted => TransportError::ConnectionAborted,
+            std::io::ErrorKind::NetworkUnreachable => TransportError::NetworkUnreachable,
+            _ => TransportError::NetworkError(format!("IO Error: {}", error))
+        }
+    }
+
+    // 辅助方法：判断是否是连接问题
+    pub fn is_connection_error(&self) -> bool {
+        matches!(self,
+            TransportError::ConnectionRefused |
+            TransportError::ConnectionReset |
+            TransportError::ConnectionAborted |
+            TransportError::NetworkUnreachable
+        )
+    }
+
+}
+
+impl From<&TransportError> for io::Error {
+    fn from(transport_error: &TransportError) -> Self {
+        match transport_error {
+            TransportError::ConnectionRefused => {
+                io::Error::new(io::ErrorKind::ConnectionRefused, "Connection refused")
+            }
+            TransportError::ConnectionReset => {
+                io::Error::new(io::ErrorKind::ConnectionReset, "Connection reset")
+            }
+            TransportError::ConnectionAborted => {
+                io::Error::new(io::ErrorKind::ConnectionAborted, "Connection aborted")
+            }
+            TransportError::NetworkUnreachable => {
+                io::Error::new(io::ErrorKind::NetworkUnreachable, "Network unreachable")
+            }
+            TransportError::ConnectionError => {
+                io::Error::new(io::ErrorKind::ConnectionRefused, "Connection failed")
+            }
+            _ => io::Error::new(io::ErrorKind::Other, format!("{}", transport_error))
+        }
+    }
 }
 
 pub struct Transport {
@@ -187,7 +273,6 @@ impl TransportReadHalf {
         while total_read < len {
             let remaining = len - total_read;
             let chunk_size = remaining.min(8192);
-
             let n = self.reader.read(&mut result[total_read..total_read + chunk_size]).await?;
             if n == 0 {
                 // 连接关闭或没有更多数据
@@ -219,8 +304,15 @@ impl TransportWriteHalf {
     }
 
     pub async fn write(&mut self, data: &[u8]) -> Result<usize> {
-        self.writer.write_all(data).await?;
-        Ok(data.len())
+        debug!("[transport] write start");
+        match self.writer.write_all(data).await {
+            Ok(()) => Ok(data.len()),
+            Err(e) => {
+                // 这里应该能捕获到真正的网络错误
+                debug!("[transport] write_all failed: {:?}", e);
+                Err(TransportError::IoError(e).into())
+            }
+        }
     }
 
     pub async fn flush(&mut self) -> Result<()> {
@@ -274,8 +366,8 @@ impl Client {
         
         futures::select! {
             result = async {
-                let send_task = sender.send(&mut writer, data).fuse();
-                let recv_task = receiver.recv(&mut reader).fuse();
+                let send_task = sender.write(&mut writer, data).fuse();
+                let recv_task = receiver.read(&mut reader).fuse();
                 let (recv_result, send_result) = join!(recv_task, send_task);
 
                 // 关闭连接
@@ -285,11 +377,19 @@ impl Client {
                     debug!("[client] send error: {:?}", e);
                     return Err(e.into());
                 }
+                debug!("[client] send success {:?}",send_result);
 
                 match recv_result {
                     Ok(data) => Ok(Some(data)),
                     Err(e) => {
                         debug!("[client] recv error: {:?}", e);
+                        if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
+                              let transport_error = TransportError::from_io_error(io_error);
+                              if transport_error.is_connection_error() {
+                                  debug!("[client] Connection error, propagating");
+                                  return Err(e);
+                              }
+                        }
                         Ok(None)
                     }
                 }
@@ -303,26 +403,55 @@ impl Client {
         }
     }
 
-    pub async fn send(&mut self, writer: &mut TransportWriteHalf, data: SpiteData) -> Result<()> {
+    pub async fn send(&mut self, transport: InnterTransport, data: SpiteData) -> Result<()> {
+        let (_, mut writer) = Transport::new(transport).split();
+        futures::select! {
+            result = async {
+                self.write(&mut writer, data).await
+            }.fuse() => result,
+            _ = Delay::new(Duration::from_secs(2)).fuse() => {
+                Err(TransportError::SendTimeout.into())
+            }
+        }
+    }
+
+    pub async fn write(&mut self, writer: &mut TransportWriteHalf, data: SpiteData) -> Result<()> {
         futures::select! {
             result = async {
                 let header = data.header();
-                let n = self.stream.write(writer, &header).await?;
-                if n != header.len() {
-                    return Err(TransportError::SendError.into());
+                match self.stream.write(writer, &header).await {
+                    Ok(n) => {
+                        if n != header.len() {
+                            return Err(TransportError::SendError.into());
+                        }
+                        debug!("[task send] send header success");
+                    }
+                    Err(e) => {
+                        let transport_error = TransportError::from_network_error(e);
+                        debug!("[task send] Header write error: {:?}", transport_error);
+                        return Err(transport_error.into());
+                    }
                 }
-                debug!("[transport] send header success");
 
                 let body = data.body();
-                let n = self.stream.write(writer, &body).await?;
-                if n != body.len() {
-                    return Err(TransportError::SendError.into());
+                match self.stream.write(writer, &body).await {
+                    Ok(n) => {
+                        if n != body.len() {
+                            return Err(TransportError::SendError.into());
+                        }
+                    }
+                    Err(e) => {
+                        let transport_error = TransportError::from_network_error(e);
+                        debug!("[task send] Body write error: {:?}", transport_error);
+                        return Err(transport_error.into());
+                    }
                 }
-                debug!("[transport] send body success");
+                debug!("[task send] send body success");
                 writer.flush().await?;
                 writer.write_over().await;
-                debug!("[transport] send over");
-                writer.write_wait().await.ok();
+                debug!("[task send] send over");
+                writer.write_wait().await
+                .map_err(|_| TransportError::SendError)?;
                 Ok(())
             }.fuse() => result,
             _ = Delay::new(Duration::from_secs(2)).fuse() => {
@@ -331,25 +460,28 @@ impl Client {
         }
     }
 
-    pub async fn recv(&mut self, reader: &mut TransportReadHalf) -> Result<SpiteData> {
+    pub async fn read(&mut self, reader: &mut TransportReadHalf) -> Result<SpiteData> {
         futures::select! {
             res = async {
                 // 接收header
                 let response_data = self.stream.read(reader, HEADER_LEN).await?;
                 if response_data.len() != HEADER_LEN {
+                    debug!("[task recv] recv header error: expect {} actual {}", HEADER_LEN, response_data.len());
                     return Err(TransportError::RecvError.into());
                 }
 
                 let mut spitedata = parser_header(&response_data)?;
-                debug!("[client] recv header success: {:?}, length: {}", response_data, spitedata.length);
+                debug!("[task recv] recv header success: {:?}, length: {}", response_data, spitedata.length);
 
                 // 接收body
                 let data = self.stream.read(reader, spitedata.length as usize + 1).await?;
                 spitedata.set_data(data)?;
                 reader.read_over().await;
-                debug!("[client] recv over");
+                debug!("[task recv] recv over");
+                debug!("spitedata: {:?}", spitedata);
                 Ok(spitedata)
             }.fuse() => {
+                debug!("recv end");
                 match res {
                     Ok(data) => Ok(data),
                     Err(e) => {
@@ -358,10 +490,15 @@ impl Client {
                     }
                 }
             },
-            _ = Delay::new(Duration::from_secs(2)).fuse() => {
+            _ = Delay::new(Duration::from_secs(5)).fuse() => {
+                debug!("recv timeout");
                 reader.read_over().await;
-                Err(TransportError::RecvError.into())
+                Err(TransportError::Deadline.into())
             }
         }
     }
 }
+
+// 导出服务器管理相关类型
+pub use server_manager::{ServerManager, ServerInfo, ServerStatus, ServerStats};
+use crate::config::ServerConfig;

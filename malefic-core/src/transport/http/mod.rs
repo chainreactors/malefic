@@ -1,9 +1,8 @@
-use crate::config::HTTP;
-use crate::transport::tcp::TCPTransport;
+use crate::config::{ServerConfig, TransportConfig};
+use crate::transport::tcp::{new_steam, TCPTransport};
 use crate::transport::{DialerExt, Stream, TransportError};
 use crate::common::spawn;
 use anyhow::Result;
-use async_net::TcpStream;
 use async_trait::async_trait;
 use futures::lock::Mutex;
 use futures::{AsyncRead, AsyncWrite, AsyncWriteExt};
@@ -16,25 +15,34 @@ use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 use malefic_proto::crypto::Cryptor;
 
+#[cfg(feature = "proxy")]
+use crate::config::{PROXY_HOST, PROXY_PASSWORD, PROXY_PORT, PROXY_USERNAME};
+#[cfg(feature = "proxy")]
+use crate::transport::proxie::{Auth, Proxy, AsyncProxy, HTTPProxy, SOCKS5Proxy};
+
 #[derive(Clone)]
 pub struct HTTPTransport {
+    config: ServerConfig,
     inner: Arc<Mutex<Option<TCPTransport>>>,
-    host: String,
+    // host: String,
     send_buffer: Arc<Mutex<Vec<u8>>>,
     recv_buffer: Arc<Mutex<Cursor<Vec<u8>>>>,
     flush_requested: Arc<AtomicBool>,
     read_waker: Arc<Mutex<Option<Waker>>>,
+    connection_error: Arc<Mutex<Option<TransportError>>>,
 }
 
 impl HTTPTransport {
-    pub async fn new(url: String) -> Result<Self> {
+    pub async fn new(server_config: ServerConfig) -> Result<Self> {
         let transport = HTTPTransport {
+            config: server_config.clone(),
             inner: Arc::new(Mutex::new(None)),
-            host: url,
+            // host: server_config.address.clone(),
             send_buffer: Arc::new(Mutex::new(Vec::new())),
             recv_buffer: Arc::new(Mutex::new(Cursor::new(Vec::new()))),
             flush_requested: Arc::new(AtomicBool::new(false)),
             read_waker: Arc::new(Mutex::new(None)),
+            connection_error: Arc::new(Mutex::new(None)),
         };
 
         {
@@ -87,8 +95,8 @@ impl HTTPTransport {
     async fn ensure_connection(&mut self) -> Result<()> {
         let mut inner_guard = self.inner.lock().await;
         if inner_guard.is_none() {
-            let stream = TcpStream::connect(&self.host).await?;
-            let transport = TCPTransport::new(stream).await?;
+            let stream = new_steam(&self.config).await?;
+            let transport = TCPTransport::new(stream,self.config.clone()).await?;
             *inner_guard = Some(transport);
             debug!("[transport] HTTP connection established");
         }
@@ -96,20 +104,56 @@ impl HTTPTransport {
     }
 
     async fn do_request(&mut self, data: Vec<u8>) -> Result<()> {
-        self.ensure_connection().await?;
-
-        // 发送HTTP请求
+        match self.ensure_connection().await {
+            Ok(_) => {
+                if let Some(mut error_guard) = self.connection_error.try_lock() {
+                    *error_guard = None;
+                }
+            }
+            Err(e) => {
+                debug!("[transport] HTTP connection failed: {:?}", e);
+                if let Some(mut error_guard) = self.connection_error.try_lock() {
+                    *error_guard = Some(TransportError::ConnectionRefused);
+                    if let Some(mut waker_guard) = self.read_waker.try_lock() {
+                        if let Some(waker) = waker_guard.take() {
+                            debug!("[transport] Waking up waiting read task due to connection error");
+                            waker.wake();
+                        }
+                    }
+                }
+                if let Some(mut recv_buffer) = self.recv_buffer.try_lock() {
+                    recv_buffer.get_mut().clear();
+                    recv_buffer.set_position(0);
+                }
+                return Err(e);
+            }
+        }
+        debug!("[transport] HTTP request starting, data length: {}", data.len());
+        // debug!("[transport] HTTP request starting, data: {:?}", data);
+        // send http request
         {
             let mut inner_guard = self.inner.lock().await;
             let transport = inner_guard.as_mut().unwrap();
-            let mut request_buffer = Vec::with_capacity(HTTP.len() + 50 + data.len());
-            request_buffer.extend_from_slice(HTTP.as_bytes());
-            request_buffer.extend_from_slice(format!("Content-Length: {}\r\n\r\n", data.len()).as_bytes());
+
+            let http_request = {
+                match &self.config.transport_config {
+                    TransportConfig::Http(http_config) => {
+                        http_config.build_request(data.len())
+                    }
+                    _ => {
+                        return Err(TransportError::ConfigurationError.into());
+                    }
+                }
+            }; 
+
+            let mut request_buffer = Vec::with_capacity(http_request.len() + 50 + data.len());
+            request_buffer.extend_from_slice(http_request.as_bytes());
+            // request_buffer.extend_from_slice(format!("Content-Length: {}\r\n\r\n", data.len()).as_bytes());
             request_buffer.extend_from_slice(&data);
             transport.write_all(&request_buffer).await?;
         }
 
-        // 读取HTTP响应头部
+        // read HTTP resp header
         let mut buffer = Vec::with_capacity(1024);
         let (header_buf, body_prefix) = loop {
             let chunk = self.read_chunk(512).await?;
@@ -127,7 +171,7 @@ impl HTTPTransport {
             }
         };
 
-        // 解析HTTP响应
+        // read HTTP resp body
         let mut headers = [httparse::EMPTY_HEADER; 16];
         let mut resp = httparse::Response::new(&mut headers);
         match resp.parse(&header_buf)? {
@@ -155,11 +199,11 @@ impl HTTPTransport {
 
 
 
-    // 读取HTTP响应体
+    // read resp body
     async fn read_response_body(&mut self, expected_length: usize, body_prefix: Vec<u8>) -> Result<()> {
         debug!("[transport] starting to read response body, expected: {} bytes, prefix: {} bytes", expected_length, body_prefix.len());
 
-        // 初始化接收缓冲区
+        // recv
         {
             let mut buffer = self.recv_buffer.lock().await;
             if !body_prefix.is_empty() {
@@ -200,6 +244,7 @@ impl HTTPTransport {
         debug!("[transport] response body read complete, total: {} bytes", expected_length);
         Ok(())
     }
+
 }
 
 impl AsyncRead for HTTPTransport {
@@ -208,6 +253,14 @@ impl AsyncRead for HTTPTransport {
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
+
+        if let Some(error_guard) = self.connection_error.try_lock() {
+            if let Some(ref transport_error) = *error_guard {
+                #[allow(noop_method_call)]
+                return Poll::Ready(Err(transport_error.clone().into()));
+            }
+        }
+
         match self.recv_buffer.try_lock() {
             Some(mut cursor) => {
                 let available = cursor.get_ref().len() - cursor.position() as usize;
@@ -228,6 +281,7 @@ impl AsyncRead for HTTPTransport {
             }
         }
     }
+
 }
 
 impl AsyncWrite for HTTPTransport {
@@ -274,8 +328,8 @@ impl HTTPClient{
 
 #[async_trait]
 impl DialerExt for HTTPClient {
-    async fn connect(&mut self, addr: &str) -> Result<HTTPTransport> {
-        debug!("[transport] Connecting to HTTP server at {}", addr);
-        HTTPTransport::new(addr.to_string()).await
+    async fn connect(&mut self, config: &ServerConfig) -> Result<HTTPTransport> {
+        debug!("[transport] Connecting to HTTP server at {}", config.address);
+        HTTPTransport::new(config.clone()).await
     }
 }

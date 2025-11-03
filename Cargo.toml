@@ -15,6 +15,54 @@ members = [
     "malefic-3rd",
 ]
 
+exclude = [
+    "malefic-proxydll",
+]
+
+[workspace.dependencies]
+# Core async and error handling
+anyhow = "1.0.89"
+thiserror = "1.0.64"
+futures = "0.3.31"
+futures-timer = "3.0.3"
+async-trait = "0.1.89"
+
+tokio = "1"
+
+# Utilities
+lazy_static = "1.5.0"
+obfstr = "0.4.3"
+cfg-if = "1.0.0"
+
+# Serialization
+prost = "0.14.1"
+serde = { version = "1.0.210", features = ["derive"] }
+base64 = "0.22"
+
+# Macros
+strum = "0.26.3"
+strum_macros = "0.26.4"
+
+# Time and scheduling
+chrono = {version="0.4", default-features = false, features =["clock"]}
+
+# Crypto and hashing (2+ uses)
+sha2 = {version="0.10.9",default-features = false}
+
+byteorder = "1.4"
+regex = "1.11.2"
+
+tar = "0.4"
+
+url = "2.5.4"
+
+libc = "0.2"
+
+windows = "0.58.0"
+
+prost-build = "0.14.1"
+embed-resource = "3.0.5"
+
 [profile.dev]
 opt-level = 1
 

