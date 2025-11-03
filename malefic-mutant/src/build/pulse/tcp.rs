@@ -1,6 +1,12 @@
-use crate::{GenerateArch, PulseConfig, Version};
-
-use super::{djb2_hash, utils::{TARGET_SOURCE_PATH, X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY, generate_string_asm_instructions, generate_dll_name_asm}, PANIC};
+use super::{
+    djb2_hash,
+    utils::{
+        generate_dll_name_asm, generate_string_asm_instructions, TARGET_SOURCE_PATH,
+        X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY,
+    },
+    PANIC,
+};
+use crate::config::{GenerateArch, PulseConfig, Version};
 
 static X86_DEPENDENCIES: &str = "
 use malefic_win_kit::asm::arch::x86::{
@@ -86,13 +92,11 @@ extern "C" {
 }
 "#;
 
-
-
 pub fn generate_tcp_pulse(
     config: PulseConfig,
     arch: GenerateArch,
     version: &Version,
-    source: bool
+    source: bool,
 ) -> anyhow::Result<()> {
     generate_stage_template(config, arch, version, source)
 }
@@ -113,7 +117,7 @@ fn generate_stage_template(
             }
             main_template_path = X64_MAIN_TEMPLATE_PATH;
             make_body = X64_MAKE_BODY;
-        },
+        }
         GenerateArch::X86 => {
             if source {
                 dependencies = X86_DEPENDENCIES;
@@ -123,7 +127,13 @@ fn generate_stage_template(
         }
     }
     make_source_code(
-        dependencies, main_template_path, make_body, config, version, source)
+        dependencies,
+        main_template_path,
+        make_body,
+        config,
+        version,
+        source,
+    )
 }
 
 fn make_source_code(

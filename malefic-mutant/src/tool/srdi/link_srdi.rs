@@ -2,15 +2,18 @@
     Reference: https://github.com/postrequest/link/blob/main/src/util/shellcode.rs
 
 */
-use crate::GenerateArch;
+use crate::config::GenerateArch;
 
-use super::{shellcode::{LINK_RDI_SHELLCODE_32, LINK_RDI_SHELLCODE_64}, utils::{hash_function_name, pack}};
+use super::{
+    shellcode::{LINK_RDI_SHELLCODE_32, LINK_RDI_SHELLCODE_64},
+    utils::{hash_function_name, pack},
+};
 
 pub fn link_shellcode_rdi_from_bytes(
     arch: &GenerateArch,
     dll_bytes: &[u8],
     function_name: &String,
-    user_data: &[u8]
+    user_data: &[u8],
 ) -> Vec<u8> {
     let clear_header = true;
     let hash_function: [u8; 4];
@@ -33,9 +36,7 @@ pub fn link_shellcode_rdi_from_bytes(
         GenerateArch::X64 => {
             convert_to_x86_64_shellcode(dll_bytes, hash_function, &user_data, flags)
         }
-        GenerateArch::X86 => {
-            convert_to_x86_shellcode(dll_bytes, hash_function, &user_data, flags)
-        }
+        GenerateArch::X86 => convert_to_x86_shellcode(dll_bytes, hash_function, &user_data, flags),
     }
 }
 
@@ -43,7 +44,7 @@ pub fn convert_to_x86_64_shellcode(
     dll_bytes: &[u8],
     function_hash: [u8; 4],
     user_data: &[u8],
-    flags: u32
+    flags: u32,
 ) -> Vec<u8> {
     let mut final_shellcode: Vec<u8> = Vec::new();
 
@@ -128,7 +129,7 @@ pub fn convert_to_x86_shellcode(
     dll_bytes: &[u8],
     function_hash: [u8; 4],
     user_data: &[u8],
-    flags: u32
+    flags: u32,
 ) -> Vec<u8> {
     let mut final_shellcode: Vec<u8> = Vec::new();
     let bootstrap_size = 45;

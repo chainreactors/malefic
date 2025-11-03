@@ -1,6 +1,8 @@
 mod malefic;
 mod meta;
 mod stub;
+#[cfg(feature = "guardrail")]
+mod guardrail;
 
 #[cfg(feature = "beacon")]
 mod beacon;

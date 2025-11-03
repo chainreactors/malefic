@@ -1,4 +1,4 @@
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::linux::process;
 #[cfg(target_os = "windows")]
 use crate::win::loader;

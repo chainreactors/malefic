@@ -1,11 +1,8 @@
-
-pub(crate) static X86_MAIN_TEMPLATE_PATH: &str = 
-    "malefic-pulse/src/template/x86_common_template";
-pub(crate) static X64_MAIN_TEMPLATE_PATH: &str = 
-    "malefic-pulse/src/template/x64_common_template";
+pub(crate) static X86_MAIN_TEMPLATE_PATH: &str = "malefic-pulse/src/template/x86_common_template";
+pub(crate) static X64_MAIN_TEMPLATE_PATH: &str = "malefic-pulse/src/template/x64_common_template";
 pub(crate) static TARGET_SOURCE_PATH: &str = "malefic-pulse/src/main.rs";
 
-pub(crate) static X64_MAKE_BODY : &str = r#"
+pub(crate) static X64_MAKE_BODY: &str = r#"
 #[naked]
 unsafe extern "C" fn make_body(
     buf: *mut u8,
@@ -85,7 +82,8 @@ pub(crate) fn generate_dll_name_asm() -> String {
             "mov BYTE PTR [{dll} + 7], 100",   // 'd'
             "mov BYTE PTR [{dll} + 8], 108",   // 'l'
             "mov BYTE PTR [{dll} + 9], 108",   // 'l'
-            "mov BYTE PTR [{dll} + 10], 0","#.to_string()
+            "mov BYTE PTR [{dll} + 10], 0","#
+        .to_string()
 }
 
 /// Generate assembly instructions for HTTP header construction

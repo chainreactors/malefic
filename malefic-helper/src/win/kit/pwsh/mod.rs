@@ -2,7 +2,7 @@ pub unsafe fn pwsh_exec_command(script: &String) -> String {
     #[cfg(feature = "prebuild")]
     {
 
-        let ret = crate::win::kit::MaleficPwshExecCommand(
+        let ret = crate::win::kit::bindings::MaleficPwshExecCommand(
             script.as_ptr(),
             script.len(),
         );

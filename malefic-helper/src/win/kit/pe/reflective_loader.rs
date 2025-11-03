@@ -14,7 +14,7 @@ pub unsafe fn reflective_loader(
 ) -> Vec<u8> {
     #[cfg(feature = "prebuild")]
     {
-        let ret = crate::win::kit::ReflectiveLoader(
+        let ret = crate::win::kit::bindings::ReflectiveLoader(
             start_commandline,
             start_commandline_len,
             reflective_loader_name,

@@ -1,8 +1,11 @@
+#![feature(stdsimd)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod malefic;
 mod meta;
 mod stub;
-
+#[cfg(feature = "guardrail")]
+mod guardrail;
 #[cfg(feature = "beacon")]
 mod beacon;
 #[cfg(feature = "bind")]
@@ -26,8 +29,8 @@ fn main() {
         }
         
         #[cfg(feature = "malefic-prelude")]
-        if let Err(e) = malefic_prelude::run() {
-            malefic_helper::debug!("Failed to execute prelude: {}", e);
+        if let Err(_e) = malefic_prelude::run() {
+            malefic_helper::debug!("Failed to execute prelude: {}", _e);
         }
 
         Malefic::run(malefic_proto::get_sid()).await;

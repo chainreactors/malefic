@@ -1,3 +1,4 @@
+#![feature(offset_of)]
 #![feature(stmt_expr_attributes)]
 pub mod common;
 
@@ -7,14 +8,31 @@ pub mod win;
 #[cfg(target_os = "macos")]
 pub mod darwin;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub mod linux;
 
 #[cfg(test)]
 #[macro_use]
 extern crate std;
 
-use thiserror::Error;
+pub use thiserror::Error;
+
+#[macro_export]
+macro_rules! to_error {
+    ($expr:expr) => {
+        $expr.map_err(|e| anyhow::Error::msg(format!("{:#?}", e)))
+    };
+}
+
+#[macro_export]
+macro_rules! debug {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        {
+            println!($($arg)*);
+        }
+    };
+}
 
 #[derive(Error, Debug)]
 pub enum CommonError {
@@ -40,24 +58,10 @@ pub enum CommonError {
     ArgsError(String),
 }
 
-#[macro_export]
-macro_rules! to_error {
-    ($expr:expr) => {
-        $expr.map_err(|e| anyhow::Error::msg(format!("{:#?}", e)))
-    };
-}
 
-#[macro_export]
-macro_rules! debug {
-    ($($arg:tt)*) => {
-        #[cfg(debug_assertions)]
-        {
-            println!($($arg)*);
-        }
-    };
-}
 
 pub struct Defer {
+    #[allow(dead_code)]
     message: String,
 }
 impl Defer {

@@ -11,7 +11,7 @@ pub unsafe fn run_pe(
 ) -> Vec<u8> {
     #[cfg(feature = "prebuild")]
     {
-        let ret = crate::win::kit::RunPE(
+        let ret = crate::win::kit::bindings::RunPE(
             start_commandline.as_ptr(),
             start_commandline.len(),
             hijack_commandline.as_ptr(),

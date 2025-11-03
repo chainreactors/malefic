@@ -43,7 +43,7 @@ pub fn test_netstat_with_connections() {
             found_tcp = true;
             assert!(!socket.local_addr.is_empty());
             assert!(!socket.remote_addr.is_empty());
-            assert!(socket.pid > 0);
+            assert!(socket.pid > 0.to_string());
         }
     }
     assert!(found_tcp, "Should find our TCP connection");
@@ -54,7 +54,7 @@ pub fn test_netstat_with_connections() {
         if socket.protocol == "udp" && socket.local_addr.contains(&udp_port.to_string()) {
             found_udp = true;
             assert!(!socket.local_addr.is_empty());
-            assert!(socket.pid > 0);
+            assert!(socket.pid > 0.to_string());
         }
     }
     assert!(found_udp, "Should find our UDP socket");
@@ -94,7 +94,7 @@ pub fn test_netstat_ipv6() {
             assert!(socket.local_addr.contains("::1"));
             assert!(!socket.local_addr.is_empty());
             assert!(!socket.remote_addr.is_empty());
-            assert!(socket.pid > 0);
+            assert!(socket.pid > 0.to_string());
         }
     }
     assert!(found_tcp6, "Should find our IPv6 TCP connection");
@@ -106,7 +106,7 @@ pub fn test_netstat_ipv6() {
             found_udp6 = true;
             assert!(socket.local_addr.contains("::1"));
             assert!(!socket.local_addr.is_empty());
-            assert!(socket.pid > 0);
+            assert!(socket.pid > 0.to_string());
         }
     }
     assert!(found_udp6, "Should find our IPv6 UDP socket");
@@ -124,7 +124,7 @@ pub fn test_netstat_all_protocols() {
     for netstat in netstats {
         assert!(!netstat.local_addr.is_empty(), "Local address should not be empty");
         assert!(!netstat.protocol.is_empty(), "Protocol should not be empty");
-        assert!(netstat.pid > 0, "PID should be greater than 0");
+        assert!(netstat.pid > 0.to_string(), "PID should be greater than 0");
         
         // 验证协议格式
         assert!(
