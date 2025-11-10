@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::common::spawn;
 use malefic_helper::debug;
-use malefic_modules::{MaleficModule, TaskResult};
+use malefic_proto::module::{MaleficModule, TaskResult};
 use malefic_proto::new_spite;
 use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::implantpb::Spite;
@@ -105,8 +105,8 @@ impl Scheduler {
                                     let _ = self.data_sender.send(spite).await;
                                 }
                             },
-                            Err(e) => {
-                                debug!("Scheduler do_operator error: {}", e.to_string());
+                            Err(_e) => {
+                                debug!("Scheduler do_operator error: {}", _e.to_string());
                             }
                         }
                     }

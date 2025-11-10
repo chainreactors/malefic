@@ -1,4 +1,5 @@
-use crate::{log_success, BasicConfig, FEATURES};
+use crate::config::BasicConfig;
+use crate::{log_success, FEATURES};
 use std::fs;
 use toml_edit::{Array, DocumentMut};
 

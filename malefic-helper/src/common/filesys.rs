@@ -49,6 +49,14 @@ pub fn check_sum(path: &str) -> std::io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+pub fn check_sum_bytes(bytes: &[u8]) -> std::io::Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+
 pub(crate) fn get_cwd() -> Result<String, io::Error> {
     let path = env::current_dir()?;
     Ok(path.display().to_string())
@@ -85,7 +93,7 @@ pub fn lookup(file_name: &str) -> PathBuf {
     }
 
     if let Ok(current_dir) = env::current_dir() {
-        let relative_path = current_dir.join(file_name);
+        let relative_path = current_dir.join(&path);
         if relative_path.is_file() {
             return relative_path;
         }
@@ -98,7 +106,7 @@ pub fn lookup(file_name: &str) -> PathBuf {
         let separator = ':';
 
         for dir in path_env.split(separator) {
-            let executable_path = Path::new(dir).join(file_name);
+            let executable_path = Path::new(dir).join(&path);
             if executable_path.is_file() {
                 return executable_path;
             }

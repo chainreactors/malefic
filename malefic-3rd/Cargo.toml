@@ -9,29 +9,34 @@ path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["rem", "as_cdylib"]
-full = ["rem", "curl"]
+default = []
+full = ["curl", "pty"]
 
-as_cdylib = ["malefic-modules/disable_register"]
-
+as_cdylib = []
 curl = ["surf"]
 memory_dial = []
 rem_dial = []
 load_rem = []
 rem = ["malefic-helper/rem_static", "rem_dial", "memory_dial"]
 #rem_reflection = ["malefic-helper/rem_reflection", "rem_dial", "load_rem", "memory_dial"]
-
+pty = ["portable-pty", "futures-timer"]
+hook = []
 
 [dependencies]
-malefic-modules = { path = "../malefic-modules", features = ["nano"]}
 malefic-trait = { path = "../malefic-trait" }
 malefic-proto = { path = "../malefic-proto" }
 malefic-helper = { path = "../malefic-helper"}
-async-trait = "0.1"
-anyhow = "1.0"
-futures = "0.3.31"
-obfstr = "0.4.3"
-surf = { version = "2.3", default-features = false, features = ["h1-client-rustls"] , optional = true}
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+futures = { workspace = true }
+obfstr = { workspace = true }
+surf = { version = "2.3", default-features = false, features = ["h1-client-rustls"], optional = true }
+portable-pty = { version = "0.8", optional = true }
+futures-timer = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3", features = ["winuser"] }
+detour = { git = "https://github.com/chainreactors/retour-rs", branch = "fix-nightly1.67.0-changes" }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc = { workspace = true }

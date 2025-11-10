@@ -6,7 +6,11 @@ use windows::Win32::System::Services::{
     OpenServiceW, QueryServiceConfigW, QueryServiceStatusEx, StartServiceW, 
     QUERY_SERVICE_CONFIGW, SC_ENUM_PROCESS_INFO, SC_HANDLE, SC_MANAGER_ALL_ACCESS, SC_STATUS_PROCESS_INFO, 
     SERVICE_ALL_ACCESS, SERVICE_CONTROL_STOP, SERVICE_QUERY_CONFIG, SERVICE_QUERY_STATUS, SERVICE_START, 
-    SERVICE_STATE_ALL, SERVICE_STATUS, SERVICE_STATUS_PROCESS, SERVICE_STOP, SERVICE_WIN32_OWN_PROCESS};
+    SERVICE_STATE_ALL, SERVICE_STATUS, SERVICE_STATUS_PROCESS, SERVICE_STOP, SERVICE_WIN32_OWN_PROCESS,
+    SERVICE_STOPPED, SERVICE_START_PENDING, SERVICE_STOP_PENDING, SERVICE_RUNNING,
+    SERVICE_CONTINUE_PENDING, SERVICE_PAUSE_PENDING, SERVICE_PAUSED,
+};
+
 use windows::core::{Error, Result, PCWSTR};
 use std::ptr::null_mut;
 use std::mem::size_of;
@@ -403,15 +407,17 @@ impl ServiceManager {
             let _ = CloseServiceHandle(service_handle);
 
             Ok(ServiceStatus {
-                current_state: match status.dwCurrentState.0 {
-                    1 => ServiceState::Stopped,
-                    2 => ServiceState::StartPending,
-                    3 => ServiceState::StopPending,
-                    4 => ServiceState::Running,
-                    5 => ServiceState::ContinuePending,
-                    6 => ServiceState::PausePending,
-                    7 => ServiceState::Paused,
-                    _ => ServiceState::Stopped,
+                current_state: match status.dwCurrentState {
+                    SERVICE_STOPPED => ServiceState::Stopped,
+                    SERVICE_START_PENDING => ServiceState::StartPending,
+                    SERVICE_STOP_PENDING => ServiceState::StopPending,
+                    SERVICE_RUNNING => ServiceState::Running,
+                    SERVICE_CONTINUE_PENDING => ServiceState::ContinuePending,
+                    SERVICE_PAUSE_PENDING => ServiceState::PausePending,
+                    SERVICE_PAUSED => ServiceState::Paused,
+                    _ => {
+                        ServiceState::Stopped
+                    }
                 },
                 process_id: Some(status.dwProcessId),
                 exit_code: ServiceExitCode::Win32(status.dwWin32ExitCode),

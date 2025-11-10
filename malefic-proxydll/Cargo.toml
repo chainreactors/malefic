@@ -1,0 +1,26 @@
+[package]
+name = "malefic-proxydll"
+version = "0.1.1"
+edition = "2021"
+
+[features]
+default = ["proxy"]
+proxy = []
+block = []
+native_thread = []
+
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
+malefic-helper = { path = "../malefic-helper" }
+malefic-prelude = { path = "../malefic-prelude", optional = true}
+
+[dependencies.windows]
+version = "0.51"
+features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging"
+]

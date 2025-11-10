@@ -19,10 +19,16 @@ fn main() {
     {
         prost_config.skip_debug(["."]);
     }
-    
+
 
     prost_config.out_dir(PROTO_GENE_PATH.to_string());
     // prost_config.btree_map(&["."]);
-    let _ = prost_config
-        .compile_protos(&[PROTO_IMPLANT_FILE.to_string(), PROTO_MODULE_FILE.to_string()], &["../proto/"]);
+    match prost_config
+        .compile_protos(&[PROTO_IMPLANT_FILE.to_string(), PROTO_MODULE_FILE.to_string()], &["../proto/"]) {
+        Ok(_) => println!("Proto compilation successful!"),
+        Err(e) => {
+            eprintln!("Proto compilation error: {}", e);
+            panic!("Failed to compile protos: {}", e);
+        }
+    }
 }

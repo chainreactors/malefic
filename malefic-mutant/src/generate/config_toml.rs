@@ -27,10 +27,15 @@ const MALEFIC_DIRS: &[&str] = &[
     "malefic-proto",
     "malefic-pulse",
     "malefic-3rd",
+    "malefic-win-kit",
 ];
 
 /// Recursively collect remap flags for all .rs files in the given directory and its subdirectories
-fn collect_rs_file_remap_flags(dir: &Path, remap_flags: &mut Vec<String>, current_dir: &Path) -> io::Result<()> {
+fn collect_rs_file_remap_flags(
+    dir: &Path,
+    remap_flags: &mut Vec<String>,
+    current_dir: &Path,
+) -> io::Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -48,7 +53,10 @@ fn collect_rs_file_remap_flags(dir: &Path, remap_flags: &mut Vec<String>, curren
     Ok(())
 }
 /// Collect remap flags for all malefic project source files (src directory and all subdirectories)
-fn collect_malefic_project_remap_flags(base_dir: &Path, remap_flags: &mut Vec<String>) -> io::Result<()> {
+fn collect_malefic_project_remap_flags(
+    base_dir: &Path,
+    remap_flags: &mut Vec<String>,
+) -> io::Result<()> {
     let current_dir = std::env::current_dir()?;
     let mut _processed_count = 0;
     let mut _total_files = 0;
@@ -128,8 +136,12 @@ fn write_config_file(remap_flags: Vec<String>) -> io::Result<()> {
         String::new()
     };
 
-    let mut doc = existing_content.parse::<DocumentMut>()
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Failed to parse TOML: {}", e)))?;
+    let mut doc = existing_content.parse::<DocumentMut>().map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Failed to parse TOML: {}", e),
+        )
+    })?;
 
     // Create rustflags array
     let mut remap_flags_array = Array::new();
@@ -143,7 +155,11 @@ fn write_config_file(remap_flags: Vec<String>) -> io::Result<()> {
     }
 
     // Ensure cfg(all()) table exists
-    if !doc[TARGET_KEY].as_table_mut().unwrap().contains_key(CFG_ALL_KEY) {
+    if !doc[TARGET_KEY]
+        .as_table_mut()
+        .unwrap()
+        .contains_key(CFG_ALL_KEY)
+    {
         doc[TARGET_KEY][CFG_ALL_KEY] = Item::Table(Table::new());
     }
 
@@ -166,8 +182,12 @@ fn check_config_file_early() -> io::Result<bool> {
     }
 
     let existing_content = fs::read_to_string(config_path)?;
-    let doc = existing_content.parse::<DocumentMut>()
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Failed to parse TOML: {}", e)))?;
+    let doc = existing_content.parse::<DocumentMut>().map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Failed to parse TOML: {}", e),
+        )
+    })?;
 
     Ok(check_existing_rustflags_config(&doc))
 }

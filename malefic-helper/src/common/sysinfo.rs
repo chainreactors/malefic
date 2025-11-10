@@ -1,10 +1,28 @@
 use crate::common::{filesys, process};
 #[cfg(target_os = "macos")]
 use crate::darwin::whoami;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::linux::whoami;
 #[cfg(target_os = "windows")]
 use crate::win::whoami;
+
+#[cfg(target_os = "windows")]
+use crate::win::domain;
+#[cfg(target_os = "windows")]
+use crate::win::ipconfig;
+
+#[cfg(target_os = "macos")]
+use crate::darwin::domain;
+#[cfg(target_os = "macos")]
+use crate::darwin::ipconfig;
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use crate::linux::domain;
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use crate::linux::ipconfig;
+
+#[cfg(target_os = "windows")]
+use crate::win::clr::{clr_version};
 
 pub fn name() -> String {
     whoami::name().unwrap_or_default()
@@ -56,6 +74,7 @@ pub struct Os {
     pub username: String,
     pub hostname: String,
     pub locale: String,
+    pub clr_version: Vec<String>
 }
 
 pub fn default_os() -> Option<Os> {
@@ -67,6 +86,10 @@ pub fn default_os() -> Option<Os> {
         username: username(),
         hostname: hostname(),
         locale: language(),
+        #[cfg(target_os = "windows")]
+        clr_version: clr_version(),
+        #[cfg(not(target_os = "windows"))]
+        clr_version: vec![],
     })
 }
 
@@ -87,15 +110,39 @@ pub struct SysInfo {
     pub os: Option<Os>,
     pub process: Option<process::Process>,
     pub is_privilege: bool,
+    // Platform-specific implementation for new fields
+    pub ip_addresses: Vec<String>,
+    pub domain_name: String,
 }
 
 pub fn get_sysinfo() -> SysInfo {
+    let ip_addresses = {
+        #[cfg(target_os = "windows")]
+        {
+            ipconfig::get_ipv4_addresses()
+        }
+        #[cfg(target_os = "macos")]
+        {
+            ipconfig::get_ipv4_addresses()
+        }
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            ipconfig::get_ipv4_addresses()
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux", target_os = "android")))]
+        {
+            Vec::new() // Return empty vector for unsupported platforms
+        }
+    };
+
     SysInfo {
         workdir: filesys::get_cwd().unwrap_or_else(|e| e.to_string()),
         filepath: filesys::get_executable_path().unwrap_or_else(|e| e.to_string()),
         os: default_os(),
         process: process::get_current_process(),
         is_privilege: is_privilege(),
+        ip_addresses,
+        domain_name: domain::get_domain(),
     }
 }
 
@@ -167,5 +214,6 @@ mod tests {
         println!("info process path: {}", info.process.as_ref().unwrap().path);
         println!("info process args: {}", info.process.as_ref().unwrap().args);
         println!("info is privilege: {}", info.is_privilege);
+        println!("info domain : {}",info.domain_name)
     }
 }

@@ -42,9 +42,9 @@ impl MaleficBind {
     }
     
     pub async fn init(&mut self, transport: Transport) -> anyhow::Result<()> {
-        let init = self.client.recv(transport.clone()).await?;
+        let init = self.client.read(transport.clone()).await?;
         self.stub.meta.set_id(init.session_id);
-        let data = marshal_one(init.session_id, self.stub.register_spite())?;
+        let data = marshal_one(init.session_id, self.stub.register_spite(), self.stub.meta.get_encrypt_key())?;
         self.client.stream.send(transport.clone(), data.pack()).await.map_err(|e| {
             debug!("[bind] Failed to send data: {:#?}", e);
             e

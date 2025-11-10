@@ -32,7 +32,7 @@ pub unsafe fn load_pe(
     magic: Option<u16>,
     signature: Option<u32>,
 ) -> *const core::ffi::c_void {
-    use crate::win::kit::PELoader;
+    use crate::win::kit::bindings::PELoader;
     if bin.is_empty() {
         return std::ptr::null();
     }
@@ -87,7 +87,7 @@ pub unsafe fn run_sacrifice(
 ) -> Vec<u8> {
     #[cfg(feature = "prebuild")]
     {
-        let ret = crate::win::kit::RunSacrifice(
+        let ret = crate::win::kit::bindings::RunSacrifice(
             application_name,
             start_commandline.as_ptr(),
             start_commandline.len(),

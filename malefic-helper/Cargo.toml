@@ -5,13 +5,13 @@ edition = "2021"
 
 
 [features]
-default = ["Win_Inject_APC", "prebuild", "community", "anti_sandbox"]
+default = ["Win_Inject_APC", "community", "source"]
 community = []
 professional = []
 source = []
 prebuild = []
 sysinfo = []
-
+clr = []
 Inject = []
 Win_Inject_APC = ["Inject"]
 Win_Inject_Asm = ["Inject"]
@@ -30,34 +30,66 @@ anti_vm = ["anti"]
 #Linux_Inject_Func_Pointer = ["Inject"]
 #Linux_Inject_Process = ["Inject"]
 #Linux_Inject_Thread = ["Inject"]
-
 rem = []
 rem_static = ["rem"]
 #rem_reflection = ["rem"]
 
 [dependencies]
-anyhow = "1.0.81"
-obfstr = "0.4.3"
-strum = "0.26.3"
-strum_macros = "0.26.4"
-thiserror = "1.0.64"
-sha2 = "0.10"
-byteorder = "1.4"
+anyhow = { workspace = true }
+obfstr = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+byteorder = { workspace = true }
 num-traits = "0.2"
-async-process = "1.8"
+async-process = "2.3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 detour = { git = "https://github.com/chainreactors/retour-rs", branch = "fix-nightly1.67.0-changes" }
-wmi = { git = "https://github.com/chainreactors/wmi-rs" , optional = true}
+wmi = { git = "https://github.com/chainreactors/wmi-rs", optional = true }
 
 [dependencies.windows]
 version = "0.58.0"
-features = ["Win32_Storage_FileSystem", "Win32_Storage", "Win32_System_IO", "Win32_System_Threading", "Win32_System_Memory", "Win32_System_Diagnostics_ToolHelp", "Win32_Foundation", "Win32_Security", "Win32_System_Com", "Win32_System_Services", "Win32_System_TaskScheduler", "Win32_System_SystemServices", "Win32_System_SystemInformation", "Win32_System_Registry", "Win32_System_Console", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Diagnostics_Debug", "Win32_NetworkManagement_IpHelper", "Win32_Networking_WinSock", "Win32_System_ProcessStatus", "Win32_System_WindowsProgramming", "Win32_UI", "Wdk_System_Threading", "Wdk_System", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_UserAccessLogging", "Win32_System_StationsAndDesktops", "Win32_System_Environment"]
+features = [
+    "Win32_Storage_FileSystem",
+    "Win32_Storage",
+    "Win32_System_IO",
+    "Win32_System_Threading",
+    "Win32_System_Memory",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Com",
+    "Win32_System_Services",
+    "Win32_System_TaskScheduler",
+    "Win32_System_SystemServices",
+    "Win32_System_SystemInformation",
+    "Win32_System_Registry",
+    "Win32_System_Console",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Pipes",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_Networking_WinSock",
+    "Win32_System_ProcessStatus",
+    "Win32_System_WindowsProgramming",
+    "Win32_UI", "Wdk_System_Threading", "Wdk_System",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_UserAccessLogging",
+    "Win32_System_StationsAndDesktops",
+    "Win32_System_Environment",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_ActiveDirectory",
+    "Win32_NetworkManagement_NetManagement",
+]
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.26"
-libc = "0.2"
+libc = { workspace = true }
 users = "0.11"
+mac_address = "1.1"
 
 [build-dependencies]
-bindgen = "0.71.1"
+bindgen = "0.72.1"

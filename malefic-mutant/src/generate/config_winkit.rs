@@ -1,9 +1,7 @@
 use std::fs;
 
-use crate::{
-    log_success, ImplantConfig, Version, CONFIG_INNER_TEMPLATE, CONFIG_PROFESSIONAL_TEMPLATE,
-    DEFAULT, FEATURES,
-};
+use crate::config::{ImplantConfig, Version};
+use crate::{log_success, CONFIG_INNER_TEMPLATE, CONFIG_PROFESSIONAL_TEMPLATE, DEFAULT, FEATURES};
 use toml_edit::{Array, DocumentMut, Item};
 
 lazy_static! {
@@ -15,6 +13,7 @@ lazy_static! {
     static ref CONFIG_WINKIT_TOML_PATH: String = "malefic-win-kit/Cargo.toml".to_string();
     static ref CONFIG_FFI: String = "ffi".to_string();
     static ref CONFIG_FFI_APIS: String = "ffi_apis".to_string();
+    static ref STACK_SPOOFER: String = "StackSpoofer".to_string();
 }
 
 pub fn update_winkit_toml(implant_config: &ImplantConfig, version: &Version, source: bool) {
@@ -110,7 +109,10 @@ pub fn update_winkit_toml(implant_config: &ImplantConfig, version: &Version, sou
                             .clone(),
                     );
                 }
-                features[&Version::Community.to_string()] = Item::Value(real_config.into());
+                if implant_config.thread_stack_spoofer {
+                    real_config.push(STACK_SPOOFER.to_owned());
+                }
+                features[&Version::Professional.to_string()] = Item::Value(real_config.into());
             }
             Version::Inner => {
                 default_array.push(Version::Inner.to_string());

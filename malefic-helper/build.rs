@@ -192,8 +192,20 @@ fn main() {
 
     #[cfg(feature = "prebuild")]
     {
-        let mut ollvm = "";
         if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
+            let bindings = bindgen::Builder::default()
+                .header("./malefic_win_kit.h")
+                .clang_arg("-Wno-unused-function")
+                .generate()
+                // .generate_functions_unsafe(false)
+                .expect("Unable to generate bindings");
+
+            bindings
+                .write_to_file("src/win/kit/bindings.rs")
+                .expect("Couldn't write bindings!");
+
+            let mut ollvm = "";
+
             let (prefix, suffix, destination) =
                 match env::var("CARGO_CFG_TARGET_ENV").unwrap().as_str() {
                     "msvc" => (
@@ -236,7 +248,7 @@ fn main() {
             if !source_path.exists() {
                 panic!("Source file not found: {}", source_path.display());
             }
-
+        
             let destination_path = out_dir.join(destination);
 
             std::fs::copy(&source_path, &destination_path)
