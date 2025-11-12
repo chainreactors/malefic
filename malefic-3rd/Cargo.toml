@@ -35,7 +35,7 @@ portable-pty = { version = "0.8", optional = true }
 futures-timer = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "0.3", features = ["winuser"] }
+winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
 detour = { git = "https://github.com/chainreactors/retour-rs", branch = "fix-nightly1.67.0-changes" }
 
 [target.'cfg(unix)'.dependencies]
