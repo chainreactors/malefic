@@ -25,7 +25,7 @@ pub enum Commands {
         config: String,
 
         /// Choice use source code or prebuild
-        #[arg(long, short = 's', global = true, default_value = "true")]
+        #[arg(long, short = 's', global = true, default_value = "false")]
         source: bool,
 
         #[command(subcommand)]
