@@ -356,7 +356,7 @@ impl MaleficStub {
             let (private_key, public_key)  = malefic_proto::generate_age_keypair();
 
             // 如果request中包含server的公钥，保存到meta
-            if !key_request.public_key.is_empty() {
+            if !_key_request.public_key.is_empty() {
                 self.meta.server_public_key = key_request.public_key;
             }
 
