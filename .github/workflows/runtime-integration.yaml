@@ -1,0 +1,97 @@
+name: runtime-integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      toolchain:
+        description: 'Host Rust toolchain'
+        required: false
+        default: 'nightly-2024-09-18'
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Install host toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ github.event.inputs.toolchain || 'nightly-2024-09-18' }}
+          targets: x86_64-pc-windows-msvc,x86_64-pc-windows-gnu
+
+      - name: Install plugin toolchains (for cross-version build)
+        run: |
+          rustup toolchain install nightly-2024-06-20-x86_64-pc-windows-msvc --no-self-update
+          rustup toolchain install nightly-2024-09-01-x86_64-pc-windows-msvc --no-self-update
+          rustup toolchain install stable-x86_64-pc-windows-msvc --no-self-update
+          rustup target add x86_64-pc-windows-gnu --toolchain nightly-2024-06-20-x86_64-pc-windows-msvc
+          rustup target add x86_64-pc-windows-gnu --toolchain nightly-2024-09-01-x86_64-pc-windows-msvc
+          rustup target add x86_64-pc-windows-gnu --toolchain stable-x86_64-pc-windows-msvc
+
+      - name: Install MinGW + protobuf
+        run: |
+          choco install protoc mingw -y --no-progress
+        shell: cmd
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "runtime-integration"
+          cache-targets: true
+          save-if: true
+
+      - name: Build 6 plugin DLLs (3 versions × msvc/gnu)
+        shell: bash
+        run: bash malefic-crates/runtime/tests/cross_version_build.sh
+
+      - name: Build test-runtime-plugin (current toolchain)
+        run: cargo build -p test-runtime-plugin
+
+      - name: Run protocol + E2E tests
+        run: |
+          cargo test -p malefic-runtime --features "host,tokio" --test test_runtime
+          cargo test -p malefic-runtime --features "host,tokio" --test test_e2e
+
+      - name: 'Cross-version: msvc host × 6 plugins'
+        shell: bash
+        run: |
+          for T in cross_version_enumerate cross_version_pwd cross_version_cat \
+                   cross_version_upload_single_shot cross_version_upload_streaming \
+                   cross_version_coexist; do
+            echo "::group::$T"
+            cargo test -p malefic-runtime --features "host,tokio" \
+              --test test_cross_version -- --exact "$T" --test-threads=1 --nocapture
+            echo "::endgroup::"
+          done
+
+      - name: 'Cross-version: gnu host × 6 plugins'
+        shell: bash
+        run: |
+          for T in cross_version_enumerate cross_version_pwd cross_version_cat \
+                   cross_version_upload_single_shot cross_version_upload_streaming \
+                   cross_version_coexist; do
+            echo "::group::$T [gnu]"
+            cargo test -p malefic-runtime --features "host,tokio" \
+              --target x86_64-pc-windows-gnu \
+              --test test_cross_version -- --exact "$T" --test-threads=1 --nocapture
+            echo "::endgroup::"
+          done
+
+      - name: Build reactor DLL (builtin base)
+        run: cargo build -p malefic-reactor --features base
+
+      - name: Reactor C FFI test
+        shell: bash
+        run: |
+          gcc -o test_reactor.exe malefic-reactor/tests/c/test_reactor.c -I malefic-reactor/include
+          cp target/debug/malefic_reactor.dll .
+          ./test_reactor.exe
+          rm -f test_reactor.exe malefic_reactor.dll

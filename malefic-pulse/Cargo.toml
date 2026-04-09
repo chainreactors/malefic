@@ -3,9 +3,22 @@ name = "malefic-pulse"
 version = "0.1.1"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "malefic_pulse"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "malefic-pulse"
+path = "src/main.rs"
+
 [features]
 default = []
-prebuild = []
 
-[target.'cfg(target_os = "windows")'.dependencies]
+shellcode = []
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+strip = true
+lto = true
+codegen-units = 1

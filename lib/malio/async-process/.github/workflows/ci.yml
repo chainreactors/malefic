@@ -1,0 +1,122 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '0 2 * * 0'
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+  CARGO_NET_RETRY: 10
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+  RUSTUP_MAX_RETRIES: 10
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  fmt:
+    uses: smol-rs/.github/.github/workflows/fmt.yml@main
+  clippy:
+    uses: smol-rs/.github/.github/workflows/clippy.yml@main
+    with:
+      # Windows for windows module.
+      additional-targets: x86_64-pc-windows-msvc
+  security_audit:
+    uses: smol-rs/.github/.github/workflows/security_audit.yml@main
+    permissions:
+      checks: write
+      contents: read
+      issues: write
+    secrets: inherit
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [nightly, beta, stable]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+      - name: Install cargo-hack and cargo-minimal-versions
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack,cargo-minimal-versions
+      - run: cargo build --all --all-features --all-targets
+      - run: cargo hack build --feature-powerset --no-dev-deps
+      - run: cargo minimal-versions build --all --all-features
+      - run: cargo test
+      - run: cargo test
+        env:
+          RUSTFLAGS: ${{ env.RUSTFLAGS }} --cfg async_process_force_signal_backend
+        if: matrix.os != 'windows-latest'
+
+  test-android:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [nightly]
+        target:
+          - aarch64-linux-android
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+      - name: Install cross-compilation tools
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+      # On nightly and `-Z doctest-xcompile` is available,
+      # `$DOCTEST_XCOMPILE` is `-Zdoctest-xcompile`.
+      #
+      # On stable, `$DOCTEST_XCOMPILE` is not set.
+      # Once `-Z doctest-xcompile` is stabilized, the corresponding flag
+      # will be set to `$DOCTEST_XCOMPILE` (if it is available).
+      - run: cargo test --verbose $DOCTEST_XCOMPILE
+
+  msrv:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack build --rust-version
+  target-compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false 
+      matrix:
+        rust: [nightly]
+        target:
+          - aarch64-unknown-nto-qnx800
+          - x86_64-pc-nto-qnx800
+    steps: 
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        run: | 
+          rustup update ${{ matrix.rust }} --no-self-update 
+          rustup default ${{ matrix.rust }}
+          rustup component add rust-src --toolchain nightly
+      - name: Cargo check 
+        run: cargo +nightly check -Zbuild-std --target ${{ matrix.target }}

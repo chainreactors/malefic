@@ -1,0 +1,9 @@
+[package]
+name = "malefic-cron"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cron = { version = "0.15", default-features = false }
+chrono = { workspace = true }
+malefic-common = { workspace = true }

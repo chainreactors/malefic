@@ -1,0 +1,16 @@
+bin.name = "rage-keygen"
+args = "--help"
+env.add.LC_ALL = "it"
+stdout = """
+Utilizzo: rage-keygen[EXE] [OPTIONS] [INPUT]
+
+Argomenti:
+  [INPUT]  Posizione di un file di input.
+
+Opzioni:
+  -h, --help             Presenta questo messaggio e esci.
+  -V, --version          Presenta la versione e esci.
+  -o, --output <OUTPUT>  Scrivi l'output al file OUTPUT. Standard output di default.
+  -y                     Converti un file di identità in un file di destinatari.
+"""
+stderr = ""

@@ -1,0 +1,17 @@
+bin.name = "rage-mount"
+args = "--help"
+stdout = """
+Usage: rage-mount[EXE] [OPTIONS] --types <TYPES> <FILENAME> <MOUNTPOINT>
+
+Arguments:
+  <FILENAME>    The encrypted filesystem to mount.
+  <MOUNTPOINT>  The directory to mount the filesystem at.
+
+Options:
+  -h, --help                  Print this help message and exit.
+  -V, --version               Print version info and exit.
+  -t, --types <TYPES>         Indicates the filesystem type (one of "tar", "zip").
+      --max-work-factor <WF>  Maximum work factor to allow for passphrase decryption.
+  -i, --identity <IDENTITY>   Use the identity file at IDENTITY. May be repeated.
+"""
+stderr = ""

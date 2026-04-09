@@ -22,22 +22,27 @@ jobs:
   create-release:
     runs-on: ubuntu-22.04
     outputs:
-      VERSION: ${{ steps.set_version.outputs.VERSION }}
+      VERSION: ${{ steps.release_context.outputs.VERSION }}
+      DRAFT: ${{ steps.release_context.outputs.DRAFT }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Set Version
-        id: set_version
+      - name: Set release context
+        id: release_context
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             VERSION=${GITHUB_REF#refs/tags/}
+            DRAFT=true
           else
             VERSION=${{ inputs.tag_name }}
+            DRAFT=${{ inputs.draft }}
           fi
+
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "DRAFT=$DRAFT" >> $GITHUB_OUTPUT
 
       - name: Create release
         id: create_release
@@ -45,45 +50,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.set_version.outputs.VERSION }}
-          release_name: Release ${{ steps.set_version.outputs.VERSION }}
+          tag_name: ${{ steps.release_context.outputs.VERSION }}
+          release_name: Release ${{ steps.release_context.outputs.VERSION }}
           body: |
-            Release ${{ steps.set_version.outputs.VERSION }}
-          draft: true
+            Release ${{ steps.release_context.outputs.VERSION }}
+          draft: ${{ steps.release_context.outputs.DRAFT == 'true' }}
           prerelease: false
-
-      - name: Download win-kit resources
-        uses: robinraju/release-downloader@v1.11
-        with:
-          repository: "chainreactors/malefic-win-kit"
-          latest: true
-          fileName: "community_resource.zip"
-          token: ${{ secrets.GH_PAT }}
-
-      - name: Download rem lib
-        uses: robinraju/release-downloader@v1.11
-        with:
-          repository: "chainreactors/rem-community"
-          latest: true
-          fileName: "rem_lib.zip"
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract zip
-        run: |
-          unzip community_resource.zip -d community_resource
-          unzip rem_lib.zip -d rem_lib
-          mkdir resources_dir
-          mv community_resource/* resources_dir/
-          mv rem_lib/dist/lib/*.a resources_dir/
-          cd resources_dir
-          zip -r ../resources.zip ./*
-          cd ..
-
-      - name: Upload resources
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run : |
-          gh release upload ${{ steps.set_version.outputs.VERSION }} resources.zip
 
   release-mutant:
     needs: create-release
@@ -93,9 +65,7 @@ jobs:
       matrix:
         target:
           - x86_64-pc-windows-gnu
-          #- i686-pc-windows-msvc
           - x86_64-unknown-linux-musl
-          #- i686-unknown-linux-musl
           - x86_64-apple-darwin
           - aarch64-apple-darwin
     steps:
@@ -114,7 +84,7 @@ jobs:
           target_dir="target/${{matrix.target}}/${release_dir}"
           docker run -v "$(pwd):/root/src" --rm -it ghcr.io/chainreactors/malefic-builder:latest \
             cargo build --release -p malefic-mutant --target ${{matrix.target}}
-          
+
           sudo chmod 777 -R target/
           if [[ -f ${target_dir}/${binary_name}.exe ]]; then
             mv ${target_dir}/${binary_name}.exe output/${binary_name}-${{matrix.target}}.exe

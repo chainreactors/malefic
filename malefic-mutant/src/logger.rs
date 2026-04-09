@@ -2,9 +2,13 @@ use chrono::Local;
 use colored::*;
 use log::{Level, LevelFilter, Metadata, Record};
 
-pub fn init() {
+pub fn init(debug: bool) {
     log::set_logger(&MutantLogger).unwrap();
-    log::set_max_level(LevelFilter::Info);
+    if debug {
+        log::set_max_level(LevelFilter::Debug);
+    } else {
+        log::set_max_level(LevelFilter::Info);
+    }
 }
 
 struct MutantLogger;
@@ -75,5 +79,13 @@ macro_rules! log_step {
     ($($arg:tt)*) => {{
         use colored::Colorize;
         log::info!("{} {}", "⚡".cyan(), format!($($arg)*))
+    }}
+}
+
+#[macro_export]
+macro_rules! log_debug {
+    ($($arg:tt)*) => {{
+        use colored::Colorize;
+        log::debug!("{} {}", "·".dimmed(), format!($($arg)*))
     }}
 }

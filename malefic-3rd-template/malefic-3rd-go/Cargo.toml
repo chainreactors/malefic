@@ -1,0 +1,18 @@
+[package]
+name = "malefic-3rd-go"
+version = "0.1.0"
+edition = "2021"
+
+build = "build.rs"
+
+[lib]
+name = "malefic_3rd_go"
+path = "src/lib.rs"
+
+[features]
+default = ["go_example"]
+go_example = []
+go_hackbrowser = []
+
+[dependencies]
+malefic-3rd-ffi = { path = "../malefic-3rd-ffi" }

@@ -1,0 +1,33 @@
+[package]
+name = "malefic-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-version, cross-target module runtime via pure C ABI + protobuf"
+
+[features]
+default = []
+loader = ["dep:malefic-loader"]
+tokio = ["malefic-common/tokio"]
+async-std = ["malefic-common/async-std"]
+smol = ["malefic-common/smol"]
+
+[dependencies]
+malefic-proto = { workspace = true }
+malefic-common = { workspace = true }
+malefic-module = { workspace = true, features = ["ffi"] }
+malefic-loader = { workspace = true, optional = true, default-features = false }
+anyhow = { workspace = true }
+
+async-trait = { workspace = true }
+futures = { workspace = true }
+futures-channel = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+futures = { workspace = true }
+futures-channel = { workspace = true }
+malefic-loader = { workspace = true, default-features = true }
+malefic-macro = { workspace = true }
+malefic-gateway = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }

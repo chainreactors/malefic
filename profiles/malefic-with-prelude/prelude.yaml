@@ -1,0 +1,9 @@
+- name: bof
+  depend_on: execute_bof
+  body: !ExecuteBinary
+    name: bof
+    bin: !File "persist_with_reg.x64.o"
+    Arc: 1
+    args:
+    - "str:Windows_Updater"
+    - "str:self"

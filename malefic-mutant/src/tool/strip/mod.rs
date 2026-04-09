@@ -1,3 +1,4 @@
+use crate::log_success;
 use regex::bytes::Regex;
 use std::fs::{read, write};
 
@@ -40,11 +41,11 @@ pub fn strip_paths_from_binary(
             _total_replacements += matches.len();
 
             for mat in matches.iter().rev() {
-                // 从后往前替换，避免位置偏移问题
+                // Replace from back to front to avoid position offset issues
                 let start_byte = mat.start();
                 let end_byte = mat.end();
 
-                // 确保字节位置在有效范围内
+                // Ensure byte position is within valid range
                 if end_byte <= modified_bytes.len() {
                     for i in start_byte..end_byte {
                         modified_bytes[i] = 0;
@@ -58,8 +59,8 @@ pub fn strip_paths_from_binary(
 
     // println!("\nTotal paths replaced: {}", total_replacements);
 
-    // 写入输出文件
+    // Write to output file
     write(output_path, &modified_bytes)?;
-    println!("Successfully strip {} to {}", input_path, output_path);
+    log_success!("Stripped paths {} → {}", input_path, output_path);
     Ok(())
 }

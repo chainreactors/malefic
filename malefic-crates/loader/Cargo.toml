@@ -1,0 +1,33 @@
+[package]
+name = "malefic-loader"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["Win_Inject_APC"]
+Win_Inject_APC = []
+Win_Inject_Fiber = []
+Win_Inject_Thread = []
+
+[dependencies]
+anyhow = { workspace = true }
+malefic-gateway = { workspace = true }
+malefic-common = { workspace = true }
+malefic-features = { path = "../features" }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+malefic-os-win = { workspace = true }
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_System_Memory",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Diagnostics_Debug",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+nix = { workspace = true }
+
+[build-dependencies]
+bindgen = { workspace = true }

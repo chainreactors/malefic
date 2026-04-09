@@ -1,0 +1,27 @@
+[package]
+name = "age-plugin"
+description = "[BETA] API for writing age plugins."
+version = "0.6.0"
+authors.workspace = true
+repository.workspace = true
+readme = "README.md"
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Dependencies exposed in a public API:
+# (Breaking upgrades to these require a breaking upgrade to this crate.)
+age-core = { workspace = true, features = ["plugin"] }
+
+# Dependencies used internally:
+# (Breaking upgrades to these are usually backwards-compatible, but check MSRVs.)
+base64.workspace = true
+bech32.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+clap.workspace = true
+
+[lib]
+bench = false

@@ -1,3 +1,4 @@
+use crate::log_success;
 use anyhow::{anyhow, Result};
 use goblin::pe::PE;
 use std::fs;
@@ -33,10 +34,7 @@ impl PEObjCopy {
         fs::write(output_path, binary_data)
             .map_err(|e| anyhow!("Failed to write binary file '{}': {}", output_path, e))?;
 
-        println!(
-            "✅ Extracted binary data from '{}' to '{}'",
-            pe_path, output_path
-        );
+        log_success!("Extracted binary {} → {}", pe_path, output_path);
         Ok(())
     }
 
@@ -49,7 +47,7 @@ impl PEObjCopy {
         fs::write(output_path, buffer)
             .map_err(|e| anyhow!("Failed to write binary file '{}': {}", output_path, e))?;
 
-        println!("✅ Copied raw file from '{}' to '{}'", pe_path, output_path);
+        log_success!("Copied raw file {} → {}", pe_path, output_path);
         Ok(())
     }
 }

@@ -1,0 +1,14 @@
+[package]
+name = "starship_example"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone package, not part of parent workspace
+[workspace]
+
+[[bin]]
+name = "starship_example"
+path = "starship_example.rs"
+
+[dependencies]
+malefic-starship = { path = "../../malefic-starship", default-features = false}
