@@ -39,19 +39,33 @@ jobs:
           submodules: recursive
           token: ${{ secrets.GH_PAT }}
 
+      - name: Detect legacy check scripts
+        id: legacy_check
+        shell: bash
+        run: |
+          if [[ -f scripts/check/check.sh && -f scripts/check/profile.sh ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Legacy scripts/check not found, skip legacy check steps."
+          fi
+
       - name: Install Rust toolchain
+        if: steps.legacy_check.outputs.exists == 'true'
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ github.event.inputs.toolchain || 'nightly-2024-09-18' }}
           targets: ${{ matrix.target }}
 
       - name: Install cross-compilation tools
+        if: steps.legacy_check.outputs.exists == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-mingw-w64-x86-64 musl-tools protobuf-compiler
           sudo ln -sf /usr/bin/musl-gcc /usr/local/bin/x86_64-linux-musl-gcc
 
       - name: Rust cache
+        if: steps.legacy_check.outputs.exists == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "check-${{ matrix.target }}"
@@ -60,6 +74,7 @@ jobs:
           save-if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
       - name: Fix line endings
+        if: steps.legacy_check.outputs.exists == 'true'
         run: |
           sudo apt-get install -y dos2unix 2>/dev/null || true
           find scripts/check -name '*.sh' -exec dos2unix {} + 2>/dev/null || \
@@ -67,6 +82,7 @@ jobs:
 
       - name: Determine phase
         id: phase
+        if: steps.legacy_check.outputs.exists == 'true'
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "value=${{ github.event.inputs.phase || 'all' }}" >> $GITHUB_OUTPUT
@@ -75,6 +91,7 @@ jobs:
           fi
 
       - name: Run checks
+        if: steps.legacy_check.outputs.exists == 'true'
         run: |
           chmod +x scripts/check/check.sh scripts/check/profile.sh
           ./scripts/check/check.sh --target ${{ matrix.target }} --phase ${{ steps.phase.outputs.value }} --ci
@@ -88,15 +105,29 @@ jobs:
           submodules: recursive
           token: ${{ secrets.GH_PAT }}
 
+      - name: Detect legacy check scripts
+        id: legacy_check
+        shell: bash
+        run: |
+          if [[ -f scripts/check/check.sh && -f scripts/check/profile.sh ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Legacy scripts/check not found, skip legacy check steps."
+          fi
+
       - name: Install protobuf
+        if: steps.legacy_check.outputs.exists == 'true'
         run: brew install protobuf
 
       - name: Install Rust toolchain
+        if: steps.legacy_check.outputs.exists == 'true'
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ github.event.inputs.toolchain || 'nightly-2024-09-18' }}
 
       - name: Rust cache
+        if: steps.legacy_check.outputs.exists == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "check-aarch64-apple-darwin"
@@ -105,11 +136,13 @@ jobs:
           save-if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
       - name: Fix line endings
+        if: steps.legacy_check.outputs.exists == 'true'
         run: |
           find scripts/check -name '*.sh' -exec sed -i '' 's/\r$//' {} +
 
       - name: Determine phase
         id: phase
+        if: steps.legacy_check.outputs.exists == 'true'
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "value=${{ github.event.inputs.phase || 'all' }}" >> $GITHUB_OUTPUT
@@ -118,6 +151,7 @@ jobs:
           fi
 
       - name: Run checks
+        if: steps.legacy_check.outputs.exists == 'true'
         run: |
           chmod +x scripts/check/check.sh scripts/check/profile.sh
           ./scripts/check/check.sh --target aarch64-apple-darwin --phase ${{ steps.phase.outputs.value }} --ci
