@@ -22,22 +22,27 @@ jobs:
   create-release:
     runs-on: ubuntu-22.04
     outputs:
-      VERSION: ${{ steps.set_version.outputs.VERSION }}
+      VERSION: ${{ steps.release_context.outputs.VERSION }}
+      DRAFT: ${{ steps.release_context.outputs.DRAFT }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Set Version
-        id: set_version
+      - name: Set release context
+        id: release_context
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             VERSION=${GITHUB_REF#refs/tags/}
+            DRAFT=true
           else
             VERSION=${{ inputs.tag_name }}
+            DRAFT=${{ inputs.draft }}
           fi
+
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "DRAFT=$DRAFT" >> $GITHUB_OUTPUT
 
       - name: Create release
         id: create_release
@@ -45,11 +50,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.set_version.outputs.VERSION }}
-          release_name: Release ${{ steps.set_version.outputs.VERSION }}
+          tag_name: ${{ steps.release_context.outputs.VERSION }}
+          release_name: Release ${{ steps.release_context.outputs.VERSION }}
           body: |
-            Release ${{ steps.set_version.outputs.VERSION }}
-          draft: true
+            Release ${{ steps.release_context.outputs.VERSION }}
+          draft: ${{ steps.release_context.outputs.DRAFT == 'true' }}
           prerelease: false
 
   release-mutant:
