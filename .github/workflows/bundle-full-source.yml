@@ -50,14 +50,17 @@ jobs:
         shell: bash
         run: |
           version="${TAG_NAME}"
-          root_dir="malefic-community-${version}-full-source"
+          root_dir="malefic"
+          source_dir="${root_dir}/source_code"
+          default_bundle_name="malefic-community-${version}-full-source.zip"
           bundle_name="${{ inputs.bundle_asset_name }}"
 
           if [[ -z "$bundle_name" ]]; then
-            bundle_name="${root_dir}.zip"
+            bundle_name="${default_bundle_name}"
           fi
 
           echo "ROOT_DIR=$root_dir" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_DIR=$source_dir" >> "$GITHUB_OUTPUT"
           echo "BUNDLE_NAME=$bundle_name" >> "$GITHUB_OUTPUT"
 
       - name: Download resource archive from release
@@ -130,8 +133,9 @@ jobs:
         shell: bash
         run: |
           root_dir="${{ steps.bundle_names.outputs.ROOT_DIR }}"
+          source_dir="${{ steps.bundle_names.outputs.SOURCE_DIR }}"
           bundle_name="${{ steps.bundle_names.outputs.BUNDLE_NAME }}"
-          stage_dir="dist/${root_dir}"
+          stage_dir="dist/${source_dir}"
 
           mkdir -p "$stage_dir"
           rsync -a ./ "$stage_dir"/ \
