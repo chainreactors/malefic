@@ -1,6 +1,11 @@
+#[cfg(feature = "exec")]
 pub mod exec;
+#[cfg(feature = "execute_shellcode")]
 pub mod execute_shellcode;
 
+#[cfg(target_os = "windows")]
+#[cfg(feature = "execute_armory")]
+pub mod execute_armory;
 #[cfg(target_os = "windows")]
 #[cfg(feature = "execute_assembly")]
 pub mod execute_assembly;
@@ -8,17 +13,14 @@ pub mod execute_assembly;
 #[cfg(feature = "execute_bof")]
 pub mod execute_bof;
 #[cfg(target_os = "windows")]
-#[cfg(feature = "execute_powershell")]
-pub mod execute_powershell;
-#[cfg(target_os = "windows")]
-#[cfg(feature = "execute_armory")]
-pub mod execute_armory;
+#[cfg(feature = "execute_dll")]
+pub mod execute_dll;
 #[cfg(target_os = "windows")]
 #[cfg(feature = "execute_exe")]
 pub mod execute_exe;
 #[cfg(target_os = "windows")]
-#[cfg(feature = "execute_dll")]
-pub mod execute_dll;
+#[cfg(feature = "execute_powershell")]
+pub mod execute_powershell;
 
 #[cfg(target_os = "windows")]
 #[cfg(feature = "execute_local")]
@@ -31,6 +33,7 @@ pub mod dllspawn;
 #[cfg(target_os = "windows")]
 #[cfg(feature = "inline_local")]
 pub mod inline_local;
+#[cfg(feature = "open")]
 pub(crate) mod open;
 
 #[cfg_attr(debug_assertions, derive(Debug))]

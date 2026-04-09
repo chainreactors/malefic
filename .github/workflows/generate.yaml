@@ -27,10 +27,10 @@ on:
         required: false
         default: 'full'
       malefic_config_yaml:
-        description: 'Malefic config (Base64-encoded content of config.yaml , will be masked in logs)'
+        description: 'Malefic config (Base64-encoded content of implant.yaml , will be masked in logs)'
         required: false
       autorun_yaml:
-        description: 'Autorun config (Base64-encoded content of autorun.yaml , will be masked in logs)'
+        description: 'Autorun config (Base64-encoded content of prelude.yaml , will be masked in logs)'
         required: false
 
 run-name: ${{ github.event.inputs.remark }}
@@ -61,7 +61,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
           submodules: recursive
           fetch-depth: 0
 
@@ -81,10 +81,10 @@ jobs:
             echo "arch=x86" >> $GITHUB_ENV
           fi
 
-      - name: Install Resource
+      - name: Setup resources
         run: |
-          wget https://github.com/chainreactors/malefic/releases/latest/download/resources.zip
-          unzip resources.zip -d resources
+          # Community edition: resources (prebuild .a/.lib) are already in the repository
+          ls resources/
 
       - name: Generate cache key
         id: mutant_cache_key
@@ -116,7 +116,7 @@ jobs:
           cp target/x86_64-unknown-linux-musl/release/malefic-mutant malefic-mutant-x86_64-unknown-linux-musl
           chmod +x malefic-mutant-x86_64-unknown-linux-musl
 
-      - name: Generate config.yaml
+      - name: Generate implant.yaml
         if : ${{ github.event.inputs.malefic_config_yaml != null }}
         run: |
           SECRET_CONFIG_YAML_CONTENT=$(jq -r '.inputs.malefic_config_yaml' $GITHUB_EVENT_PATH)
@@ -125,7 +125,7 @@ jobs:
           echo "SECRET_CONFIG_YAML_CONTENT=$SECRET_CONFIG_YAML_CONTENT" >> $GITHUB_ENV
           echo "$SECRET_CONFIG_YAML_CONTENT" | base64 -d > config.yaml
 
-      - name: Generate autorun.yaml
+      - name: Generate prelude.yaml
         if : ${{ github.event.inputs.autorun_yaml != null }}
         run: |
           SECRET_AUTORUN_YAML_CONTENT=$(jq -r '.inputs.autorun_yaml' $GITHUB_EVENT_PATH)

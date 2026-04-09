@@ -12,12 +12,13 @@ pub struct Upload {}
 impl Module for Upload {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for Upload {
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
     ) -> ModuleResult {
         let request = check_request!(receiver, Body::UploadRequest)?;
 
@@ -30,7 +31,7 @@ impl ModuleImpl for Upload {
             .open(target)?;
 
         if request.data.is_empty() {
-            // data为空，不执行任何操作或进行特定处理
+            // data is empty, do nothing or perform specific handling
         } else {
             file.write_all(&request.data)?;
             return Ok(TaskResult::new_with_ack(id, 0));

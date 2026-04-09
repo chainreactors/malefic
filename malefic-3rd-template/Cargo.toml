@@ -1,0 +1,78 @@
+[workspace]
+members = [
+    ".",
+    "malefic-3rd-rust",
+    "malefic-3rd-go",
+    "malefic-3rd-c",
+    "malefic-3rd-zig",
+    "malefic-3rd-nim",
+]
+
+[workspace.dependencies]
+malefic-proto = { git = "https://github.com/chainreactors/malefic", branch = "crates" }
+malefic-module = { git = "https://github.com/chainreactors/malefic", branch = "crates" }
+malefic-runtime = { git = "https://github.com/chainreactors/malefic", branch = "crates", default-features = false }
+malefic-common = { git = "https://github.com/chainreactors/malefic", branch = "crates", default-features = false, features = ["random_nanorand"] }
+
+futures = "0.3.31"
+prost = { git = "https://github.com/chainreactors/prost.git", branch = "skip-field-names-v0.14.1" }
+
+# Pin transitive deps to versions compatible with Rust 1.74 (avoid edition 2024 crates)
+crypto-common = "=0.1.6"
+bytes = "=1.10.1"
+hashbrown = "=0.15.5"
+getrandom = "=0.2.16"
+
+[package]
+name = "malefic-3rd-template"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "malefic_3rd"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["as_cdylib", "full"]
+as_cdylib = []
+
+full = ["rust_module", "golang_module", "c_module", "zig_module", "nim_module"]
+
+rust_module = ["malefic-3rd-rust"]
+golang_module = ["malefic-3rd-go"]
+golang_hackbrowser = ["malefic-3rd-go/go_hackbrowser"]
+c_module = ["malefic-3rd-c"]
+zig_module = ["malefic-3rd-zig"]
+nim_module = ["malefic-3rd-nim"]
+
+[dependencies]
+malefic-runtime = { workspace = true }
+malefic-3rd-rust = { path = "malefic-3rd-rust", optional = true }
+malefic-3rd-go = { path = "malefic-3rd-go", optional = true }
+malefic-3rd-c = { path = "malefic-3rd-c", optional = true }
+malefic-3rd-zig = { path = "malefic-3rd-zig", optional = true }
+malefic-3rd-nim = { path = "malefic-3rd-nim", optional = true }
+
+# Pin transitive deps
+crypto-common = { workspace = true }
+bytes = { workspace = true }
+hashbrown = { workspace = true }
+getrandom = { workspace = true }
+
+[dev-dependencies]
+libloading = "0.8"
+malefic-runtime = { workspace = true, features = ["host", "tokio"] }
+malefic-module = { workspace = true }
+malefic-proto = { workspace = true }
+malefic-common = { workspace = true, features = ["tokio"] }
+futures = { workspace = true }
+futures-channel = "0.3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+strip = true
+lto = "fat"
+codegen-units = 1

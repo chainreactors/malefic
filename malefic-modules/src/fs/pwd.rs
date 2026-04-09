@@ -1,6 +1,5 @@
 use crate::prelude::*;
 
-
 pub struct Pwd {}
 
 #[async_trait]
@@ -8,9 +7,15 @@ pub struct Pwd {}
 impl Module for Pwd {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for Pwd {
+#[obfuscate]
+impl malefic_module::ModuleImpl for Pwd {
     #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> ModuleResult {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let _ = check_request!(receiver, Body::Request)?;
 
         let mut response = Response::default();

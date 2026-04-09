@@ -1,0 +1,165 @@
+name: bundle-full-source
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to bundle'
+        required: true
+        default: 'v0.0.1'
+      resource_asset_name:
+        description: 'Existing release asset name to merge into resources/'
+        required: true
+        default: 'resources.zip'
+      merge_strategy:
+        description: 'How to handle duplicate files under resources/'
+        required: true
+        type: choice
+        default: 'fail'
+        options:
+          - fail
+          - overwrite
+      bundle_asset_name:
+        description: 'Optional override for the uploaded bundle asset name'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  bundle-full-source:
+    runs-on: ubuntu-22.04
+    env:
+      TAG_NAME: ${{ inputs.tag_name }}
+      RESOURCE_ASSET_NAME: ${{ inputs.resource_asset_name }}
+      MERGE_STRATEGY: ${{ inputs.merge_strategy }}
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Rust toolchain for cargo vendor
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Resolve bundle names
+        id: bundle_names
+        shell: bash
+        run: |
+          version="${TAG_NAME}"
+          root_dir="malefic-community-${version}-full-source"
+          bundle_name="${{ inputs.bundle_asset_name }}"
+
+          if [[ -z "$bundle_name" ]]; then
+            bundle_name="${root_dir}.zip"
+          fi
+
+          echo "ROOT_DIR=$root_dir" >> "$GITHUB_OUTPUT"
+          echo "BUNDLE_NAME=$bundle_name" >> "$GITHUB_OUTPUT"
+
+      - name: Download resource archive from release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          mkdir -p .release-assets
+          gh release download "$TAG_NAME" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "$RESOURCE_ASSET_NAME" \
+            --dir .release-assets \
+            --clobber
+
+          test -f ".release-assets/$RESOURCE_ASSET_NAME"
+
+      - name: Merge resource archive into resources/
+        shell: bash
+        run: |
+          mkdir -p resources .bundle-work/resources-unpacked
+          unzip -q ".release-assets/$RESOURCE_ASSET_NAME" -d .bundle-work/resources-unpacked
+
+          shopt -s dotglob nullglob
+          extracted=(.bundle-work/resources-unpacked/*)
+          merge_root=".bundle-work/resources-unpacked"
+
+          if [[ ${#extracted[@]} -eq 1 && -d "${extracted[0]}" && "$(basename "${extracted[0]}")" == "resources" ]]; then
+            merge_root="${extracted[0]}"
+          fi
+
+          if [[ "$MERGE_STRATEGY" == "fail" ]]; then
+            conflicts=()
+
+            while IFS= read -r -d '' file; do
+              rel_path="${file#${merge_root}/}"
+              if [[ -e "resources/${rel_path}" ]]; then
+                conflicts+=("${rel_path}")
+              fi
+            done < <(find "$merge_root" -type f -print0)
+
+            if [[ ${#conflicts[@]} -gt 0 ]]; then
+              echo "::error::Detected conflicting resource files:"
+              printf ' - %s\n' "${conflicts[@]:0:20}"
+              if [[ ${#conflicts[@]} -gt 20 ]]; then
+                echo " - ... and $(( ${#conflicts[@]} - 20 )) more"
+              fi
+              exit 1
+            fi
+          fi
+
+          rsync -a "${merge_root}/" resources/
+
+      - name: Vendor Rust dependencies
+        shell: bash
+        run: |
+          mkdir -p .bundle-work .cargo
+
+          cargo vendor --locked --versioned-dirs vendor \
+            --sync examples/ffi/rust/Cargo.toml \
+            --sync examples/starship/Cargo.toml \
+            --sync lib/rage/Cargo.toml \
+            --sync malefic-3rd-template/Cargo.toml \
+            --sync malefic-proxydll/Cargo.toml \
+            --sync malefic-starship/Cargo.toml \
+            > .bundle-work/cargo-vendor-config.toml
+
+          if [[ -f .cargo/config.toml ]]; then
+            cp .cargo/config.toml .bundle-work/base-config.toml
+            printf '\n' >> .bundle-work/base-config.toml
+            cat .bundle-work/base-config.toml .bundle-work/cargo-vendor-config.toml > .cargo/config.toml
+          else
+            cp .bundle-work/cargo-vendor-config.toml .cargo/config.toml
+          fi
+
+      - name: Build complete source archive
+        shell: bash
+        run: |
+          root_dir="${{ steps.bundle_names.outputs.ROOT_DIR }}"
+          bundle_name="${{ steps.bundle_names.outputs.BUNDLE_NAME }}"
+          stage_dir="dist/${root_dir}"
+
+          mkdir -p "$stage_dir"
+          rsync -a ./ "$stage_dir"/ \
+            --exclude '.git' \
+            --exclude '.bundle-work' \
+            --exclude '.release-assets' \
+            --exclude 'dist' \
+            --exclude 'target' \
+            --exclude '.DS_Store'
+
+          (
+            cd dist
+            zip -qry -y "$bundle_name" "$root_dir"
+          )
+
+      - name: Upload complete source archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          bundle_name="${{ steps.bundle_names.outputs.BUNDLE_NAME }}"
+          gh release upload "$TAG_NAME" \
+            "dist/${bundle_name}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber

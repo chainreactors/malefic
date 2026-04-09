@@ -1,0 +1,81 @@
+[package]
+name = "malefic-starship"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "malefic_starship"
+path = "src/lib.rs"
+
+[[bin]]
+name = "starship"
+path = "src/main.rs"
+
+[build-dependencies]
+cc = "1.0"
+bindgen = "0.72.1"
+syn = { version = "2", features = ["parsing", "full"] }
+quote = "1"
+# Pin tempfile to avoid getrandom 0.4 (requires edition 2024)
+tempfile = "=3.15.0"
+
+[dependencies]
+malefic-os-win = { path = "../malefic-crates/win" }
+malefic-codec = { path = "../malefic-crates/codec" }
+malefic-evader = { path = "../malefic-crates/evader", default-features = false }
+malefic-features = { path = "../malefic-crates/features" }
+
+[features]
+default = []
+
+# Debug output
+debug = ["malefic-evader/debug"]
+
+# Loader features (Community Edition: 2 basic templates)
+basic_template = []            # Basic template (no-op example)
+func_ptr = []                  # Function pointer self-injection
+
+# Encoding features - forwarded to malefic-codec
+enc_xor = ["malefic-codec/codec_xor"]
+enc_uuid = ["malefic-codec/codec_uuid"]
+enc_mac = ["malefic-codec/codec_mac"]
+enc_ipv4 = ["malefic-codec/codec_ipv4"]
+enc_base64 = ["malefic-codec/codec_base64"]
+enc_base45 = ["malefic-codec/codec_base45"]
+enc_base58 = ["malefic-codec/codec_base58"]
+enc_aes = ["malefic-codec/codec_aes"]
+enc_aes2 = ["malefic-codec/codec_aes2"]
+enc_des = ["malefic-codec/codec_des"]
+enc_chacha = ["malefic-codec/codec_chacha"]
+enc_rc4 = ["malefic-codec/codec_rc4"]
+
+# Embedded payload support
+embedded_payload = []          # Include payload from generated/ directory
+
+# ── Evasion features ──────────────────────────────────────────────────────────
+evader_anti_emu       = ["malefic-evader/evader_anti_emu"]
+evader_etw_pass       = ["malefic-evader/evader_etw_pass"]
+evader_god_speed      = ["malefic-evader/evader_god_speed"]
+evader_sleep_encrypt  = ["malefic-evader/evader_sleep_encrypt"]
+evader_anti_forensic  = ["malefic-evader/evader_anti_forensic"]
+evader_cfg_patch      = ["malefic-evader/evader_cfg_patch"]
+evader_api_untangle   = ["malefic-evader/evader_api_untangle"]
+evader_normal_api     = ["malefic-evader/evader_normal_api"]
+evader_full = [
+    "evader_anti_emu",
+    "evader_etw_pass",
+    "evader_god_speed",
+    "evader_sleep_encrypt",
+    "evader_anti_forensic",
+    "evader_cfg_patch",
+    "evader_api_untangle",
+    "evader_normal_api",
+]
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+panic = "abort"
+
+[workspace]

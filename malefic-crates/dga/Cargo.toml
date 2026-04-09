@@ -1,0 +1,12 @@
+[package]
+name = "malefic-dga"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+malefic-common = { workspace = true }
+malefic-config = { workspace = true }
+malefic-gateway = { workspace = true }

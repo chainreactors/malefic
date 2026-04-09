@@ -1,4 +1,5 @@
 use crate::config::GenerateArch;
+use crate::{log_info, log_success};
 use link_srdi::link_shellcode_rdi_from_bytes;
 use malefic_srdi::malefic_shellcode_rdi_from_bytes;
 
@@ -14,7 +15,7 @@ pub fn link_srdi_generator(
     function_name: &String,
     user_data: &[u8],
 ) -> anyhow::Result<()> {
-    println!("[+] Src PE file is {}", src_path);
+    log_info!("Loaded PE file {}", src_path);
     let src_path = std::path::Path::new(src_path);
     if !src_path.exists() {
         anyhow::bail!("src_path does not exist.");
@@ -26,10 +27,7 @@ pub fn link_srdi_generator(
     }
     let target_path = std::path::Path::new(target_path);
     std::fs::write(target_path, &data)?;
-    println!(
-        "[+] Successfully linked shellcode to {}",
-        target_path.display()
-    );
+    log_success!("Linked shellcode to {}", target_path.display());
 
     Ok(())
 }
@@ -41,7 +39,7 @@ pub fn malefic_srdi_generator(
     function_name: &str,
     user_data: &[u8],
 ) -> anyhow::Result<()> {
-    println!("[+] Src PE file is {}", src_path);
+    log_info!("Loaded PE file {}", src_path);
     let src_path = std::path::Path::new(src_path);
     if !src_path.exists() {
         anyhow::bail!("src_path does not exist.");
@@ -56,9 +54,6 @@ pub fn malefic_srdi_generator(
     };
     let target_path = std::path::Path::new(target_path);
     std::fs::write(target_path, &data)?;
-    println!(
-        "[+] Successfully generated malefic shellcode to {}",
-        target_path.display()
-    );
+    log_success!("Generated shellcode to {}", target_path.display());
     Ok(())
 }

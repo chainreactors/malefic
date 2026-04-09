@@ -1,0 +1,42 @@
+
+[package]
+name = "age-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+cookie-factory = "0.3"
+
+[dependencies.age-core]
+path = "../age-core"
+[dependencies.age]
+path = "../age"
+[dependencies.libfuzzer-sys]
+git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "age_stanza"
+path = "fuzz_targets/age_stanza.rs"
+
+[[bin]]
+name = "header"
+path = "fuzz_targets/header.rs"
+
+[[bin]]
+name = "decrypt"
+path = "fuzz_targets/decrypt.rs"
+
+[[bin]]
+name = "decrypt_buffered"
+path = "fuzz_targets/decrypt_buffered.rs"
+test = false
+doc = false

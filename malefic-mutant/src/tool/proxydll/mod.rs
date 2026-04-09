@@ -4,7 +4,9 @@ pub mod packer;
 
 use crate::{log_step, log_success};
 pub use generator::update_proxydll;
-pub use packer::{ProxyDllPacker, ProxyDllResource};
+pub use packer::ProxyDllPacker;
+#[allow(unused_imports)]
+pub use packer::ProxyDllResource;
 
 /// Process ProxyDLL resources after build completion
 pub fn process_proxydll_resources(binary_path: &str, _target: &str) -> anyhow::Result<()> {
@@ -99,6 +101,24 @@ pub fn process_proxydll_resources(binary_path: &str, _target: &str) -> anyhow::R
                     "Copied generated DLL as {} to output directory",
                     proxy_dll_name
                 );
+
+                // Include spite.bin if configured (for external_spite mode)
+                if proxydll_config.include_spite {
+                    let spite_path = Path::new(&proxydll_config.spite_path);
+                    if spite_path.exists() {
+                        let spite_dest = output_dir.join("spite.bin");
+                        std::fs::copy(spite_path, &spite_dest)?;
+                        log_step!(
+                            "Included spite.bin from {} for external_spite mode",
+                            proxydll_config.spite_path
+                        );
+                    } else {
+                        log_step!(
+                            "Warning: spite.bin not found at {}, skipping",
+                            proxydll_config.spite_path
+                        );
+                    }
+                }
 
                 // Pack output directory into program.zip
                 let zip_path = packer.pack_output_directory(output_dir)?;

@@ -1,0 +1,68 @@
+[package]
+name = "malefic-transport"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["transport_tcp", "tls_rustls"]
+bind = []
+tcp = []
+tls_rustls = ["futures-rustls", "rustls", "rustls-pemfile", "webpki-roots"]
+tls_native = ["async-native-tls"]
+tls = ["tls_rustls"]
+mtls = ["tls_rustls"]
+proxy = ["httparse", "url"]
+dga = ["malefic-dga"]
+transport_http = ["httparse", "tcp"]
+transport_tcp = ["tcp"]
+transport_rem = ["malefic-rem/rem", "malefic-rem/rem_static", "dep:md-5"]
+
+# Runtime (needed for spawn)
+async-std = ["malefic-common/async-std"]
+tokio = ["malefic-common/tokio"]
+smol = ["malefic-common/smol"]
+
+[dependencies]
+cfg-if = { workspace = true }
+async-trait = { workspace = true }
+async-net = { workspace = true }
+futures = { workspace = true }
+futures-timer = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+base64 = { workspace = true }
+
+httparse = { version = "1.8", optional = true }
+
+# tls (rustls backend)
+futures-rustls = { version = "0.26", optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"], optional = true }
+rustls-pemfile = { version = "2", optional = true }
+webpki-roots = { version = "0.26", optional = true }
+
+# tls (native backend)
+async-native-tls = { version = "0.5", optional = true }
+
+# proxy
+url = { workspace = true, optional = true }
+
+# md5 for rem session id (reuses existing digest crate)
+md-5 = { version = "0.10", optional = true }
+
+malefic-common = { workspace = true }
+malefic-gateway = { workspace = true }
+malefic-proto = { workspace = true }
+malefic-crypto = { workspace = true, default-features = true }
+malefic-config = { workspace = true }
+malefic-rem = { workspace = true, optional = true }
+malefic-dga = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time", "sync"] }
+# E2E test server needs these crates directly
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pemfile = "2"
+futures-rustls = "0.26"
+async-net = { workspace = true }
+futures = { workspace = true }
+malefic-config = { workspace = true }

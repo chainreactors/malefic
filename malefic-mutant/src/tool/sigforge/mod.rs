@@ -1,3 +1,4 @@
+pub mod carbon_copy;
 pub mod extract;
 pub mod inject;
 pub mod remove;
