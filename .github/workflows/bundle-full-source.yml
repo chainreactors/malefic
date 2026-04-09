@@ -115,11 +115,11 @@ jobs:
         run: |
           mkdir -p .bundle-work .cargo
 
+          if [[ ! -f malefic-proxydll/Cargo.lock ]]; then
+            cargo generate-lockfile --manifest-path malefic-proxydll/Cargo.toml
+          fi
+
           cargo vendor --locked --versioned-dirs vendor \
-            --sync examples/ffi/rust/Cargo.toml \
-            --sync examples/starship/Cargo.toml \
-            --sync lib/rage/Cargo.toml \
-            --sync malefic-3rd-template/Cargo.toml \
             --sync malefic-proxydll/Cargo.toml \
             --sync malefic-starship/Cargo.toml \
             > .bundle-work/cargo-vendor-config.toml
