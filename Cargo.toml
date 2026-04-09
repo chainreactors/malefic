@@ -1,0 +1,170 @@
+cargo-features = ["profile-rustflags"]
+
+[workspace]
+resolver = "2"
+members = [
+    "malefic",
+    "malefic-modules",
+    # malefic-macro lives in malefic-crates/macro
+    "malefic-mutant",
+    "malefic-prelude",
+
+    "malefic-pulse",
+    "malefic-3rd",
+    "malefic-crates/stub",
+    "malefic-crates/crypto",
+    "malefic-crates/module",
+    "malefic-crates/config",
+    "malefic-crates/transport",
+    "malefic-crates/scheduler",
+    "malefic-crates/dga",
+    "malefic-crates/cron",
+    "malefic-crates/macro",
+    "malefic-crates/proto",
+    "malefic-crates/manager",
+    "malefic-crates/common",
+    "malefic-crates/process",
+    "malefic-crates/net",
+    "malefic-crates/sysinfo",
+    "malefic-crates/loader",
+    "malefic-crates/codec",
+    "malefic-crates/rem",
+    "malefic-crates/win",
+    "malefic-crates/autorun",
+    "malefic-crates/guardrail",
+    "malefic-crates/gateway",
+    "malefic-crates/features",
+    "malefic-crates/evader",
+    "malefic-crates/runtime",
+    "malefic-crates/srdi",
+]
+
+exclude = [
+    "malefic-proxydll",
+    "malefic-starship",
+    "lib/rage",
+]
+
+[workspace.dependencies]
+# Core async and error handling
+anyhow = "1.0.89"
+thiserror = "2"
+futures = "0.3.31"
+futures-timer = "3.0.3"
+futures-channel = "0.3.31"
+async-trait = "0.1.89"
+
+tokio = "1"
+async-std = { version = "1.13.0", features = ["unstable", "attributes"] }
+smol = "2.0.2"
+async-net = "2.0.0"
+async-process = "2.3"
+
+# Utilities
+nanorand = { version = "0.7.0", features = ["wyrand"] }
+obfstr = "0.4.3"
+const-random = "0.1"
+cfg-if = "1.0.0"
+rand = "0.8.5"
+getrandom = "0.2"
+zeroize = "1"
+
+# Serialization
+prost = { git = "https://github.com/chainreactors/prost.git", branch = "skip-field-names-v0.14.1" }
+prost-build = { git = "https://github.com/chainreactors/prost.git", branch = "skip-field-names-v0.14.1" }
+serde = { version = "1.0.210", features = ["derive"] }
+base64 = "0.22"
+
+# Macros
+strum = "0.26.3"
+strum_macros = "0.26.4"
+proc-macro2 = "1.0"
+
+# Time and scheduling
+chrono = {version="0.4", default-features = false, features =["clock"]}
+
+# Crypto and hashing (2+ uses)
+aes = "0.8.4"
+ctr = "0.9.2"
+hmac = "0.12"
+sha2 = {version="0.10.9",default-features = false}
+subtle = "2.6"
+age = { path = "lib/rage/age" }
+
+regex = "1.11.2"
+
+tar = "0.4"
+
+url = "2.5.4"
+
+libc = "0.2"
+nix = "0.26"
+byteorder = "1.4"
+
+windows = "0.58.0"
+windows-core = "0.58.0"
+
+embed-resource = "3.0.5"
+bindgen = "0.72.1"
+syn = { version = "2", features = ["full"] }
+quote = "1.0"
+
+# Internal crates
+malefic-stub = { path = "malefic-crates/stub", default-features = false }
+malefic-crypto = { path = "malefic-crates/crypto", default-features = false }
+malefic-proto = { path = "malefic-crates/proto" }
+malefic-module = { path = "malefic-crates/module" }
+malefic-common = { path = "malefic-crates/common", default-features = false, features = ["random_nanorand"] }
+malefic-config = { path = "malefic-crates/config" }
+malefic-features = { path = "malefic-crates/features" }
+malefic-cron = { path = "malefic-crates/cron" }
+malefic-macro = { path = "malefic-crates/macro" }
+malefic-process = { path = "malefic-crates/process" }
+malefic-net = { path = "malefic-crates/net" }
+malefic-sysinfo = { path = "malefic-crates/sysinfo" }
+malefic-loader = { path = "malefic-crates/loader", default-features = false }
+malefic-codec = { path = "malefic-crates/codec" }
+malefic-rem = { path = "malefic-crates/rem" }
+malefic-dga = { path = "malefic-crates/dga" }
+malefic-transport = { path = "malefic-crates/transport", default-features = false }
+malefic-scheduler = { path = "malefic-crates/scheduler", default-features = false }
+malefic-manager = { path = "malefic-crates/manager", default-features = false }
+malefic-autorun = { path = "malefic-crates/autorun" }
+malefic-guardrail = { path = "malefic-crates/guardrail" }
+malefic-gateway = { path = "malefic-crates/gateway" }
+malefic-os-win = { path = "malefic-crates/win", default-features = false }
+malefic-evader = { path = "malefic-crates/evader", default-features = false }
+malefic-runtime = { path = "malefic-crates/runtime", default-features = false }
+malefic-modules = { path = "malefic-modules" }
+malefic-3rd = { path = "malefic-3rd" }
+malefic-srdi = { path = "malefic-crates/srdi" }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+strip = true
+lto = false  # prebuild mode requires lto=false (prebuild .a already LTO'd internally)
+codegen-units = 1
+incremental = false
+rustflags = [
+    "-Z", "trim-diagnostic-paths",
+    "--cfg", "hide_path",
+]
+
+[patch.crates-io]
+async-net = { path = "lib/malio/async-net" }
+async-process = { path = "lib/malio/async-process" }
+async-channel = { path = "lib/malio/async-channel" }
+async-executor = { path = "lib/malio/async-executor" }
+async-fs = { path = "lib/malio/async-fs" }
+async-io = { path = "lib/malio/async-io" }
+async-task = { path = "lib/malio/async-task" }
+blocking = { path = "lib/malio/blocking" }
+parking = { path = "lib/malio/parking" }
+# polling = { path = "lib/malio/polling" }

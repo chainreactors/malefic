@@ -1,0 +1,18 @@
+[package]
+name = "malefic-gateway"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+
+# Build type (unified declaration — os-* crates handle actual implementation)
+source = []
+prebuild = []
+
+# Version
+community = []
+
+[dependencies]
+malefic-macro = { path = "../macro", default-features = false }
+nanorand = { workspace = true }

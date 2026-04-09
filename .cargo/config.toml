@@ -1,0 +1,36 @@
+[build]
+jobs=8
+
+
+[target.x86_64-pc-windows-gnu]
+rustflags = [
+    "-C", "link-arg=-s",
+    "-C", "link-arg=-Wl,--gc-sections",
+]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C","link-arg=/DEBUG:NONE",
+    "-C", "target-feature=+crt-static",
+]
+
+[target.i686-pc-windows-msvc]
+rustflags = [
+    "-C", "link-args=/SUBSYSTEM:CONSOLE,5.01",
+]
+
+[target.'cfg(target_os = "macos")']
+rustflags = [
+    "-C", "link-arg=-dead_strip"
+]
+
+[target.'cfg(target_os = "linux")']
+rustflags = [
+    "-C", "link-arg=-Wl,--gc-sections",
+    "-C", "link-arg=-Wl,--strip-all",
+]
+
+# [target.'cfg(target_os = "windows")']
+# rustflags = [
+#     "-C", "target-feature=+crt-static",
+# ]

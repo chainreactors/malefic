@@ -1,0 +1,13 @@
+[package]
+name = "malefic-3rd-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "malefic_3rd_ffi"
+path = "src/lib.rs"
+
+[dependencies]
+malefic-proto = { workspace = true }
+malefic-runtime = { workspace = true }
+prost = { workspace = true }

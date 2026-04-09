@@ -1,0 +1,21 @@
+[package]
+name = "malefic-autorun"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+external_spite = []
+embed = []
+
+[dependencies]
+anyhow = { workspace = true }
+futures = { workspace = true }
+malefic-gateway = { workspace = true }
+
+malefic-config = { workspace = true }
+malefic-common = { workspace = true }
+malefic-manager = { workspace = true, default-features = true }
+malefic-modules = { workspace = true }
+malefic-proto = { workspace = true, features = ["crypto_aes"] }
+malefic-crypto = { workspace = true, default-features = true }

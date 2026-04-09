@@ -1,0 +1,48 @@
+bin.name = "rage"
+args = "--help"
+env.add.LC_ALL = "it"
+stdout = """
+Utilizzo: rage[EXE] [--encrypt] (-r DESTINATARIO | -R PERCORSO)... [-i IDENTITÀ] [-a] [-o OUTPUT] [INPUT]
+       rage[EXE] [--encrypt] --passphrase [-a] [-o OUTPUT] [INPUT]
+       rage[EXE] --decrypt [-i IDENTITÀ] [-o OUTPUT] [INPUT]
+
+Argomenti:
+  [INPUT]  Posizione di un file di input.
+
+Opzioni:
+  -h, --help                        Presenta questo messaggio e esci.
+  -V, --version                     Presenta la versione e esci.
+  -e, --encrypt                     Cifra l'input (il default).
+  -d, --decrypt                     Decifra l'input.
+  -p, --passphrase                  Cifra con una passphrase invece che con i destinatari.
+      --max-work-factor <WF>        Fattore di complessità massima per decifrare passphrase.
+  -a, --armor                       Codifica l'output della cifratura in PEM.
+  -r, --recipient <DESTINATARIO>    Cifra al DESTINATARIO specificato. Può essere ripetuto.
+  -R, --recipients-file <PERCORSO>  Cifra ai destinatari elencati in PERCORSO. Può essere ripetuto.
+  -i, --identity <IDENTITÀ>         Usa il file IDENTITÀ. Può essere ripetuto.
+  -j <NOME-PLUGIN>                  Usa age-plugin-NOME-PLUGIN in modalità di default come identità.
+  -o, --output <OUTPUT>             Scrivi l'output al file OUTPUT.
+
+INPUT ha come valore predefinito lo standard input, e OUTPUT ha come
+valore predefinito lo standard output.
+
+DESTINATARIO può essere:
+- Una chiave pubblica age, come generata da rage-keygen[EXE] ("age1...").
+- Una chiave pubblica SSH ("ssh-ed25519 AAAA...", "ssh-rsa AAAA...").
+
+PERCORSO è il percorso ad un file contenente dei destinatari age,
+uno per riga (ignorando i commenti che iniziano con "#" e le righe vuote).
+
+IDENTITÀ è il percorso ad un file contenente identità age, una per
+riga (ignorando i commenti che iniziano con "#" e le righe vuote), o ad un
+file contenente una chiave SSH.
+I file di identità possono essere cifrati con age e una passphrase.
+Possono essere fornite più identità, quelle inutilizzate verranno ignorate.
+
+Esempio:
+  $ rage-keygen[EXE] -o key.txt
+  Chiave pubblica: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+  $ tar cvz ~/data | rage[EXE] -r age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p > data.tar.gz.age
+  $ rage[EXE] -d -i key.txt -o data.tar.gz data.tar.gz.age
+"""
+stderr = ""

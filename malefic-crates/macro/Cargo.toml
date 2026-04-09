@@ -1,0 +1,42 @@
+[package]
+name = "malefic-macro"
+version = "0.1.1"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[features]
+default = []
+
+# Internal: any obf feature activates the obf/ module
+_obf_impl = []
+
+# Literal encryption: obf_string!, obfstr!, obf_bytes!, obf_int!
+# and LiteralObfuscator in #[obfuscate] / lazy_static!
+literal_obf = ["_obf_impl", "dep:aes", "dep:ctr", "dep:const-random"]
+
+# Control-flow flattening: flow!, obf_stmts!
+# and #[obfuscate(flow)] parameter
+control_flow = ["_obf_impl", "dep:const-random"]
+
+# Junk code injection: #[junk], #[obfuscate(junk = N)]
+junk_insertion = ["_obf_impl", "dep:const-random"]
+
+# Struct field encryption: #[derive(ObfuscateBox)]
+struct_obf = ["_obf_impl"]
+
+# Encrypted file embedding: include_encrypted!
+embed_encrypt = ["_obf_impl", "dep:aes", "dep:ctr", "dep:const-random"]
+
+# In-place XOR struct obfuscation: #[derive(Obfuscate)]
+inplace_obf = ["_obf_impl"]
+
+[dependencies]
+syn = { workspace = true, features = ["visit-mut", "visit"] }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }
+const-random = { workspace = true, optional = true }
+rand = { workspace = true, features = ["small_rng"] }
+aes = { workspace = true, optional = true }
+ctr = { workspace = true, optional = true }

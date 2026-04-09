@@ -1,0 +1,89 @@
+[package]
+name = "malefic"
+version = "0.1.1"
+edition = "2021"
+build = "build.rs"
+
+[lib]
+name = "malefic_lib"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["addon", "beacon", "crypto_aes", "hot_load", "register_info", "transport_tcp"]
+
+beacon = []
+bind = ["malefic-transport/bind"]
+addon = ["malefic-stub/addon"]
+hot_load = ["malefic-stub/hot_load"]
+register_info = ["malefic-stub/register_info"]
+
+secure = ["malefic-stub/secure"]
+
+# Random backend override (workspace default is random_nanorand)
+random_getrandom = ["malefic-common/random_getrandom"]
+
+anti_sandbox = ["malefic-evader/anti_sandbox"]
+anti_vm = ["malefic-evader/anti_vm"]
+sleep_obf = []
+
+# guardrail
+guardrail = ["malefic-guardrail"]
+
+# transport protocol
+transport_tcp = ["malefic-transport/transport_tcp"]
+transport_http = ["malefic-transport/transport_http"]
+transport_rem = ["malefic-transport/transport_rem", "dep:md-5"]
+tls = ["malefic-transport/tls"]
+tls_rustls = ["malefic-transport/tls_rustls"]
+tls_native = ["malefic-transport/tls_native"]
+mtls = ["malefic-transport/mtls"]
+proxy = ["malefic-transport/proxy"]
+dga = ["malefic-transport/dga"]
+
+# crypto (propagate to proto)
+crypto_aes = ["malefic-proto/crypto_aes"]
+crypto_chacha20 = ["malefic-proto/crypto_chacha20"]
+crypto_xor = ["malefic-proto/crypto_xor"]
+
+# 3rd-party modules
+malefic-3rd = ["malefic-stub/malefic-3rd"]
+
+[dependencies]
+async-trait = { workspace = true }
+futures = { workspace = true }
+futures-timer = { workspace = true }
+malefic-gateway = { workspace = true }
+malefic-features = { workspace = true }
+
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+md-5 = { version = "0.10", optional = true }
+
+malefic-stub = { workspace = true, default-features = false }
+malefic-proto = { workspace = true }
+malefic-config = { workspace = true }
+malefic-common = { workspace = true, default-features = false }
+malefic-guardrail = { workspace = true, optional = true }
+malefic-sysinfo = { workspace = true }
+malefic-scheduler = { workspace = true }
+malefic-transport = { workspace = true, default-features = false, features = ["tokio"] }
+malefic-autorun = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+malefic-os-win = { workspace = true, default-features = false }
+malefic-evader = { workspace = true, default-features = false }
+
+[build-dependencies]
+embed-resource = { workspace = true }
+
+[dev-dependencies]
+async-net = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+# TLS mock server support
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pemfile = "2"
+futures-rustls = "0.26"
+# HMAC signature verification in security tests
+hmac = { workspace = true }
+sha2 = { workspace = true }

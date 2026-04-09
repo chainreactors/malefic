@@ -1,0 +1,19 @@
+[package]
+name = "malefic-module"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+ffi = ["prost"]
+
+[dependencies]
+malefic-proto = { workspace = true }
+malefic-common = { workspace = true }
+malefic-gateway = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+futures-channel = { workspace = true }
+prost = { workspace = true, optional = true }

@@ -1,0 +1,45 @@
+[package]
+name = "malefic-3rd"
+version = "0.1.1"
+edition = "2021"
+
+[lib]
+name = "malefic_3rd"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["full", "as_module_dll"]
+full = ["rem", "curl", "pty"]
+
+as_module_dll = ["malefic-module/ffi"]
+host_bridge = ["malefic-features/runtime_tokio"]
+curl = ["dep:ureq"]
+memory_dial = []
+rem_dial = []
+load_rem = []
+rem = ["malefic-rem/rem", "malefic-rem/rem_static", "rem_dial", "memory_dial"]
+pty = ["portable-pty", "futures-timer"]
+
+[dependencies]
+malefic-gateway = { workspace = true }
+malefic-features = { workspace = true }
+malefic-proto = { workspace = true }
+malefic-module = { workspace = true }
+malefic-runtime = { workspace = true, optional = true }
+malefic-rem = { workspace = true, optional = true }
+
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+futures = { workspace = true }
+futures-channel = { workspace = true }
+futures-timer = { workspace = true, optional = true }
+
+ureq = { version = "2.12", default-features = false, optional = true }
+portable-pty = { version = "0.8", optional = true }
+
+[dev-dependencies]
+ureq = "2.12"
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }

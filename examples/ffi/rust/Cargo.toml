@@ -1,0 +1,15 @@
+[package]
+name = "runpe_example"
+version = "0.1.0"
+edition = "2021"
+
+# 独立包，不属于父工作空间
+[workspace]
+
+[[bin]]
+name = "runpe_example"
+path = "runpe_example.rs"
+
+[dependencies]
+
+[build-dependencies]

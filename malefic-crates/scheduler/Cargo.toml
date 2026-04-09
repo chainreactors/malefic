@@ -1,0 +1,19 @@
+[package]
+name = "malefic-scheduler"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+
+[dependencies]
+malefic-cron = { workspace = true }
+malefic-common = { workspace = true }
+malefic-config = { workspace = true }
+malefic-proto = { workspace = true }
+malefic-crypto = { workspace = true, default-features = true }
+malefic-module = { workspace = true }
+futures = { workspace = true }
+futures-timer = { workspace = true }
+anyhow = { workspace = true }
+prost = { workspace = true }
