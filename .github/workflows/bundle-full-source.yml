@@ -11,6 +11,10 @@ on:
         description: 'Existing release asset name to merge into resources/'
         required: true
         default: 'resources.zip'
+      mutant_asset_name:
+        description: 'Existing Linux malefic-mutant release asset to bundle as source_code/bin/malefic-mutant'
+        required: true
+        default: 'malefic-mutant-x86_64-unknown-linux-musl'
       merge_strategy:
         description: 'How to handle duplicate files under resources/'
         required: true
@@ -33,6 +37,7 @@ jobs:
     env:
       TAG_NAME: ${{ inputs.tag_name }}
       RESOURCE_ASSET_NAME: ${{ inputs.resource_asset_name }}
+      MUTANT_ASSET_NAME: ${{ inputs.mutant_asset_name }}
       MERGE_STRATEGY: ${{ inputs.merge_strategy }}
     steps:
       - name: Checkout tagged source
@@ -112,6 +117,22 @@ jobs:
           fi
 
           rsync -a "${merge_root}/" resources/
+
+      - name: Bundle Linux malefic-mutant binary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          mkdir -p .release-assets bin
+          gh release download "$TAG_NAME" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "$MUTANT_ASSET_NAME" \
+            --dir .release-assets \
+            --clobber
+
+          test -f ".release-assets/$MUTANT_ASSET_NAME"
+          cp ".release-assets/$MUTANT_ASSET_NAME" bin/malefic-mutant
+          chmod +x bin/malefic-mutant
 
       - name: Vendor Rust dependencies
         shell: bash
