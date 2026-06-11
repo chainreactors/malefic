@@ -1,0 +1,229 @@
+# nanopb options for module.proto (full)
+# Controls max sizes for static allocation (no malloc needed)
+# map<> fields use callbacks by default in nanopb — no options needed for them.
+
+# --- Core messages used by C module handler ---
+malefic.Request.name                    max_size:256
+malefic.Request.input                   max_size:256
+malefic.Request.args                    max_size:256, max_count:32
+malefic.Request.bin                     max_size:4096
+
+malefic.Response.output                 max_size:4096
+malefic.Response.error                  max_size:256
+malefic.Response.array                  max_size:256, max_count:32
+
+# --- Registration / System ---
+malefic.Register.name                   max_size:256
+malefic.Register.proxy                  max_size:256
+malefic.Register.module                 max_size:256, max_count:64
+malefic.Register.addons                 max_count:32
+
+malefic.Secure.key                      max_size:256
+malefic.Secure.type                     max_size:64
+malefic.Secure.public_key               max_size:256
+
+malefic.KeyExchangeRequest.public_key   max_size:256
+malefic.KeyExchangeRequest.signature    max_size:256
+malefic.KeyExchangeRequest.nonce        max_size:64
+malefic.KeyExchangeResponse.public_key  max_size:256
+
+malefic.Init.data                       max_size:4096
+
+malefic.SysInfo.filepath                max_size:256
+malefic.SysInfo.workdir                 max_size:256
+
+malefic.Os.name                         max_size:128
+malefic.Os.version                      max_size:128
+malefic.Os.release                      max_size:128
+malefic.Os.arch                         max_size:32
+malefic.Os.username                     max_size:128
+malefic.Os.hostname                     max_size:128
+malefic.Os.locale                       max_size:64
+malefic.Os.clr_version                  max_size:64, max_count:8
+
+malefic.Process.name                    max_size:128
+malefic.Process.owner                   max_size:128
+malefic.Process.arch                    max_size:32
+malefic.Process.path                    max_size:256
+malefic.Process.args                    max_size:256
+malefic.Process.uid                     max_size:64
+
+malefic.Timer.expression                max_size:128
+
+# --- File ---
+malefic.FileInfo.Name                   max_size:256
+malefic.FileInfo.Link                   max_size:256
+
+malefic.LsResponse.Path                 max_size:256
+malefic.LsResponse.Files                max_count:128
+
+malefic.DriveInfo.path                  max_size:64
+malefic.DriveInfo.drive_type            max_size:64
+malefic.DriveInfo.file_system           max_size:32
+malefic.EnumDriversResponse.drives      max_count:16
+
+# --- Process ---
+malefic.SacrificeProcess.argue          max_size:256
+malefic.PsResponse.processes            max_count:512
+
+# --- Exec ---
+malefic.ExecRequest.path                max_size:256
+malefic.ExecRequest.args                max_size:256, max_count:32
+malefic.ExecResponse.stdout             max_size:4096
+malefic.ExecResponse.stderr             max_size:4096
+
+malefic.BinaryResponse.data             max_size:4096
+malefic.BinaryResponse.message          max_size:4096
+malefic.BinaryResponse.err              max_size:256
+
+# --- Modules / Addons ---
+malefic.Modules.modules                 max_size:256, max_count:64
+malefic.Addons.addons                   max_count:32
+malefic.Addon.name                      max_size:128
+malefic.Addon.type                      max_size:64
+malefic.Addon.depend                    max_size:128
+
+malefic.LoadModule.bundle               max_size:256
+malefic.LoadModule.bin                   max_size:4096
+malefic.LoadAddon.name                  max_size:128
+malefic.LoadAddon.type                  max_size:64
+malefic.LoadAddon.depend                max_size:128
+malefic.LoadAddon.bin                   max_size:4096
+
+malefic.ExecuteAddon.addon              max_size:128
+
+malefic.ExecuteBinary.name              max_size:128
+malefic.ExecuteBinary.bin               max_size:4096
+malefic.ExecuteBinary.type              max_size:64
+malefic.ExecuteBinary.process_name      max_size:128
+malefic.ExecuteBinary.args              max_size:256, max_count:32
+malefic.ExecuteBinary.entry_point       max_size:128
+malefic.ExecuteBinary.data              max_size:4096
+malefic.ExecuteBinary.path              max_size:256
+malefic.ExecuteBinary.context           max_size:256
+
+malefic.ExecuteCommand.command          max_size:256
+
+# --- Upload / Download ---
+malefic.UploadRequest.name              max_size:256
+malefic.UploadRequest.target            max_size:256
+malefic.UploadRequest.data              max_size:4096
+
+malefic.DownloadRequest.path            max_size:256
+malefic.DownloadRequest.name            max_size:256
+malefic.DownloadResponse.checksum       max_size:128
+malefic.DownloadResponse.content        max_size:4096
+
+# --- Network ---
+malefic.NetInterface.name               max_size:128
+malefic.NetInterface.mac                max_size:32
+malefic.NetInterface.ip_addresses       max_size:64, max_count:16
+malefic.IfconfigResponse.net_interfaces max_count:32
+
+malefic.SockTabEntry.local_addr         max_size:64
+malefic.SockTabEntry.remote_addr        max_size:64
+malefic.SockTabEntry.skState            max_size:32
+malefic.SockTabEntry.pid                max_size:16
+malefic.SockTabEntry.protocol           max_size:16
+malefic.NetstatResponse.socks           max_count:256
+
+malefic.CurlRequest.url                 max_size:512
+malefic.CurlRequest.method              max_size:16
+malefic.CurlRequest.body                max_size:4096
+malefic.CurlRequest.hostname            max_size:256
+
+malefic.ChownRequest.path               max_size:256
+malefic.ChownRequest.uid                max_size:64
+malefic.ChownRequest.gid                max_size:64
+
+# --- Block / ACK ---
+malefic.Block.content                   max_size:4096
+
+# --- Registry ---
+malefic.RegistryRequest.type            max_size:64
+malefic.Registry.hive                   max_size:64
+malefic.Registry.path                   max_size:256
+malefic.Registry.key                    max_size:256
+malefic.RegistryWriteRequest.hive       max_size:64
+malefic.RegistryWriteRequest.path       max_size:256
+malefic.RegistryWriteRequest.key        max_size:256
+malefic.RegistryWriteRequest.string_value max_size:256
+malefic.RegistryWriteRequest.byte_value max_size:4096
+
+# --- Task Schedule ---
+malefic.TaskScheduleRequest.type        max_size:64
+malefic.TaskSchedule.name               max_size:256
+malefic.TaskSchedule.path               max_size:256
+malefic.TaskSchedule.executable_path    max_size:256
+malefic.TaskSchedule.start_boundary     max_size:64
+malefic.TaskSchedule.description        max_size:256
+malefic.TaskSchedule.last_run_time      max_size:64
+malefic.TaskSchedule.next_run_time      max_size:64
+malefic.TaskSchedulesResponse.schedules max_count:64
+
+# --- Service ---
+malefic.ServiceRequest.type             max_size:64
+malefic.ServiceConfig.name              max_size:256
+malefic.ServiceConfig.display_name      max_size:256
+malefic.ServiceConfig.executable_path   max_size:256
+malefic.ServiceConfig.account_name      max_size:128
+malefic.ServicesResponse.services       max_count:128
+
+# --- WMI ---
+malefic.WmiQueryRequest.namespace       max_size:256
+malefic.WmiQueryRequest.args            max_size:256, max_count:16
+malefic.WmiMethodRequest.namespace      max_size:256
+malefic.WmiMethodRequest.class_name     max_size:128
+malefic.WmiMethodRequest.method_name    max_size:128
+
+# --- RunAs ---
+malefic.RunAsRequest.username           max_size:128
+malefic.RunAsRequest.domain             max_size:128
+malefic.RunAsRequest.password           max_size:256
+malefic.RunAsRequest.program            max_size:256
+malefic.RunAsRequest.args               max_size:256
+
+# --- Inject / GetSystem ---
+malefic.GetSystem.bin                   max_size:4096
+malefic.Inject.bin                      max_size:4096
+
+# --- Pipe ---
+malefic.Pipe.name                       max_size:128
+malefic.Pipe.target                     max_size:128
+malefic.Pipe.data                       max_size:4096
+malefic.PipeRequest.type                max_size:64
+
+# --- Switch ---
+malefic.Switch.urls                     max_size:256, max_count:16
+
+# --- Task ---
+malefic.TaskCtrl.op                     max_size:64
+malefic.TaskListResponse.tasks          max_count:128
+
+# --- FFmpeg ---
+malefic.FFmpegRequest.action            max_size:64
+malefic.FFmpegRequest.device_name       max_size:128
+malefic.FFmpegRequest.output_format     max_size:32
+malefic.FFmpegRequest.output_path       max_size:256
+malefic.FFmpegRequest.time              max_size:32
+
+# --- PTY ---
+malefic.PtyRequest.type                 max_size:32
+malefic.PtyRequest.session_id           max_size:64
+malefic.PtyRequest.shell                max_size:128
+malefic.PtyRequest.input_data           max_size:4096
+malefic.PtyRequest.input_text           max_size:4096
+
+malefic.PtyResponse.session_id          max_size:64
+malefic.PtyResponse.output_data         max_size:4096
+malefic.PtyResponse.output_text         max_size:4096
+malefic.PtyResponse.error               max_size:256
+malefic.PtyResponse.active_sessions     max_size:64, max_count:32
+
+# --- CommonBody ---
+malefic.CommonBody.name                 max_size:256
+malefic.CommonBody.u32_array            max_count:32
+malefic.CommonBody.u64_array            max_count:32
+malefic.CommonBody.bool_array           max_count:32
+malefic.CommonBody.string_array         max_size:256, max_count:32
+malefic.CommonBody.bytes_array          max_size:4096, max_count:16

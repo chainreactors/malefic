@@ -1,0 +1,27 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    env:
+      CRITERION_TOKEN: ${{ secrets.CRITERION_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run benchmarks
+        run: |
+          # run benchmarks and save baseline to "criterion.dev.temp"
+          cargo bench -- --verbose --noplot
+      - name: Upload benchmarks
+        run: |
+          # upload the file
+          bash <(curl -s https://criterion.dev/bash)

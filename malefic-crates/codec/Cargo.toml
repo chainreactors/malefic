@@ -1,0 +1,41 @@
+[package]
+name = "malefic-codec"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+
+# Encode side needs random for key generation
+encoder = []
+
+# Individual codec features
+codec_xor = []
+codec_uuid = []
+codec_mac = []
+codec_ipv4 = []
+codec_base64 = []
+codec_base45 = []
+codec_base58 = []
+codec_aes = ["dep:sha2", "dep:aes", "dep:cbc"]
+codec_aes2 = ["codec_aes"]
+codec_des = ["dep:des", "dep:ecb", "dep:cipher"]
+codec_chacha = ["dep:chacha20"]
+codec_rc4 = []
+codec_all = [
+    "codec_xor", "codec_uuid", "codec_mac", "codec_ipv4",
+    "codec_base64", "codec_base45", "codec_base58",
+    "codec_aes", "codec_aes2", "codec_des", "codec_chacha", "codec_rc4",
+]
+
+[dependencies]
+malefic-common = { workspace = true }
+malefic-gateway = { workspace = true }
+
+sha2 = { workspace = true, optional = true }
+aes = { workspace = true, optional = true }
+cbc = { version = "0.1", optional = true }
+des = { version = "0.8", optional = true }
+ecb = { version = "0.1", optional = true }
+cipher = { version = "0.4", optional = true }
+chacha20 = { version = "0.9", optional = true }

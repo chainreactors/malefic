@@ -1,7 +1,6 @@
 name: validate_local
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -22,26 +21,57 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
           submodules: recursive
-
+          
       - name: Authorize Git
         run: |
           git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
           git config --global user.name "$GITHUB_ACTOR"
-
+          
       - name: Update submodule
         run: |
           git submodule update  --init --recursive -f
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+      - name: Setup resources
+        if: contains(matrix.target, 'windows')
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+        shell: bash
+        run: |
+          if compgen -G "resources/*.a" > /dev/null || compgen -G "resources/*.lib" > /dev/null; then
+            ls -la resources/
+            exit 0
+          fi
+
+          mkdir -p resources .release-assets .resource-work
+          gh release download \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "resources.zip" \
+            --dir .release-assets \
+            --clobber
+
+          test -f ".release-assets/resources.zip"
+          unzip -q ".release-assets/resources.zip" -d .resource-work
+
+          shopt -s dotglob nullglob
+          extracted=(.resource-work/*)
+          resource_root=".resource-work"
+          if [[ ${#extracted[@]} -eq 1 && -d "${extracted[0]}" && "$(basename "${extracted[0]}")" == "resources" ]]; then
+            resource_root="${extracted[0]}"
+          fi
+
+          rsync -a "${resource_root}/" resources/
+          ls -la resources/
 
       - name: Build for ${{matrix.target}})
         shell: 'script --return --quiet --log-out /dev/null --command "bash -e {0}"'
         run: |
           docker run -v $(pwd):/root/src ghcr.io/chainreactors/malefic-builder:latest \
            bash -c "cargo build --release -p malefic-mutant && ./target/release/malefic-mutant generate beacon && ./target/release/malefic-mutant build malefic --target ${{matrix.target}}"
-
+          
       - name: Build completed
         run: |
           echo "Build for ${{matrix.target}} completed successfully"

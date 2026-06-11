@@ -1,0 +1,24 @@
+[package]
+name = "malefic-manager"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["hot_load", "addon"]
+hot_load = ["malefic-runtime/loader"]
+addon = []
+
+[dependencies]
+futures = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+malefic-gateway = { workspace = true }
+
+malefic-module = { workspace = true }
+malefic-proto = { workspace = true }
+malefic-crypto = { workspace = true, default-features = true }
+malefic-config = { workspace = true }
+malefic-common = { workspace = true }
+malefic-runtime = { workspace = true }

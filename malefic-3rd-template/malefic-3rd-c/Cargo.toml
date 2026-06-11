@@ -1,0 +1,16 @@
+[package]
+name = "malefic-3rd-c"
+version = "0.1.0"
+edition = "2021"
+
+build = "build.rs"
+
+[lib]
+name = "malefic_3rd_c"
+path = "src/lib.rs"
+
+[dependencies]
+malefic-3rd-ffi = { path = "../malefic-3rd-ffi" }
+
+[build-dependencies]
+cc = "1"

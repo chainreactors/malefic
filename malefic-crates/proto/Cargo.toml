@@ -1,0 +1,29 @@
+[package]
+name = "malefic-proto"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["crypto_aes"]
+
+crypto = []
+crypto_xor = ["crypto", "malefic-crypto/crypto_xor"]
+crypto_aes = ["crypto", "malefic-crypto/crypto_aes"]
+crypto_chacha20 = ["crypto", "malefic-crypto/crypto_chacha20"]
+
+secure = ["malefic-crypto/secure"]
+enable_serde = ["serde"]
+
+[dependencies]
+prost = { workspace = true }
+serde = { workspace = true, optional = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+cfg-if = { workspace = true }
+malefic-crypto = { workspace = true, default-features = false }
+malefic-common = { workspace = true }
+malefic-gateway = { workspace = true }
+nanorand = { workspace = true }
+
+[build-dependencies]
+prost-build = { workspace = true }

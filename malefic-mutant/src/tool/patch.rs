@@ -4,6 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const BLOCK_LEN: usize = 64;
+const CONFIG_BLOB_PREFIX: &[u8] = b"CFGv3B64";
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum PatchField {
@@ -37,6 +38,7 @@ impl PatchField {
     }
 }
 
+#[allow(dead_code)]
 pub struct PatchOptions<'a> {
     pub file: &'a str,
     pub field: PatchField,
@@ -50,11 +52,13 @@ pub struct PatchOptions<'a> {
     pub xor_key: &'a [u8],
 }
 
+#[allow(dead_code)]
 pub struct PatchOutcome {
     pub offset: usize,
     pub output_path: PathBuf,
 }
 
+#[allow(dead_code)]
 pub fn patch_binary(opts: &PatchOptions) -> Result<PatchOutcome> {
     let file_path = PathBuf::from(opts.file);
     let mut data = fs::read(&file_path)
@@ -127,6 +131,7 @@ pub fn patch_binary(opts: &PatchOptions) -> Result<PatchOutcome> {
     })
 }
 
+#[allow(dead_code)]
 fn determine_current_bytes(opts: &PatchOptions) -> Result<(Vec<u8>, String)> {
     if let Some(hex) = opts.current_hex.as_ref() {
         let bytes = parse_hex_like(hex)?;
@@ -200,6 +205,7 @@ fn find_occurrences(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
     positions
 }
 
+#[allow(dead_code)]
 fn parse_offset(text: &str) -> Result<usize> {
     let trimmed = text.trim();
     let value = if let Some(hex) = trimmed
@@ -218,7 +224,17 @@ fn default_output_path(original: &Path) -> PathBuf {
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| "patched.bin".to_string());
-    let patched_name = format!("{}.patched", file_name);
+
+    // Generate patched filename: "foo.exe" -> "foo-patched.exe", "foo" -> "foo-patched"
+    let patched_name = if let Some(dot_pos) = file_name.rfind('.') {
+        // Has extension: insert "-patched" before the extension
+        let (stem, ext) = file_name.split_at(dot_pos);
+        format!("{}-patched{}", stem, ext)
+    } else {
+        // No extension (ELF/Mach-O): append "-patched"
+        format!("{}-patched", file_name)
+    };
+
     let default_path = PathBuf::from(patched_name.clone());
     original
         .parent()
@@ -244,6 +260,18 @@ pub struct BatchPatchOptions {
 
 pub struct BatchPatchOutcome {
     pub patched_fields: Vec<(PatchField, usize)>, // (field, offset)
+    pub output_path: PathBuf,
+}
+
+pub struct ConfigBlobPatchOptions {
+    pub file: String,
+    pub blob_b64: String,
+    pub blob_len: usize,
+    pub output: Option<String>,
+}
+
+pub struct ConfigBlobPatchOutcome {
+    pub offset: usize,
     pub output_path: PathBuf,
 }
 
@@ -329,6 +357,83 @@ pub fn batch_patch_binary(opts: &BatchPatchOptions) -> Result<BatchPatchOutcome>
 
     Ok(BatchPatchOutcome {
         patched_fields,
+        output_path,
+    })
+}
+
+/// Padding byte used in the config blob slot.
+const PAD_BYTE: u8 = b'#';
+
+/// Patch the runtime config blob located by its ASCII prefix marker.
+pub fn patch_config_blob(opts: &ConfigBlobPatchOptions) -> Result<ConfigBlobPatchOutcome> {
+    if opts.blob_b64.len() != opts.blob_len {
+        bail!(
+            "blob length mismatch: expected {} bytes, got {}",
+            opts.blob_len,
+            opts.blob_b64.len()
+        );
+    }
+    if !opts.blob_b64.as_bytes().starts_with(CONFIG_BLOB_PREFIX) {
+        bail!(
+            "blob text must start with '{}'",
+            std::str::from_utf8(CONFIG_BLOB_PREFIX).unwrap()
+        );
+    }
+
+    let file_path = PathBuf::from(&opts.file);
+    let mut data = fs::read(&file_path)
+        .with_context(|| format!("failed to read binary '{}'", file_path.display()))?;
+
+    let candidates = find_occurrences(&data, CONFIG_BLOB_PREFIX);
+    if candidates.is_empty() {
+        bail!("failed to locate config blob prefix in binary");
+    }
+
+    // Filter candidates: the real config slot has '#' padding after the prefix
+    let (start, end) = candidates
+        .into_iter()
+        .filter_map(|pos| {
+            let start = pos;
+            let end = start.checked_add(opts.blob_len)?;
+            if end > data.len() {
+                return None;
+            }
+
+            // Verify this is the real slot: bytes after prefix should be '#' padding
+            // Check a sample of bytes right after the prefix
+            let payload_start = start + CONFIG_BLOB_PREFIX.len();
+            let sample_end = (payload_start + 16).min(end);
+            let sample = data.get(payload_start..sample_end)?;
+
+            // The empty slot has all '#' padding; a patched slot has base64 chars
+            // Both are valid targets - we just need to exclude code segment occurrences
+            // Code segments have random bytes (machine instructions), not '#' or base64
+            let is_valid_slot = sample.iter().all(|&b| {
+                b == PAD_BYTE || b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'='
+            });
+
+            if is_valid_slot {
+                Some((start, end))
+            } else {
+                None
+            }
+        })
+        .next()
+        .ok_or_else(|| anyhow!("could not find valid config slot (CFGv3B64 + padding/base64)"))?;
+
+    data[start..end].copy_from_slice(opts.blob_b64.as_bytes());
+
+    let output_path = if let Some(out) = &opts.output {
+        PathBuf::from(out)
+    } else {
+        default_output_path(&file_path)
+    };
+
+    fs::write(&output_path, data)
+        .with_context(|| format!("failed to write patched binary '{}'", output_path.display()))?;
+
+    Ok(ConfigBlobPatchOutcome {
+        offset: start,
         output_path,
     })
 }

@@ -1,4 +1,25 @@
-/target
+target/
+implantpb.rs
 .vscode
 .DS_store
 .idea
+remap-path.env
+*.backup*
+.secrets
+.env.act
+*.log
+
+
+# Generated files
+malefic-starship/generated/
+*.key
+
+# Test artifacts (large DLLs)
+malefic-crates/runtime/tests/artifacts/*.dll
+
+# Resources: binary artifacts (distributed separately)
+resources/*.a
+resources/*.lib
+resources/*.bin
+resources/malefic.rc
+resources/app.manifest

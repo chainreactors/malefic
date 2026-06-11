@@ -1,5 +1,4 @@
 use super::structures::PEInfo;
-use crate::tool::sigforge::error::SignError;
 use anyhow::{anyhow, Result};
 use byteorder::{LittleEndian, ReadBytesExt};
 use goblin::pe::PE;
@@ -104,7 +103,7 @@ impl PEParser {
         let pe_signature = file.read_u32::<LittleEndian>()?;
         if pe_signature != 0x00004550 {
             // "PE\0\0"
-            return Err(SignError::InvalidPe("Invalid PE signature".to_string()).into());
+            return Err(anyhow!("Invalid PE signature"));
         }
 
         // Parse COFF Header
@@ -133,7 +132,7 @@ impl PEParser {
 
     fn parse_optional_header(file: &mut File, pe_info: &mut PEInfo) -> Result<()> {
         if pe_info.size_of_optional_header == 0 {
-            return Err(SignError::InvalidPe("No optional header found".to_string()).into());
+            return Err(anyhow!("No optional header found"));
         }
 
         // Standard fields

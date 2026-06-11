@@ -1,0 +1,159 @@
+[package]
+name = "rage"
+description = "[BETA] A simple, secure, and modern encryption tool."
+version = "0.11.1"
+authors.workspace = true
+repository.workspace = true
+readme = "../README.md"
+keywords = ["age", "cli", "encryption"]
+categories = ["command-line-utilities", "cryptography"]
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+default-run = "rage"
+
+[package.metadata.deb]
+name = "rage"
+conflicts = "rage-musl"
+extended-description = """\
+age is a simple, modern, and secure encryption format with small explicit keys, \
+no config options, and UNIX-style composability. rage is a Rust implementation \
+of the age specification."""
+section = "utils"
+assets = [
+    ["target/release/rage", "usr/bin/", "755"],
+    ["target/release/rage-keygen", "usr/bin/", "755"],
+    ["target/release/rage-mount", "usr/bin/", "755"],
+
+    # From the bash-completion FAQ (https://github.com/scop/bash-completion/blob/master/README.md#faq):
+    # > Q. I author/maintain package X and would like to maintain my own completion code
+    # >    for this package. Where should I put it to be sure that interactive bash shells
+    # >    will find it and source it?
+    # > A. Install it in one of the directories pointed to by bash-completion's `pkgconfig`
+    # >    file variables. [..] The recommended directory is `completionsdir`, which you
+    # >    can get with `pkg-config --variable=completionsdir bash-completion`.
+    #
+    # On Ubuntu 22.04 this resolves to `/usr/share/bash-completion/completions`.
+    ["target/release/completions/rage.bash", "usr/share/bash-completion/completions/rage", "644"],
+    ["target/release/completions/rage-keygen.bash", "usr/share/bash-completion/completions/rage-keygen", "644"],
+    ["target/release/completions/rage-mount.bash", "usr/share/bash-completion/completions/rage-mount", "644"],
+
+    # From https://github.com/elves/elvish/issues/1564#issuecomment-1166333636:
+    # > Completion files can be installed like other modules into a global module search
+    # > directory ([..]). There is no automatic discovery of completion files though; the
+    # > user would have to import them manually with `use`.
+    #
+    # From https://elv.sh/ref/command.html#module-search-directories:
+    # > When importing modules, Elvish searches the following directories:
+    # > [..]
+    # > 3. If the XDG_DATA_DIRS environment variable is defined and non-empty, it is
+    # >    treated as a colon-delimited list of paths (semicolon-delimited on Windows),
+    # >    which are all searched.
+    # >
+    # >    Otherwise, `/usr/local/share/elvish/lib` and `/usr/share/elvish/lib` are
+    # >    searched on non-Windows OSes.
+    ["target/release/completions/rage.elv", "usr/share/elvish/lib/", "644"],
+    ["target/release/completions/rage-keygen.elv", "usr/share/elvish/lib/", "644"],
+    ["target/release/completions/rage-mount.elv", "usr/share/elvish/lib/", "644"],
+
+    # From https://fishshell.com/docs/current/completions.html#where-to-put-completions:
+    # > By default, Fish searches the following for completions, using the first available
+    # > file that it finds:
+    # > [..]
+    # > - A directory for third-party software vendors to ship their own completions for
+    # >   their software, usually `/usr/share/fish/vendor_completions.d`;
+    # > [..]
+    # > If you are developing another program and would like to ship completions with your
+    # > program, install them to the “vendor” completions directory. As this path may vary
+    # > from system to system, the `pkgconfig` framework should be used to discover this
+    # > path with the output of `pkg-config --variable completionsdir fish`.
+    ["target/release/completions/rage.fish", "usr/share/fish/vendor_completions.d/", "644"],
+    ["target/release/completions/rage-keygen.fish", "usr/share/fish/vendor_completions.d/", "644"],
+    ["target/release/completions/rage-mount.fish", "usr/share/fish/vendor_completions.d/", "644"],
+
+    # The best reference I can find for the Zsh completions path is
+    # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=921236#17 from February 2019:
+    # > As a rule, completion functions (first line is "#compdef") should be
+    # > installed to /usr/share/zsh/vendor-completions and autoloadable
+    # > functions (first line is "#autoload") to /usr/share/zsh/vendor-functions;
+    # > both of these paths are Debian-specific.
+    ["target/release/completions/_rage", "usr/share/zsh/vendor-completions/", "644"],
+    ["target/release/completions/_rage-keygen", "usr/share/zsh/vendor-completions/", "644"],
+    ["target/release/completions/_rage-mount", "usr/share/zsh/vendor-completions/", "644"],
+
+    # From the default `/etc/manpath.config` created by the `man-db` package:
+    # > MANPATH_MAP     /usr/bin                /usr/share/man
+    ["target/release/manpages/**/rage.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/**/rage-keygen.1.gz", "usr/share/man/man1/", "644"],
+    ["target/release/manpages/**/rage-mount.1.gz", "usr/share/man/man1/", "644"],
+
+    ["../README.md", "usr/share/doc/rage/README.md", "644"],
+]
+features = ["mount"]
+
+[package.metadata.deb.variants.musl]
+name = "rage-musl"
+conflicts = "rage"
+extended-description = """\
+age is a simple, modern, and secure encryption format with small explicit keys, \
+no config options, and UNIX-style composability. rage is a Rust implementation \
+of the age specification. This package is statically linked against musl."""
+features = []
+
+[badges]
+maintenance = { status = "experimental" }
+
+[dependencies]
+# rage and rage-keygen dependencies
+age = { workspace = true, features = ["armor", "cli-common", "plugin"] }
+chrono.workspace = true
+clap = { workspace = true, features = ["string", "unstable-styles"] }
+console.workspace = true
+env_logger.workspace = true
+i18n-embed = { workspace = true, features = ["desktop-requester"] }
+i18n-embed-fl.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+pinentry.workspace = true
+rust-embed.workspace = true
+
+# rage-mount dependencies
+ctrlc = { version = "3.2", optional = true }
+fuse_mt = { version = "0.6.0", optional = true }
+fuser = { version = "0.13", optional = true }
+libc = { version = "0.2", optional = true }
+tar = { version = "0.4", optional = true }
+time = { version = ">=0.3.7, <0.3.24", optional = true } # time 0.3.24 has MSRV 1.67
+zip = { version = "0.6.2", optional = true }
+
+[build-dependencies]
+clap = { workspace = true, features = ["string", "unstable-styles"] }
+clap_complete = "4"
+clap_mangen = "0.2"
+flate2 = "1"
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+lazy_static.workspace = true
+rust-embed.workspace = true
+
+[dev-dependencies]
+trycmd = "0.14"
+
+[features]
+default = ["ssh"]
+mount = ["ctrlc", "fuse_mt", "fuser", "libc", "tar", "time", "zip"]
+ssh = ["age/ssh"]
+unstable = ["age/unstable"]
+
+[[bin]]
+name = "rage"
+bench = false
+
+[[bin]]
+name = "rage-keygen"
+bench = false
+
+[[bin]]
+name = "rage-mount"
+required-features = ["mount"]
+bench = false

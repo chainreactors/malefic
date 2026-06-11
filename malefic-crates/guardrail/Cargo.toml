@@ -1,0 +1,9 @@
+[package]
+name = "malefic-guardrail"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+malefic-sysinfo = { workspace = true }
+malefic-config = { workspace = true }
+regex = { workspace = true }

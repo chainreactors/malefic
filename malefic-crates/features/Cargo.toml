@@ -1,0 +1,36 @@
+[package]
+name = "malefic-features"
+version = "0.1.0"
+edition = "2021"
+description = "Unified feature hub for build-type, version, and runtime propagation"
+
+[features]
+default = ["prebuild", "community", "runtime_tokio"]
+
+# Build type
+source = [
+    "malefic-os-win/source",
+    "malefic-gateway/source",
+]
+prebuild = [
+    "malefic-os-win/prebuild",
+    "malefic-gateway/prebuild",
+]
+
+# Version
+community = [
+    "malefic-os-win/community",
+    "malefic-gateway/community",
+]
+
+# Runtime (exactly one should be enabled)
+runtime_tokio = ["malefic-common/tokio"]
+runtime_smol = ["malefic-common/smol"]
+runtime_asyncstd = ["malefic-common/async-std"]
+
+[dependencies]
+malefic-gateway = { workspace = true }
+malefic-common = { workspace = true, default-features = false }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+malefic-os-win = { workspace = true, default-features = false }

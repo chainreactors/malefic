@@ -1,0 +1,35 @@
+[package]
+name = "malefic-common"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+register_info = []
+
+# Runtime
+async-std = ["dep:async-std"]
+tokio = ["dep:tokio"]
+smol = ["dep:smol"]
+
+# Random backend (mutually exclusive)
+random_nanorand = ["dep:nanorand"]
+random_getrandom = ["dep:getrandom"]
+
+[dependencies]
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+futures = { workspace = true }
+futures-timer = { workspace = true }
+malefic-gateway = { workspace = true }
+
+async-std = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"], optional = true }
+smol = { workspace = true, optional = true }
+
+nanorand = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true }
+
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
+libc = { workspace = true }

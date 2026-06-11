@@ -1,14 +1,20 @@
 use crate::prelude::*;
 
-pub struct Mkdir{}
+pub struct Mkdir {}
 
 #[async_trait]
 #[module_impl("mkdir")]
 impl Module for Mkdir {}
 
 #[async_trait]
+#[obfuscate]
 impl ModuleImpl for Mkdir {
-    async fn run(&mut self, id: u32, receiver: &mut malefic_proto::module::Input, _: &mut malefic_proto::module::Output) -> ModuleResult {
+    async fn run(
+        &mut self,
+        id: u32,
+        receiver: &mut malefic_module::Input,
+        _: &mut malefic_module::Output,
+    ) -> ModuleResult {
         let request = check_request!(receiver, Body::Request)?;
 
         let dir = check_field!(request.input)?;

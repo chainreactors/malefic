@@ -1,0 +1,99 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '0 2 * * 0'
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+  CARGO_NET_RETRY: 10
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+  RUSTUP_MAX_RETRIES: 10
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  fmt:
+    uses: smol-rs/.github/.github/workflows/fmt.yml@main
+  clippy:
+    uses: smol-rs/.github/.github/workflows/clippy.yml@main
+    with:
+      bench: false # We run clippy using stable rustc, but our benchmarks use #![feature(test)].
+  security_audit:
+    uses: smol-rs/.github/.github/workflows/security_audit.yml@main
+    permissions:
+      checks: write
+      contents: read
+      issues: write
+    secrets: inherit
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        rust: [nightly, beta, stable]
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - name: Install Rust
+        run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+      - run: rustup target add thumbv7m-none-eabi
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - name: Install valgrind
+        uses: taiki-e/install-action@valgrind
+      - run: cargo build --all --all-features --all-targets
+        if: startsWith(matrix.rust, 'nightly')
+      - run: cargo hack build --feature-powerset --no-dev-deps
+      - run: cargo hack build --feature-powerset --no-dev-deps --target thumbv7m-none-eabi --skip std,default
+      - run: cargo test
+      - name: Run cargo test (with valgrind)
+        run: cargo test -- --test-threads=1
+        env:
+          # TODO: ignore possible and reachable leaks due to upstream issue (https://github.com/rust-lang/rust/issues/135608)
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -v --error-exitcode=1 --error-limit=no --leak-check=full --show-leak-kinds=definite,indirect --errors-for-leak-kinds=definite,indirect --track-origins=yes --fair-sched=yes --gen-suppressions=all
+      - name: Run cargo test (with portable-atomic enabled)
+        run: cargo test --features portable-atomic
+      - name: Clone async-executor
+        run: git clone https://github.com/smol-rs/async-executor.git
+      - name: Add patch section
+        run: |
+          echo '[patch.crates-io]' >> async-executor/Cargo.toml
+          echo 'async-task = { path = ".." }' >> async-executor/Cargo.toml
+      - name: Test async-executor
+        run: cargo test --manifest-path async-executor/Cargo.toml
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack build --feature-powerset --no-dev-deps --rust-version
+
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - name: Install Rust
+        run: rustup toolchain install nightly --component miri && rustup default nightly
+      - run: cargo miri test
+        env:
+          # -Zmiri-ignore-leaks is needed because we use detached threads in doctests: https://github.com/rust-lang/miri/issues/1371
+          # disable preemption due to https://github.com/rust-lang/rust/issues/55005
+          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation -Zmiri-ignore-leaks -Zmiri-preemption-rate=0
+          RUSTFLAGS: ${{ env.RUSTFLAGS }} -Z randomize-layout

@@ -1,0 +1,157 @@
+name: check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '指定 target（留空跑全部）'
+        required: false
+        default: ''
+      phase:
+        description: 'check / feature / test / mutant / profile / all'
+        required: false
+        default: 'all'
+      toolchain:
+        description: 'Rust toolchain (e.g. nightly-2024-09-18)'
+        required: false
+        default: 'nightly-2024-09-18'
+
+permissions:
+  contents: read
+
+jobs:
+  check-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - x86_64-pc-windows-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Detect legacy check scripts
+        id: legacy_check
+        shell: bash
+        run: |
+          if [[ -f scripts/check/check.sh && -f scripts/check/profile.sh ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Legacy scripts/check not found, skip legacy check steps."
+          fi
+
+      - name: Install Rust toolchain
+        if: steps.legacy_check.outputs.exists == 'true'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ github.event.inputs.toolchain || 'nightly-2024-09-18' }}
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools
+        if: steps.legacy_check.outputs.exists == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 musl-tools protobuf-compiler
+          sudo ln -sf /usr/bin/musl-gcc /usr/local/bin/x86_64-linux-musl-gcc
+
+      - name: Rust cache
+        if: steps.legacy_check.outputs.exists == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "check-${{ matrix.target }}"
+          cache-targets: true
+          cache-all-crates: true
+          save-if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Fix line endings
+        if: steps.legacy_check.outputs.exists == 'true'
+        run: |
+          sudo apt-get install -y dos2unix 2>/dev/null || true
+          find scripts/check -name '*.sh' -exec dos2unix {} + 2>/dev/null || \
+          find scripts/check -name '*.sh' -exec sed -i 's/\r$//' {} +
+
+      - name: Determine phase
+        id: phase
+        if: steps.legacy_check.outputs.exists == 'true'
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "value=${{ github.event.inputs.phase || 'all' }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=test" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run checks
+        if: steps.legacy_check.outputs.exists == 'true'
+        run: |
+          chmod +x scripts/check/check.sh scripts/check/profile.sh
+          ./scripts/check/check.sh --target ${{ matrix.target }} --phase ${{ steps.phase.outputs.value }} --ci
+
+  check-darwin:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Detect legacy check scripts
+        id: legacy_check
+        shell: bash
+        run: |
+          if [[ -f scripts/check/check.sh && -f scripts/check/profile.sh ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Legacy scripts/check not found, skip legacy check steps."
+          fi
+
+      - name: Install protobuf
+        if: steps.legacy_check.outputs.exists == 'true'
+        run: brew install protobuf
+
+      - name: Install Rust toolchain
+        if: steps.legacy_check.outputs.exists == 'true'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ github.event.inputs.toolchain || 'nightly-2024-09-18' }}
+
+      - name: Rust cache
+        if: steps.legacy_check.outputs.exists == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "check-aarch64-apple-darwin"
+          cache-targets: true
+          cache-all-crates: true
+          save-if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Fix line endings
+        if: steps.legacy_check.outputs.exists == 'true'
+        run: |
+          find scripts/check -name '*.sh' -exec sed -i '' 's/\r$//' {} +
+
+      - name: Determine phase
+        id: phase
+        if: steps.legacy_check.outputs.exists == 'true'
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "value=${{ github.event.inputs.phase || 'all' }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=test" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run checks
+        if: steps.legacy_check.outputs.exists == 'true'
+        run: |
+          chmod +x scripts/check/check.sh scripts/check/profile.sh
+          ./scripts/check/check.sh --target aarch64-apple-darwin --phase ${{ steps.phase.outputs.value }} --ci

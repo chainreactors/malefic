@@ -1,0 +1,16 @@
+[package]
+name = "malefic-rem"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["rem_static"]
+rem = []
+rem_static = ["rem"]
+rem_dynamic = ["rem"]
+
+[dependencies]
+malefic-common = { workspace = true }
+
+[build-dependencies]
+cc = "1"

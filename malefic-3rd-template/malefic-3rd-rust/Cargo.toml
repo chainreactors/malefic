@@ -1,0 +1,11 @@
+[package]
+name = "malefic-3rd-rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "malefic_3rd_rust"
+path = "src/lib.rs"
+
+[dependencies]
+malefic-3rd-ffi = { path = "../malefic-3rd-ffi" }

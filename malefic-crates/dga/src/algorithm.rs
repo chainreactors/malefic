@@ -1,0 +1,63 @@
+use super::{DgaDomain, TimeWindow};
+use malefic_common::debug;
+use malefic_gateway::ObfDebug;
+use sha2::{Digest, Sha256};
+
+#[derive(ObfDebug)]
+pub struct DgaAlgorithm {
+    key: String,
+    interval_hours: u32,
+    domains: Vec<String>,
+}
+
+impl DgaAlgorithm {
+    pub fn new(key: String, interval_hours: u32, domains: Vec<String>) -> Self {
+        Self {
+            key,
+            interval_hours,
+            domains,
+        }
+    }
+
+    fn encode(&self, seed: String) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(seed.as_bytes());
+        let hash = hasher.finalize();
+
+        let mut prefix = String::new();
+        let alphabet = b"abcdefghijklmnopqrstuvwxyz";
+
+        for i in 0..8.min(hash.len()) {
+            let index = (hash[i] as usize) % alphabet.len();
+            prefix.push(alphabet[index] as char);
+        }
+
+        prefix
+    }
+
+    pub fn generate(&self) -> Vec<DgaDomain> {
+        let current_window = TimeWindow::current(self.interval_hours);
+        let seed = format!("{}{}", current_window.to_seed_string(), self.key);
+        debug!("[debug] Seed_DgaKey: '{}'", seed);
+
+        let prefix = self.encode(seed.clone());
+
+        let mut domains = Vec::new();
+        for suffix in &self.domains {
+            let domain = format!("{}.{}", prefix, suffix);
+            domains.push(DgaDomain {
+                domain,
+                seed: seed.clone(),
+                prefix: prefix.clone(),
+                suffix: suffix.clone(),
+            });
+        }
+
+        debug!(
+            "[dga] Generated {} domains for current time window: {}",
+            domains.len(),
+            current_window.to_seed_string()
+        );
+        domains
+    }
+}

@@ -15,8 +15,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
-malefic-helper = { path = "../malefic-helper" }
-malefic-prelude = { path = "../malefic-prelude", optional = true}
+malefic-os-win = { path = "../malefic-crates/win" }
+malefic-autorun = { path = "../malefic-crates/autorun", optional = true}
 
 [dependencies.windows]
 version = "0.51"

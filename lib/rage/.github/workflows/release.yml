@@ -1,0 +1,359 @@
+name: Publish release binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Testing the release workflow'
+        required: true
+        default: 'true'
+
+permissions:
+  attestations: write
+  contents: write
+  id-token: write
+
+jobs:
+  build:
+    name: Publish for ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        name:
+          - linux
+          - armv7
+          - arm64
+          - windows
+          - macos-arm64
+          - macos-x86_64
+
+        include:
+          - name: linux
+            os: ubuntu-20.04
+            build_deps: >
+              libfuse-dev
+            build_flags: --features mount
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - name: armv7
+            os: ubuntu-20.04
+            target: armv7-unknown-linux-gnueabihf
+            build_deps: >
+              gcc-arm-linux-gnueabihf
+            cargo_config: |
+              [target.armv7-unknown-linux-gnueabihf]
+              linker = "arm-linux-gnueabihf-gcc"
+            build_flags: --target armv7-unknown-linux-gnueabihf
+            archive_name: rage.tar.gz
+            asset_suffix: armv7-linux.tar.gz
+
+          - name: arm64
+            os: ubuntu-20.04
+            target: aarch64-unknown-linux-gnu
+            build_deps: >
+              gcc-aarch64-linux-gnu
+            cargo_config: |
+              [target.aarch64-unknown-linux-gnu]
+              linker = "aarch64-linux-gnu-gcc"
+            build_flags: --target aarch64-unknown-linux-gnu
+            archive_name: rage.tar.gz
+            asset_suffix: arm64-linux.tar.gz
+
+          - name: windows
+            os: windows-latest
+            archive_name: rage.zip
+            asset_suffix: x86_64-windows.zip
+
+          - name: macos-arm64
+            os: macos-latest
+            archive_name: rage.tar.gz
+            asset_suffix: arm64-darwin.tar.gz
+
+          - name: macos-x86_64
+            os: macos-13
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-darwin.tar.gz
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        id: toolchain
+        with:
+          targets: ${{ matrix.target }}
+      - run: rustup override set ${{steps.toolchain.outputs.name}}
+
+      - name: Install linux build dependencies
+        run: sudo apt update && sudo apt install ${{ matrix.build_deps }}
+        if: matrix.build_deps != ''
+
+      - name: Set up .cargo/config
+        run: |
+          mkdir .cargo
+          echo '${{ matrix.cargo_config }}' >.cargo/config
+        if: matrix.cargo_config != ''
+
+      - name: cargo build
+        run: cargo build --release --locked ${{ matrix.build_flags }}
+        working-directory: ./rage
+
+      - name: Create archive
+        run: |
+          mkdir -p release/rage
+          mv target/${{ matrix.target }}/release/rage* release/rage/
+          rm release/rage/*.d
+          tar czf ${{ matrix.archive_name }} -C release/ rage/
+        if: matrix.name != 'windows'
+
+      - name: Create archive [Windows]
+        run: |
+          mkdir -p release/rage
+          mv target/release/rage.exe release/rage/
+          mv target/release/rage-keygen.exe release/rage/
+          cd release/
+          7z.exe a ../${{ matrix.archive_name }} rage/
+        shell: bash
+        if: matrix.name == 'windows'
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'release/rage/*'
+
+      - name: Upload archive as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rage-${{ matrix.asset_suffix }}
+          path: ${{ matrix.archive_name }}
+        if: github.event.inputs.test == 'true'
+
+      - name: Upload archive to release
+        uses: svenstaro/upload-release-action@2.9.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ matrix.archive_name }}
+          asset_name: rage-$tag-${{ matrix.asset_suffix }}
+          tag: ${{ github.ref }}
+          prerelease: true
+        if: github.event.inputs.test != 'true'
+
+  test:
+    name: Test rage-${{ matrix.asset_suffix }} on ${{ matrix.os }}
+    needs: build
+    if: github.event.inputs.test == 'true'
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - windows-2019
+          - windows-2022
+          - macos-12
+          - macos-13
+          - macos-14
+
+        include:
+          - os: ubuntu-20.04
+            name: linux
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - os: ubuntu-22.04
+            name: linux
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - os: ubuntu-24.04
+            name: linux
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-linux.tar.gz
+
+          - os: windows-2019
+            name: windows
+            archive_name: rage.zip
+            asset_suffix: x86_64-windows.zip
+
+          - os: windows-2022
+            name: windows
+            archive_name: rage.zip
+            asset_suffix: x86_64-windows.zip
+
+          - os: macos-12
+            name: macos
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-darwin.tar.gz
+
+          - os: macos-13
+            name: macos
+            archive_name: rage.tar.gz
+            asset_suffix: x86_64-darwin.tar.gz
+
+          - os: macos-14
+            name: macos
+            archive_name: rage.tar.gz
+            asset_suffix: arm64-darwin.tar.gz
+
+    steps:
+      - name: Download archive
+        uses: actions/download-artifact@v4
+        with:
+          name: rage-${{ matrix.asset_suffix }}
+
+      - name: Extract archive
+        run: tar xzf ${{ matrix.archive_name }}
+        if: matrix.name != 'windows'
+
+      - name: Extract archive [Windows]
+        run: 7z.exe x ${{ matrix.archive_name }}
+        shell: bash
+        if: matrix.name == 'windows'
+
+      - name: Test key generation
+        run: ./rage/rage-keygen -o key.txt
+      - name: Test encryption
+        run: |
+          echo "Hello World!" > test.txt
+          ./rage/rage -e -i key.txt -o test.txt.age test.txt
+      - name: Test decryption
+        run: ./rage/rage -d -i key.txt test.txt.age
+
+  deb:
+    name: Debian ${{ matrix.name }}
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        name: [linux, linux-musl, armv7, armv7-musl, arm64, arm64-musl]
+        include:
+          - name: linux
+            target: x86_64-unknown-linux-gnu
+            build_deps: >
+              libfuse-dev
+            build_flags: --features mount
+
+          - name: linux-musl
+            target: x86_64-unknown-linux-musl
+            build_deps: >
+              musl-tools
+            deb_flags: --variant=musl
+
+          - name: armv7
+            target: armv7-unknown-linux-gnueabihf
+            build_deps: >
+              gcc-arm-linux-gnueabihf
+            cargo_config: |
+              [target.armv7-unknown-linux-gnueabihf]
+              linker = "arm-linux-gnueabihf-gcc"
+
+          - name: armv7-musl
+            target: armv7-unknown-linux-musleabihf
+            build_deps: >
+              gcc-arm-linux-gnueabihf
+              musl-tools
+            cargo_config: |
+              [target.armv7-unknown-linux-musleabihf]
+              linker = "arm-linux-gnueabihf-gcc"
+            deb_flags: --variant=musl
+
+          - name: arm64
+            target: aarch64-unknown-linux-gnu
+            build_deps: >
+              gcc-aarch64-linux-gnu
+            cargo_config: |
+              [target.aarch64-unknown-linux-gnu]
+              linker = "aarch64-linux-gnu-gcc"
+
+          - name: arm64-musl
+            target: aarch64-unknown-linux-musl
+            build_deps: >
+              gcc-aarch64-linux-gnu
+              musl-tools
+            cargo_config: |
+              [target.aarch64-unknown-linux-musl]
+              linker = "aarch64-linux-gnu-gcc"
+            deb_flags: --variant=musl
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        id: toolchain
+        with:
+          targets: ${{ matrix.target }}
+      - run: rustup override set ${{steps.toolchain.outputs.name}}
+      - name: cargo install cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Install build dependencies
+        run: sudo apt update && sudo apt install ${{ matrix.build_deps }}
+        if: matrix.build_deps != ''
+
+      - name: Set up .cargo/config
+        run: |
+          mkdir .cargo
+          echo '${{ matrix.cargo_config }}' >.cargo/config
+        if: matrix.cargo_config != ''
+
+      - name: cargo build
+        run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.build_flags }}
+        working-directory: ./rage
+
+      - name: Update Debian package config for cross-compile
+        run: sed -i '/\/_\?rage-mount/d' rage/Cargo.toml
+        if: matrix.name != 'linux'
+
+      - name: cargo deb
+        run: cargo deb --package rage --no-build --target ${{ matrix.target }} ${{ matrix.deb_flags }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'target/${{ matrix.target }}/debian/*.deb'
+
+      - name: Upload Debian package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rage-${{ matrix.name }}.deb
+          path: target/${{ matrix.target }}/debian/*.deb
+        if: github.event.inputs.test == 'true'
+
+      - name: Upload Debian package to release
+        uses: svenstaro/upload-release-action@2.9.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.target }}/debian/*.deb
+          tag: ${{ github.ref }}
+          file_glob: true
+          prerelease: true
+        if: github.event.inputs.test != 'true'
+
+  test-deb:
+    name: Test rage-${{ matrix.variant }}.deb on ${{ matrix.os }}
+    needs: deb
+    if: github.event.inputs.test == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+        variant: [linux, linux-musl]
+
+    steps:
+      - name: Download Debian package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rage-${{ matrix.variant }}.deb
+      - name: Install Debian package
+        run: sudo apt install ./rage*.deb
+
+      - name: Test key generation
+        run: rage-keygen -o key.txt
+      - name: Test encryption
+        run: |
+          echo "Hello World!" > test.txt
+          rage -e -i key.txt -o test.txt.age test.txt
+      - name: Test decryption
+        run: rage -d -i key.txt test.txt.age

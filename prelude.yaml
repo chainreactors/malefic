@@ -1,5 +1,6 @@
 -
   name: bof
+  depend_on: execute_bof
   body: !ExecuteBinary
     name: dir
     bin: !File "dir.o"

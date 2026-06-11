@@ -1,0 +1,47 @@
+[package]
+name = "malefic-srdi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+# Standalone shellcode binary — only build with:
+#   cargo +nightly build -p malefic-srdi --bin malefic-srdi -Zbuild-std=core --target x86_64-pc-windows-msvc
+[[bin]]
+name = "malefic-srdi"
+path = "src/main.rs"
+required-features = ["standalone"]
+
+[features]
+default = []
+standalone = []
+
+[dependencies.winapi]
+version = "0.3.9"
+features = [
+    "winuser",
+    "fileapi",
+    "handleapi",
+    "winbase",
+]
+
+[dependencies.windows-sys]
+version = "0.59.0"
+features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Threading",
+    "Win32_System_Memory",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_SystemServices",
+    "Win32_System_WindowsProgramming",
+    "Win32_System_SystemInformation",
+    "Win32_System_Environment",
+    "Win32_System_ProcessStatus",
+    "Win32_System_LibraryLoader",
+    "Win32_Globalization",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Kernel",
+    "Wdk_System_SystemServices",
+]
