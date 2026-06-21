@@ -203,6 +203,14 @@ pub fn build_payload(
             .unwrap_or(0)
     );
 
+    if matches!(payload_type, PayloadType::PROXYDLL) {
+        log_step!("Processing ProxyDLL resources...");
+        if let Err(e) = crate::tool::proxydll::process_proxydll_resources(&binary_path, target) {
+            log_error!("Failed to process ProxyDLL resources: {}", e);
+            return Err(e);
+        }
+    }
+
     Ok(())
 }
 

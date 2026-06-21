@@ -20,16 +20,14 @@ quote = "1"
 tempfile = "=3.15.0"
 
 [dependencies]
-malefic-os-win = { path = "../malefic-crates/win" }
-malefic-codec = { path = "../malefic-crates/codec" }
-malefic-evader = { path = "../malefic-crates/evader", default-features = false }
-malefic-features = { path = "../malefic-crates/features" }
+malefic-codec = { workspace = true }
+malefic-evader = { workspace = true, optional = true }
 
 [features]
 default = []
 
 # Debug output
-debug = ["malefic-evader/debug"]
+debug = ["evader", "malefic-evader/debug"]
 
 # Loader features (Community Edition: 2 basic templates)
 basic_template = []            # Basic template (no-op example)
@@ -53,14 +51,15 @@ enc_rc4 = ["malefic-codec/codec_rc4"]
 embedded_payload = []          # Include payload from generated/ directory
 
 # ── Evasion features ──────────────────────────────────────────────────────────
-evader_anti_emu       = ["malefic-evader/evader_anti_emu"]
-evader_etw_pass       = ["malefic-evader/evader_etw_pass"]
-evader_god_speed      = ["malefic-evader/evader_god_speed"]
-evader_sleep_encrypt  = ["malefic-evader/evader_sleep_encrypt"]
-evader_anti_forensic  = ["malefic-evader/evader_anti_forensic"]
-evader_cfg_patch      = ["malefic-evader/evader_cfg_patch"]
-evader_api_untangle   = ["malefic-evader/evader_api_untangle"]
-evader_normal_api     = ["malefic-evader/evader_normal_api"]
+evader = ["dep:malefic-evader"]
+evader_anti_emu       = ["evader", "malefic-evader/evader_anti_emu"]
+evader_etw_pass       = ["evader", "malefic-evader/evader_etw_pass"]
+evader_god_speed      = ["evader", "malefic-evader/evader_god_speed"]
+evader_sleep_encrypt  = ["evader", "malefic-evader/evader_sleep_encrypt"]
+evader_anti_forensic  = ["evader", "malefic-evader/evader_anti_forensic"]
+evader_cfg_patch      = ["evader", "malefic-evader/evader_cfg_patch"]
+evader_api_untangle   = ["evader", "malefic-evader/evader_api_untangle"]
+evader_normal_api     = ["evader", "malefic-evader/evader_normal_api"]
 evader_full = [
     "evader_anti_emu",
     "evader_etw_pass",
@@ -71,11 +70,3 @@ evader_full = [
     "evader_api_untangle",
     "evader_normal_api",
 ]
-
-[profile.release]
-opt-level = "z"
-lto = true
-strip = true
-panic = "abort"
-
-[workspace]

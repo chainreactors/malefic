@@ -23,13 +23,22 @@ pub fn process_proxydll_resources(binary_path: &str, _target: &str) -> anyhow::R
             if proxydll_config.pack_resources {
                 log_step!("Processing and packing ProxyDLL resources...");
 
-                let proxy_dll_name = proxydll_config.proxy_dll.clone().unwrap_or_else(|| {
-                    Path::new(binary_path)
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("unknown.dll")
-                        .to_string()
-                });
+                let binary_file_name = Path::new(binary_path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown.dll")
+                    .to_string();
+                let proxy_dll_name = proxydll_config
+                    .proxy_dll
+                    .as_deref()
+                    .filter(|name| !name.trim().is_empty())
+                    .unwrap_or(&binary_file_name)
+                    .to_string();
+                let proxied_dll_name = if proxydll_config.proxied_dll.trim().is_empty() {
+                    proxy_dll_name.clone()
+                } else {
+                    proxydll_config.proxied_dll.clone()
+                };
                 let packer = ProxyDllPacker::new(
                     &proxydll_config.resource_dir,
                     Path::new(binary_path)
@@ -38,7 +47,7 @@ pub fn process_proxydll_resources(binary_path: &str, _target: &str) -> anyhow::R
                         .to_str()
                         .unwrap(),
                     &proxy_dll_name,
-                    &proxydll_config.proxied_dll,
+                    &proxied_dll_name,
                 );
 
                 // Create output directory
@@ -88,13 +97,6 @@ pub fn process_proxydll_resources(binary_path: &str, _target: &str) -> anyhow::R
                 }
 
                 // Copy generated DLL to output directory with correct name
-                let proxy_dll_name = proxydll_config.proxy_dll.clone().unwrap_or_else(|| {
-                    Path::new(binary_path)
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("unknown.dll")
-                        .to_string()
-                });
                 let dll_dest = output_dir.join(&proxy_dll_name);
                 std::fs::copy(binary_path, &dll_dest)?;
                 log_step!(

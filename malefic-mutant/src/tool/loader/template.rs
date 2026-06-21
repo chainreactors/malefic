@@ -8,10 +8,7 @@ use std::process::Command;
 use crate::config::EvaderConfig;
 
 /// All available loader template names (Community Edition)
-pub const LOADER_NAMES: &[&str] = &[
-    "basic_template",
-    "func_ptr",
-];
+pub const LOADER_NAMES: &[&str] = &["basic_template", "func_ptr"];
 
 /// Encoding type to feature name mapping
 pub const ENCODING_FEATURES: &[(&str, &str)] = &[
@@ -193,10 +190,10 @@ impl TemplateLoader {
         let features_str = features.join(",");
 
         let mut cmd = Command::new("cargo");
-        cmd.arg("+nightly-2023-09-18")
+        cmd.arg("+nightly-2024-02-03")
             .arg("build")
-            .arg("--manifest-path")
-            .arg("malefic-starship/Cargo.toml")
+            .arg("-p")
+            .arg("malefic-starship")
             .arg("--target")
             .arg(target)
             .arg("--features")
@@ -217,10 +214,8 @@ impl TemplateLoader {
         } else {
             ""
         };
-        let binary_path = std::path::PathBuf::from(format!(
-            "malefic-starship/target/{}/{}/starship{}",
-            target, profile, ext
-        ));
+        let binary_path =
+            std::path::PathBuf::from(format!("target/{}/{}/starship{}", target, profile, ext));
 
         Ok(binary_path)
     }

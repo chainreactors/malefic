@@ -8,14 +8,14 @@ default = []
 debug = []
 
 # Evader modules (from starship)
-evader_anti_emu      = []
-evader_etw_pass      = []
-evader_god_speed     = []
-evader_sleep_encrypt = []
-evader_anti_forensic = []
-evader_cfg_patch     = []
-evader_api_untangle  = []
-evader_normal_api    = []
+evader_anti_emu      = ["malefic-os-win/prebuild"]
+evader_etw_pass      = ["malefic-os-win/prebuild"]
+evader_god_speed     = ["malefic-os-win/prebuild"]
+evader_sleep_encrypt = ["malefic-os-win/prebuild"]
+evader_anti_forensic = ["malefic-os-win/prebuild"]
+evader_cfg_patch     = ["malefic-os-win/prebuild"]
+evader_api_untangle  = ["malefic-os-win/prebuild"]
+evader_normal_api    = ["malefic-os-win/prebuild"]
 evader_full = [
     "evader_anti_emu",
     "evader_etw_pass",
@@ -28,7 +28,7 @@ evader_full = [
 ]
 
 # Anti-analysis modules (from win/anti)
-anti_sandbox = ["malefic-os-win/reg"]
+anti_sandbox = ["malefic-os-win/reg", "malefic-os-win/prebuild"]
 anti_vm = []
 
 # Obfuscation (community: no-op)

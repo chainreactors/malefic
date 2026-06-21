@@ -9,17 +9,15 @@ proxy = []
 block = []
 native_thread = []
 
-
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
-malefic-os-win = { path = "../malefic-crates/win" }
-malefic-autorun = { path = "../malefic-crates/autorun", optional = true}
+lazy_static = "1.5.0"
+malefic-autorun = { workspace = true, optional = true }
 
 [dependencies.windows]
-version = "0.51"
+workspace = true
 features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging"

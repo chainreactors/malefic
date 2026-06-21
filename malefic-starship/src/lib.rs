@@ -33,7 +33,6 @@ macro_rules! obf_cstr {
     };
 }
 
-pub use malefic_os_win::kit::binding;
 pub mod obf;
 #[cfg(feature = "obf_strings")]
 pub use malefic_gateway;

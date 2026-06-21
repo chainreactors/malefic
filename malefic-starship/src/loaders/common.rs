@@ -2,6 +2,17 @@
 
 use crate::types::*;
 
+#[cfg(windows)]
+#[link(name = "kernel32")]
+extern "system" {
+    fn VirtualAlloc(
+        lp_address: *mut std::ffi::c_void,
+        dw_size: usize,
+        fl_allocation_type: u32,
+        fl_protect: u32,
+    ) -> *mut std::ffi::c_void;
+}
+
 /// Shellcode wrapper type
 pub struct Shellcode {
     pub data: Vec<u8>,
@@ -47,16 +58,25 @@ impl Drop for Shellcode {
 
 /// Allocate executable memory in current process
 pub unsafe fn alloc_exec_memory(size: usize) -> Option<*mut std::ffi::c_void> {
-    let addr = crate::binding::MVirtualAlloc(
-        std::ptr::null_mut(),
-        size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_EXECUTE_READWRITE,
-    );
-    if addr.is_null() {
+    #[cfg(windows)]
+    {
+        let addr = VirtualAlloc(
+            std::ptr::null_mut(),
+            size,
+            MEM_COMMIT | MEM_RESERVE,
+            PAGE_EXECUTE_READWRITE,
+        );
+        if addr.is_null() {
+            None
+        } else {
+            Some(addr)
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = size;
         None
-    } else {
-        Some(addr)
     }
 }
 

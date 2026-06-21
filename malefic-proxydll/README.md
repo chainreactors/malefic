@@ -65,13 +65,13 @@ pub extern "C" fn execute_payload() {
 
 ```bash
 # Standard build
-cargo build --release -p malefic-proxydll
+cargo build --release -p malefic-proxydll --target x86_64-pc-windows-gnu --lib
 
 ```
 
 ### Step 4: Deploy and Test
 
 1. **Backup original DLL**: `mv original.dll original.dll.bak`
-2. **Deploy proxy**: `cp target/release/malefic_proxydll.dll TextShaping.dll`
+2. **Deploy proxy**: `cp target/x86_64-pc-windows-gnu/release/malefic_proxydll.dll TextShaping.dll`
 3. **Test application**: Launch the target application
 4. **Verify execution**: Payload should execute when hijacked function is called

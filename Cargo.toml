@@ -8,6 +8,8 @@ members = [
     # malefic-macro lives in malefic-crates/macro
     "malefic-mutant",
     "malefic-prelude",
+    "malefic-proxydll",
+    "malefic-starship",
 
     "malefic-pulse",
     "malefic-3rd",
@@ -40,8 +42,6 @@ members = [
 ]
 
 exclude = [
-    "malefic-proxydll",
-    "malefic-starship",
     "lib/rage",
 ]
 
