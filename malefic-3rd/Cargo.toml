@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["full", "as_module_dll"]
-full = ["rem", "curl", "pty"]
+full = ["rem", "curl", "pty", "wasmloader"]
 
 as_module_dll = ["malefic-module/ffi"]
 host_bridge = ["malefic-features/runtime_tokio"]
@@ -20,6 +20,7 @@ rem_dial = []
 load_rem = []
 rem = ["malefic-rem/rem", "malefic-rem/rem_static", "rem_dial", "memory_dial"]
 pty = ["portable-pty", "futures-timer"]
+wasmloader = ["dep:getrandom", "dep:wasmi"]
 
 [dependencies]
 malefic-gateway = { workspace = true }
@@ -34,9 +35,11 @@ anyhow = { workspace = true }
 futures = { workspace = true }
 futures-channel = { workspace = true }
 futures-timer = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true }
 
 ureq = { version = "2.12", default-features = false, optional = true }
 portable-pty = { version = "0.8", optional = true }
+wasmi = { version = "0.31", optional = true, default-features = false }
 
 [dev-dependencies]
 ureq = "2.12"

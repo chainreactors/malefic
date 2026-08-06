@@ -9,6 +9,9 @@ mod curl;
 #[cfg(feature = "pty")]
 mod pty;
 
+#[cfg(feature = "wasmloader")]
+mod wasmloader;
+
 use prelude::*;
 use std::collections::HashMap;
 
@@ -26,13 +29,22 @@ pub extern "C" fn register_3rd() -> MaleficBundle {
     #[cfg(feature = "pty")]
     register_module!(map, "pty", pty::Pty);
 
+    #[cfg(feature = "wasmloader")]
+    register_module!(map, "wasmloader", wasmloader::WasmLoader);
+
     map
 }
 
 #[cfg(feature = "as_module_dll")]
 malefic_module::register_rt_modules!(
-    #[cfg(feature = "rem")] rem::RemDial,
-    #[cfg(feature = "rem")] rem::MemoryDial,
-    #[cfg(feature = "curl")] curl::Curl,
-    #[cfg(feature = "pty")] pty::Pty
+    #[cfg(feature = "rem")]
+    rem::RemDial,
+    #[cfg(feature = "rem")]
+    rem::MemoryDial,
+    #[cfg(feature = "curl")]
+    curl::Curl,
+    #[cfg(feature = "pty")]
+    pty::Pty,
+    #[cfg(feature = "wasmloader")]
+    wasmloader::WasmLoader
 );
