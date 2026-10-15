@@ -420,11 +420,11 @@ pub enum Tool {
         output: String,
     },
 
-    /// Patch compiled binaries (NAME / KEY / SERVER address)
+    /// Patch compiled binaries (NAME / KEY / SERVER address, or runtime config blob)
     #[command(name = "patch")]
     Patch {
         /// Target binary file (e.g. malefic.exe)
-        #[arg(long, short = 'f')]
+        #[arg(long, short = 'f', visible_alias = "input", visible_short_alias = 'i')]
         file: String,
 
         /// New NAME value (beacon name)
@@ -439,6 +439,18 @@ pub enum Tool {
         #[arg(long)]
         server_address: Option<String>,
 
+        /// Runtime config file (json/yaml) matching RuntimeConfig
+        #[arg(long, short = 'c')]
+        config: Option<String>,
+
+        /// Generate runtime config from implant.yaml instead of raw RuntimeConfig
+        #[arg(long = "from-implant")]
+        from_implant: Option<String>,
+
+        /// Pre-encoded blob string (length must equal CONFIG_BLOB_B64_LEN)
+        #[arg(long)]
+        blob: Option<String>,
+
         /// Output file path (defaults to <file>.patched)
         #[arg(long, short = 'o')]
         output: Option<String>,
@@ -448,7 +460,7 @@ pub enum Tool {
         xor_key: Option<String>,
     },
 
-    /// Patch runtime config blob (CFGv3B64 prefix + fixed payload)
+    /// Patch runtime config blob (CFG prefix + fixed payload)
     #[command(name = "patch-config")]
     PatchConfig {
         /// Target binary file (e.g. malefic.exe)

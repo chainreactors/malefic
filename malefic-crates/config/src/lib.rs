@@ -26,6 +26,7 @@ pub use runtime::{
     ConfigBlobText,
     RuntimeConfig,
     CONFIG_BLOB_B64_LEN,
+    CONFIG_BLOB_PREFIX,
     CONFIG_BLOB_TEXT,
     CONFIG_BLOB_TEXT_LEN,
     decode_runtime_config_bytes,
