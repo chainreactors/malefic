@@ -903,6 +903,7 @@ mod tests {
                     domain_suffix: None,
                 }
             }],
+            max_packet_length: 0,
         }
     }
 
