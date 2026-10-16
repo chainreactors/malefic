@@ -607,9 +607,28 @@ fn parse_tool(tool: &Tool) -> anyhow::Result<()> {
             name,
             key,
             server_address,
+            config,
+            from_implant,
+            blob,
             output,
             xor_key,
         } => {
+            let config_mode = config.is_some() || from_implant.is_some() || blob.is_some();
+            if config_mode {
+                if name.is_some() || key.is_some() || server_address.is_some() {
+                    return Err(anyhow::anyhow!(
+                        "--name/--key/--server-address cannot be combined with --config/--from-implant/--blob"
+                    ));
+                }
+                return patch_runtime_config_blob(
+                    file,
+                    config.as_ref(),
+                    from_implant.as_ref(),
+                    blob.as_ref(),
+                    output.as_ref(),
+                );
+            }
+
             use crate::tool::patch::{
                 batch_patch_binary, BatchPatchOptions, FieldPatch, PatchField,
             };
@@ -648,7 +667,7 @@ fn parse_tool(tool: &Tool) -> anyhow::Result<()> {
             }
 
             if patches.is_empty() {
-                log_error!("No fields specified to patch. Use --name, --key, or --server-address");
+                log_error!("No fields specified to patch. Use --name, --key, --server-address, --config, --from-implant, or --blob");
                 return Err(anyhow::anyhow!("no fields specified for patching"));
             }
 
@@ -693,51 +712,13 @@ fn parse_tool(tool: &Tool) -> anyhow::Result<()> {
             from_implant,
             blob,
             output,
-        } => {
-            use crate::tool::patch::{patch_config_blob, ConfigBlobPatchOptions};
-            use malefic_config::{encode_runtime_config, CONFIG_BLOB_B64_LEN};
-
-            log_step!("Patching runtime config blob in {}", file);
-
-            let blob_str = if let Some(b64) = blob {
-                normalize_blob_string(b64, CONFIG_BLOB_B64_LEN)?
-            } else {
-                let cfg = if let Some(path) = from_implant.as_ref() {
-                    let implant = load_yaml_config(path)?;
-                    convert_implant_to_runtime_config(&implant)?
-                } else {
-                    let cfg_path = config
-                        .as_ref()
-                        .ok_or_else(|| anyhow::anyhow!("--config or --blob must be provided"))?;
-                    load_runtime_config_from_file(cfg_path)?
-                };
-                let encoded = encode_runtime_config(&cfg)
-                    .map_err(|e| anyhow::anyhow!("encode_runtime_config failed: {:?}", e))?;
-                encoded
-            };
-
-            let opts = ConfigBlobPatchOptions {
-                file: file.clone(),
-                blob_b64: blob_str,
-                blob_len: CONFIG_BLOB_B64_LEN,
-                output: output.clone(),
-            };
-
-            let outcome = patch_config_blob(&opts)?;
-            let overwritten = outcome.output_path == std::path::PathBuf::from(file);
-
-            log_success!(
-                "Patched runtime config blob at offset 0x{:X} ({} decimal)",
-                outcome.offset,
-                outcome.offset
-            );
-            if overwritten {
-                log_info!("Original file overwritten in-place");
-            } else {
-                log_info!("Patched file written to {}", outcome.output_path.display());
-            }
-            Ok(())
-        }
+        } => patch_runtime_config_blob(
+            file,
+            config.as_ref(),
+            from_implant.as_ref(),
+            blob.as_ref(),
+            output.as_ref(),
+        ),
         Tool::Encode {
             input,
             encoding,
@@ -1630,15 +1611,71 @@ fn convert_implant_to_runtime_config(
     })
 }
 
+/// Patch the fixed-length runtime config blob slot of a compiled binary.
+///
+/// Shared by `tool patch` (when a config source is given) and `tool patch-config`.
+fn patch_runtime_config_blob(
+    file: &str,
+    config: Option<&String>,
+    from_implant: Option<&String>,
+    blob: Option<&String>,
+    output: Option<&String>,
+) -> anyhow::Result<()> {
+    use crate::tool::patch::{patch_config_blob, ConfigBlobPatchOptions};
+    use malefic_config::{encode_runtime_config, CONFIG_BLOB_B64_LEN};
+
+    log_step!("Patching runtime config blob in {}", file);
+
+    let blob_str = if let Some(b64) = blob {
+        normalize_blob_string(b64, CONFIG_BLOB_B64_LEN)?
+    } else {
+        let cfg = if let Some(path) = from_implant {
+            let implant = load_yaml_config(path)?;
+            convert_implant_to_runtime_config(&implant)?
+        } else {
+            let cfg_path = config.ok_or_else(|| {
+                anyhow::anyhow!("--config, --from-implant or --blob must be provided")
+            })?;
+            load_runtime_config_from_file(cfg_path)?
+        };
+        encode_runtime_config(&cfg)
+            .map_err(|e| anyhow::anyhow!("encode_runtime_config failed: {:?}", e))?
+    };
+
+    let opts = ConfigBlobPatchOptions {
+        file: file.to_string(),
+        blob_b64: blob_str,
+        blob_len: CONFIG_BLOB_B64_LEN,
+        output: output.cloned(),
+    };
+
+    let outcome = patch_config_blob(&opts)?;
+    let overwritten = outcome.output_path == std::path::PathBuf::from(file);
+
+    log_success!(
+        "Patched runtime config blob at offset 0x{:X} ({} decimal)",
+        outcome.offset,
+        outcome.offset
+    );
+    if overwritten {
+        log_info!("Original file overwritten in-place");
+    } else {
+        log_info!("Patched file written to {}", outcome.output_path.display());
+    }
+    Ok(())
+}
+
 fn normalize_blob_string(raw: &str, expected_len: usize) -> anyhow::Result<String> {
-    const PREFIX: &str = "CFGv3B64";
+    use malefic_config::CONFIG_BLOB_PREFIX;
+
+    let prefix = std::str::from_utf8(CONFIG_BLOB_PREFIX).expect("config blob prefix is utf8");
 
     let cleaned: String = raw.chars().filter(|c| !c.is_whitespace()).collect();
-    let mut normalized = if cleaned.starts_with(PREFIX) {
+    let mut normalized = if cleaned.starts_with(prefix) {
         cleaned
     } else {
-        let mut out = String::with_capacity(PREFIX.len() + cleaned.len());
-        out.push_str(PREFIX);
+        let mut out = String::with_capacity(prefix.len() + cleaned.len());
+        out.push_str(prefix);
         out.push_str(&cleaned);
         out
     };

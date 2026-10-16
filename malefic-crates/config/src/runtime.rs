@@ -20,6 +20,10 @@ pub const CONFIG_BLOB_TEXT_LEN: usize = 16384;
 const CONFIG_BLOB_PREFIX_LEN: usize = 8;
 const CONFIG_BLOB_PAYLOAD_LEN: usize = CONFIG_BLOB_TEXT_LEN - CONFIG_BLOB_PREFIX_LEN;
 
+/// Prefix marking the embedded runtime config blob slot. Shared with the patcher
+/// (malefic-mutant) so both sides always agree; bump it when the slot format changes.
+pub const CONFIG_BLOB_PREFIX: &[u8; 8] = b"CFGv4B64";
+
 /// Backwards-compatible alias used by the patching CLI (this is *not* a base64 length anymore).
 pub const CONFIG_BLOB_B64_LEN: usize = CONFIG_BLOB_TEXT_LEN;
 
@@ -32,8 +36,8 @@ pub struct ConfigBlobText {
 impl ConfigBlobText {
     pub const fn new() -> Self {
         Self {
-            // Inline the prefix bytes directly to avoid creating a separate constant in the binary
-            prefix: *b"CFGv4B64",
+            // Const reference is inlined at compile time, no separate symbol in the binary
+            prefix: *CONFIG_BLOB_PREFIX,
             payload: [PAD_BYTE; CONFIG_BLOB_PAYLOAD_LEN],
         }
     }
@@ -755,7 +759,7 @@ pub fn load_runtime_config(fallback: RuntimeConfig) -> RuntimeConfig {
 }
 
 /// Create a fixed-length ASCII string (4096 bytes) that fits exactly in the embedded buffer.
-/// Format: `CFGv3B64` + base64(encrypted tinyserde bytes) + `#` padding.
+/// Format: `CONFIG_BLOB_PREFIX` (currently `CFGv4B64`) + base64(encrypted tinyserde bytes) + `#` padding.
 #[cfg(feature = "encoder")]
 pub fn encode_runtime_config(config: &RuntimeConfig) -> Result<String, BlobError> {
     let cipher = XorCipher::new(BLOB_KEY_SEED);
@@ -899,6 +903,7 @@ mod tests {
                     domain_suffix: None,
                 }
             }],
+            max_packet_length: 0,
         }
     }
 

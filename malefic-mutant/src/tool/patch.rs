@@ -1,10 +1,10 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::ValueEnum;
+use malefic_config::CONFIG_BLOB_PREFIX;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 const BLOCK_LEN: usize = 64;
-const CONFIG_BLOB_PREFIX: &[u8] = b"CFGv3B64";
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum PatchField {
@@ -419,7 +419,12 @@ pub fn patch_config_blob(opts: &ConfigBlobPatchOptions) -> Result<ConfigBlobPatc
             }
         })
         .next()
-        .ok_or_else(|| anyhow!("could not find valid config slot (CFGv3B64 + padding/base64)"))?;
+        .ok_or_else(|| {
+            anyhow!(
+                "could not find valid config slot ({} + padding/base64)",
+                std::str::from_utf8(CONFIG_BLOB_PREFIX).unwrap()
+            )
+        })?;
 
     data[start..end].copy_from_slice(opts.blob_b64.as_bytes());
 
