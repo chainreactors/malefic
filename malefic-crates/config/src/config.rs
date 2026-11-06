@@ -244,6 +244,11 @@ impl HttpRequestConfig {
 
 impl RemConfig {
     pub fn new(link: String) -> Self {
+        let link = if link.is_empty() || link.starts_with('-') {
+            link
+        } else {
+            format!("-l memory+socks://:@memory -c {link}")
+        };
         Self { link }
     }
 
@@ -329,5 +334,30 @@ impl ServerConfig {
         } else {
             obfstr!(":443").to_string()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RemConfig;
+
+    #[test]
+    fn raw_rem_link_receives_required_dial_options() {
+        let config = RemConfig::new("tcp://user:pass@127.0.0.1:8443?wrapper=raw".into());
+        assert_eq!(
+            config.link,
+            "-l memory+socks://:@memory -c tcp://user:pass@127.0.0.1:8443?wrapper=raw"
+        );
+    }
+
+    #[test]
+    fn complete_rem_command_is_not_prefixed_twice() {
+        let command = "-l memory+socks://:@memory -c tcp://127.0.0.1:8443".to_string();
+        assert_eq!(RemConfig::new(command.clone()).link, command);
+    }
+
+    #[test]
+    fn empty_rem_link_stays_empty() {
+        assert!(RemConfig::new(String::new()).link.is_empty());
     }
 }
