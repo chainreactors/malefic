@@ -448,22 +448,7 @@ fn generate_transport_config(target: &TargetConfig, use_obfstr: bool) -> String 
     if let Some(http_config) = &target.http {
         let mut headers_code = String::new();
 
-        // Resolve Host header with 3-tier priority:
-        // 1. headers["Host"] (user-specified in headers map)
-        // 2. http.host (dedicated host field, for domain fronting)
-        // 3. target.address (fallback)
-        let host_value = http_config
-            .headers
-            .get("Host")
-            .filter(|v| !v.is_empty())
-            .cloned()
-            .unwrap_or_else(|| {
-                if !http_config.host.is_empty() {
-                    http_config.host.clone()
-                } else {
-                    target.address.clone()
-                }
-            });
+        let host_value = http_config.resolved_host(&target.address);
 
         headers_code.push_str(&format!(
             "                        headers.insert({}, {});\n",

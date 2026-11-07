@@ -275,6 +275,58 @@ pub struct HttpConfig {
     pub response_retry_delay_ms: Option<u64>,
 }
 
+impl HttpConfig {
+    pub fn resolved_host(&self, address: &str) -> String {
+        self.headers
+            .get("Host")
+            .filter(|value| !value.is_empty())
+            .cloned()
+            .unwrap_or_else(|| {
+                if self.host.is_empty() {
+                    address.to_string()
+                } else {
+                    self.host.clone()
+                }
+            })
+    }
+}
+
+#[cfg(test)]
+mod host_tests {
+    use super::*;
+
+    fn config() -> HttpConfig {
+        HttpConfig {
+            method: "POST".into(),
+            path: "/".into(),
+            host: String::new(),
+            version: "1.1".into(),
+            headers: HashMap::new(),
+            response_read_chunk_size: None,
+            response_retry_delay_ms: None,
+        }
+    }
+
+    #[test]
+    fn resolves_host_like_source_and_patch_configs() {
+        let mut http = config();
+        assert_eq!(http.resolved_host("203.0.113.10:8080"), "203.0.113.10:8080");
+
+        http.host = "front.example.com".into();
+        assert_eq!(http.resolved_host("203.0.113.10:8080"), "front.example.com");
+
+        http.headers
+            .insert("Host".into(), "header.example.com".into());
+        assert_eq!(
+            http.resolved_host("203.0.113.10:8080"),
+            "header.example.com"
+        );
+
+        http.headers.insert("Host".into(), String::new());
+        assert_eq!(http.resolved_host("203.0.113.10:8080"), "front.example.com");
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct REMConfig {
     pub link: String,
