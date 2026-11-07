@@ -30,6 +30,18 @@ fn main() {
         };
 
         let lib_name = format!("librem_community_{}_{}.a", target_os, target_arch);
+        let lib_name = if target_os == "linux"
+            && env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default() == "musl"
+        {
+            let musl_name = format!("librem_community_linux_musl_{}.a", target_arch);
+            if resources_path.join(&musl_name).exists() {
+                musl_name
+            } else {
+                lib_name
+            }
+        } else {
+            lib_name
+        };
         let lib_path = resources_path.join(&lib_name);
 
         if !lib_path.exists() {
