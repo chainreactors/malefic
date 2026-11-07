@@ -1487,6 +1487,9 @@ fn convert_implant_to_runtime_config(
                 let mut config =
                     CoreHttpRequestConfig::new(&http.method, &http.path, &http.version);
                 config.headers = http.headers.clone();
+                config
+                    .headers
+                    .insert("Host".into(), http.resolved_host(&target.address));
                 if let Some(response_read_chunk_size) = http.response_read_chunk_size {
                     config.response_read_chunk_size = response_read_chunk_size;
                 }
